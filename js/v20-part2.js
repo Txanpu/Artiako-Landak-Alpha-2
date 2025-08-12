@@ -3,7 +3,7 @@
 const V13_COLORS = {
   brown:'#8b5a2b', cyan:'#22d3ee', pink:'#f472b6', orange:'#fb923c',
   red:'#ef4444', yellow:'#eab308', green:'#22c55e', blue:'#3b82f6', slots:'#d946ef',
-  event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
+  bank:'#b91c1c', event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
   start:'#10b981', tax:'#f59e0b', park:'#22c55e', gotojail:'#ef4444', jail:'#111827'
 };
 function colorFor(tile){ if(!tile) return '#475569'; const k=(tile.color||tile.subtype||tile.type||'').toLowerCase(); return V13_COLORS[k]||'#475569'; }
@@ -57,6 +57,7 @@ function refreshTile(i){
   else if (t.type==='jail') left.textContent='Solo visitas';
   else if (t.type==='gotojail') left.textContent='Ir a la cárcel';
   else if (t.type==='slots') left.textContent='Tragaperras';
+  else if (t.type==='bank') left.textContent='Banca corrupta';
   else if (t.type==='park') left.textContent='Parque';
   else if (t.type==='event'){ left.textContent='Evento'; }
   else left.textContent='';

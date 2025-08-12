@@ -283,6 +283,19 @@ window.TILES = TILES;
   TILES.splice(pos2, 0, { type:'slots', name:'Tragape 2' });
 })();
 
+// === Casillas especiales: Banca corrupta x4 equidistantes ===
+(function(){
+  const count = 4;
+  const finalLen = TILES.length + count;
+  const step = Math.floor(finalLen / count);
+  const positions = [];
+  for(let i=0;i<count;i++){
+    positions.push(Math.floor(step/2) + i*step);
+  }
+  positions.forEach(pos=> TILES.splice(pos, 0, { type:'bank', name:'Banca corrupta' }));
+  window.CORRUPT_BANK_TILE_IDS = positions;
+})();
+
 /* ===== Nombres placeholder (por si dejas alguno vacío) ===== */
 window.assignPlaceholderNamesAZ = function(){
   const isNormal = x => x && x.type==='prop' && !x.subtype;
