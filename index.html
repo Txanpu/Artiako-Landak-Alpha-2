@@ -1,0 +1,369 @@
+<!-- v15.html — panel fusionado con el estilo del 200.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artiako Landak – v13</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --tile:#0f172a; --border:#30363d; --txt:#e6edf3;
+  --tileW:5.4%;
+  --tileH:8%;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--txt); font-family:system-ui,sans-serif;
+  display:grid; grid-template-columns:minmax(520px,1fr) 380px; gap:12px; padding:12px; min-height:100vh;
+}
+.boardWrap{
+  overflow: visible; /* antes auto */
+  overflow-x: hidden;
+}
+
+#board{
+  position: relative;
+  width: 100%;
+  background-image:url('img/bg.jpg');
+  background-size:cover;
+  background-position:center;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+@media (max-width:900px){
+  .boardWrap{ max-width: 100%; }
+}
+
+/* ======= PANEL FIJO (del 200.html) ======= */
+.panel{
+  position: sticky; top: 12px; align-self: start; height: fit-content;
+  background: var(--panel); border:1px solid var(--border); border-radius:16px;
+  padding:12px; display:flex; flex-direction:column; gap:10px;
+}
+.panelHeader{ display:flex; align-items:center; justify-content:space-between; gap:8px }
+.row{ display:flex; gap:8px; flex-wrap:wrap }
+.tools{ margin-top:-2px }
+button{ background:#1f2937; border:1px solid #30363d; color:#e6edf3; border-radius:10px; padding:8px 10px; cursor:pointer }
+button:hover{ filter:brightness(1.08) }
+button.primary{ background:#22c55e; border-color:#16a34a; color:#06280f; }
+#toolsRow input[type="file"]{ display:none }
+.btnLike{ display:inline-block; padding:6px 12px; border:1px solid var(--border); border-radius:8px; background:#1f2937; cursor:pointer }
+.btnLike:hover{ filter:brightness(1.08) }
+
+.players{ display:flex; gap:6px; flex-wrap:wrap; }
+.badge{ padding:6px 10px; border-radius:999px; border:1px solid var(--border); font-size:.92rem; }
+.badge.active{ outline:2px solid #22c55e; }
+#players{ margin-bottom:10px }
+
+/* acciones + dados en la misma fila */
+.actions{ width:100%; min-height:88px; align-items:stretch }
+.actions > *{ height:100% }
+
+/* subasta + log pegados al panel */
+.auction{ border:1px dashed #f59e0b; padding:12px; border-radius:12px; font-size:1rem; min-height:120px }
+.log{ background:#0d1117; border:1px solid #30363d; border-radius:12px; padding:10px; min-height:160px; max-height:380px; overflow:auto; font-family:ui-monospace,monospace; font-size:.9rem }
+
+/* diálogo de configuración */
+dialog{ border:1px solid var(--border); border-radius:12px; padding:16px; background:#111827; color:var(--txt); max-width:420px }
+dialog::backdrop{ background:rgba(0,0,0,.55) }
+dialog .row input{ margin-left:6px; width:120px }
+
+/* ======= estilos originales v15 (tablero, tiles, dados, etc.) ======= */
+/* letra más pequeña */
+.tile .name{ font-weight:800; font-size:clamp(.6rem,.7vw,.9rem); }
+.tile .meta{ font-size:clamp(.56rem,.65vw,.8rem); }
+.tile .badge{ font-size:.58rem; }
+
+/* Casilla tipo v11 */
+.tile{
+  position:absolute;
+  width:var(--tileW); height:var(--tileH);
+  background:linear-gradient(180deg,#111827,#0b1220);
+  border:2px solid #475569; border-radius:10px;
+  display:grid; grid-template-rows:auto 1fr auto; gap:4px;
+  padding:6px; transition:transform .12s,box-shadow .12s;
+}
+.tile:hover{ transform:translateY(-3px); box-shadow:0 0 8px rgba(255,255,255,.15); }
+.tile .band{ height:8px; border-radius:6px; box-shadow:inset 0 -1px 0 rgba(0,0,0,.35); }
+.tile .head{ display:flex; justify-content:center; align-items:center; gap:6px; }
+.tile .name{ font-weight:800; font-size:clamp(.7rem,.8vw,.95rem); text-align:center; line-height:1.05; }
+.tile .internal-id{ font-size:.65rem; opacity:.85; background:rgba(0,0,0,.35); padding:2px 6px; border-radius:999px; position:absolute; top:4px; right:4px; }
+.tile .meta{ display:flex; justify-content:space-between; font-size:clamp(.62rem,.7vw,.85rem); opacity:.95; }
+.tile .meta .left{ max-width:60%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tile .badges{ display:flex; gap:4px; align-items:center; justify-content:center; }
+.tile .badge{ font-size:.65rem; border:1px solid #64748b; border-radius:6px; padding:1px 6px; background:#0b1220 }
+
+/* Fichas */
+.chips{ position:absolute; left:6px; bottom:6px; display:flex; gap:3px; }
+.chip{ width:18px; height:18px; border-radius:50%; border:2px solid #fff; display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:900; color:#fff; filter:drop-shadow(0 1px 4px rgba(255,255,255,.25)); }
+.chip.p0{background:#ef4444}.chip.p1{background:#22c55e}.chip.p2{background:#3b82f6}.chip.p3{background:#f59e0b}.chip.p4{background:#a855f7}.chip.p5{background:#14b8a6}
+
+/* Dados v15 (no tocados) */
+.diceWrap{display:flex;gap:12px;align-items:center;min-height:88px}
+.die{width:70px;height:70px;border-radius:12px;background:#fafafa;border:3px solid #111;display:grid;grid-template-rows:repeat(3,1fr);grid-template-columns:repeat(3,1fr);padding:8px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.pip{width:12px;height:12px;background:#111;border-radius:50%;align-self:center;justify-self:center}
+.diceMeta{font-size:.95rem;opacity:.9}
+.shaker{animation:shake .35s ease}
+@keyframes shake{
+  0%{transform:translate(0,0) rotate(0deg)}
+  25%{transform:translate(-3px,2px) rotate(-6deg)}
+  50%{transform:translate(3px,-2px) rotate(6deg)}
+  75%{transform:translate(-2px,3px) rotate(-4deg)}
+  100%{transform:translate(0,0) rotate(0deg)}
+}
+
+/* grupos de botones (original) */
+.controls{ display:flex; flex-direction:column; gap:12px; }
+.group{ display:flex; flex-wrap:wrap; gap:8px; padding:12px;
+  border-radius:12px; border:1px solid var(--border); background:#0b1220; }
+.group.g1{ border-color:#15803d; background:rgba(34,197,94,0.08); }
+.group.g2{ border-color:#1d4ed8; background:rgba(59,130,246,0.08); }
+.group.g3{ border-color:#b45309; background:rgba(245,158,11,0.08); }
+
+.hint{ font-size:.85rem; opacity:.85; }
+
+/* Modal carta */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:20}
+.card{width:320px;background:#111827;border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.5);overflow:hidden}
+.card .top{height:54px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:1rem; letter-spacing:.2px; text-shadow:0 1px 2px rgba(0,0,0,.35);}
+.card .body{padding:12px}
+.card .title{font-size:1.15rem;font-weight:900;margin-bottom:6px}
+.muted{opacity:.85}
+#cardRentsBox{ margin-top:10px }
+#cardRentsBox table{ width:100%; border-collapse:collapse; }
+#cardRentsBox th, #cardRentsBox td{ padding:.35rem .5rem; border-bottom:1px solid rgba(255,255,255,.12); text-align:left; }
+#cardRentsBox td:last-child{ text-align:right; }
+#bankWarn{ margin-top:.4rem; font-size:.85rem; opacity:.95 }
+#bankWarn.bad{ color:#ef4444 }
+
+/* reglas */
+details.rules{ background:var(--panel); border-radius:12px; padding:12px; margin-top:12px; }
+.rules{ font-size:.84rem; opacity:.85; }
+.rules summary{ cursor:pointer; font-weight:700; }
+.rules ul{ margin:.4rem 0 0 .9rem; }
+summary::-webkit-details-marker { display: none; }
+.rules ul{ padding-left:20px; margin:0; }
+.rules li{ position:relative; padding-left:10px; }
+.rules li:not(:last-child){ margin-bottom:6px; }
+.rules li:before{
+  content:''; position:absolute; left:0; top:4px; width:6px; height:6px; border-radius:50%;
+  background:#22c55e; box-shadow:0 0 0 2px var(--panel);
+}
+
+/* Estado UI según haya partida o no (original) */
+body:not(.playing) #players,
+body:not(.playing) #dice,
+body:not(.playing) #auction,
+body:not(.playing) #log { display:none; }
+
+body.playing .setup label,
+body.playing .setup input { display:none; }
+body.playing .setup { justify-content:flex-end; gap:8px; }
+
+/* responsive */
+@media (max-width:900px){
+  body{ grid-template-columns:1fr; padding:8px }
+  .panel{ position:static }
+}
+
+/* Hipotecada → borde dorado */
+.tile.mortgaged{
+  border-color:#f59e0b !important;
+  box-shadow: inset 0 0 0 2px rgba(245,158,11,.35);
+}
+</style>
+</head>
+<body>
+<div class="boardWrap">
+  <div class="board" id="board" class="dark"></div>
+</div>
+
+<!-- ===== PANEL nuevo (manteniendo IDs del v15) ===== -->
+<div class="panel">
+
+  <div class="panelHeader">
+    <h2 style="margin:0">Artiako Landak</h2>
+    <button id="openSetup" class="primary" type="button">Nueva partida</button>
+  </div>
+
+  <div class="row tools" id="toolsRow">
+    <button id="saveBtn" type="button">Guardar</button>
+    <button id="loadBtn" type="button">Cargar</button>
+    <button id="downloadSave" type="button">Descargar</button>
+    <input id="importSave" type="file" accept="application/json">
+    <label for="importSave" class="btnLike">Importar</label>
+  </div>
+
+  <!-- diálogo con la configuración original (IDs intactos) -->
+  <dialog id="setupDialog">
+    <form method="dialog" id="setupForm">
+      <div class="row" style="align-items:center; justify-content:space-between">
+        <h3 style="margin:0">Configurar partida</h3>
+        <button id="cancelSetup" type="button">Cancelar</button>
+      </div>
+      <div class="setup row" style="margin:.5rem 0">
+        <label>Jugadores:
+          <input id="numPlayers" type="number" min="2" max="6" value="3">
+        </label>
+        <label>Dinero inicial:
+          <input id="startMoney" type="number" min="100" step="50" value="500">
+        </label>
+        <button id="newGame" class="primary" type="button">Empezar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- jugadores -->
+  <div class="players" id="players"></div>
+
+  <!-- acciones + dados (dados a la derecha) -->
+  <div class="row actions" id="actionsRow">
+    <button id="roll" class="primary" type="button">Tirar dados</button>
+    <button id="endTurn" type="button">Terminar turno</button>
+    <button id="loan" type="button">Prestar dinero</button>
+    <button id="corruptLoan" type="button" style="display:none; background-color: #b91c1c;">Préstamo Corrupto</button>
+    <button id="build" type="button">Construir</button>
+    <button id="sell" type="button">Vender casa</button>
+    <button id="mortgage" type="button">Hipotecar</button>
+    <button id="unmortgage" type="button">Levant. hipoteca</button>
+    <button id="myBalance" type="button">Mi Balance</button>
+    <button id="insider" type="button" style="display:none;">Insider</button>
+    <button id="toggleHeatmap" type="button">Zonas Calientes</button>
+
+    <!-- los dados del v15 se siguen pintando aquí -->
+    <div id="dice" class="diceWrap" aria-live="polite" aria-label="Resultado de los dados"></div>
+  </div>
+
+  <!-- subasta y log fijos dentro del panel -->
+  <div id="auction" class="auction" style="display:none"></div>
+  <div class="log" id="log"></div>
+
+  <details class="rules" id="rules" style="display:none;">
+    <summary>Reglas</summary>
+    <ul>
+      <li>Impuesto: 33% de tus ganancias desde tu último impuesto.</li>
+      <li>Si el Estado elimina a alguien, todos pierden.</li>
+      <li>Todo va por subasta.</li>
+      <li>Construir paga al Estado.</li>
+    </ul>
+  </details>
+</div>
+
+<!-- Modal carta propiedad (duplicado original, no tocado) -->
+<div id="overlay" class="overlay" role="dialog" aria-modal="true">
+  <div class="card" role="document">
+    <div id="cardBand" class="top">Propiedad</div>
+    <div class="body">
+      <div class="title" id="cardName"></div>
+      <div class="row"><div class="muted">Precio</div><div id="cardPrice">$0</div></div>
+      <div class="row"><div class="muted">Renta base</div><div id="cardRent">$0</div></div>
+      <div id="cardRentsBox"></div>
+      <div id="bankWarn" class="muted"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="startAuction" class="primary">Ir a subasta</button>
+        <button id="cancelAuction">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="doubleOverlay" class="overlay" aria-hidden="true" style="display:none"></div>
+
+<!-- JS: ficheros del v15 (sin tocar) -->
+<script src="js/v20-part2.js"></script>
+<script src="js/v20-part3.js"></script>
+<script src="js/v20-part4.js"></script>
+<script src="js/v20-part5.js"></script>
+<script src="js/v20-part6.js"></script>
+<script src="js/auction+debt-market-v21.js"></script>
+<script src="js/v21_extras_bundles_bots.js"></script>
+<script src="js/v21_securitization.js"></script>
+<script src="js/v21_risk_insider_bots_maint.js"></script>
+<script src="js/v21_ui_graphics.js"></script>
+<script src="js/v20-casino-ani.js"></script>
+<script src="js/v20-part7.js"></script>
+<script src="js/v20-part8.js"></script>
+
+<!-- Config opcional -->
+<script>
+  window.RolesConfig = Object.assign({}, window.RolesConfig||{}, {
+    roleProbability: 0.20,
+    bankMaxTicks: 30,
+    dice0to9: false
+  });
+</script>
+
+<!-- v22: roles + gobierno + juez + banca corrupta + efectos -->
+<script src="js/v22-roles-politics.js"></script>
+<script src="js/v20-rename.js"></script>
+<script src="js/v20-debug.js"></script>
+
+
+<!-- JS mínimo del panel: abrir/cerrar diálogo sin interferir con v15 -->
+<script>
+(()=>{
+  const openBtn = document.getElementById('openSetup');
+  const dlg = document.getElementById('setupDialog');
+  const cancelBtn = document.getElementById('cancelSetup');
+  const startBtn = document.getElementById('newGame');
+  openBtn?.addEventListener('click',()=>dlg.showModal());
+  cancelBtn?.addEventListener('click',()=>dlg.close());
+  // cerramos el diálogo, la lógica de #newGame la lleva el v15
+  startBtn?.addEventListener('click',()=>dlg.close());
+})();
+
+document.querySelectorAll('.tile').forEach(tile=>{
+  tile.addEventListener('click',()=>{ tile.classList.toggle('active'); });
+});
+document.querySelectorAll('.badge').forEach(badge=>{
+  badge.addEventListener('click',(e)=>{ e.stopPropagation(); badge.classList.toggle('active'); });
+});
+
+// legacy opcional del v15 (no hay .controls en este layout, se deja seguro)
+document.querySelector('.controls button.primary')?.addEventListener('click',()=>{ alert('El juego ha comenzado!'); });
+document.querySelector('.controls button:last-child')?.addEventListener('click',()=>{
+  const r=document.querySelector('.rules'); if(r) r.open=!r.open;
+});
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  // [PATCH] Inicialización de módulos
+  if (window.GameDebtMarket) {
+    GameDebtMarket.install({ state: window.state, fixPropertyAuction: true });
+  }
+  if (window.GameSecuritization) {
+    GameSecuritization.install({ state: window.state });
+  }
+  if (window.GameRiskPlus) {
+    GameRiskPlus.install({
+      state: window.state,
+      margin: { cashThreshold: 120, graceTurns: 1 },
+      maint:  { monoMult: 1.5, nonMonoMult: 0.7, basePct: 0.05 }
+    });
+  }
+  if (window.GameExtras) {
+    GameExtras.install({ state: window.state, cooldownTurns: 6 });
+  }
+  if (window.UIX) {
+    UIX.install({ state: window.state, map:{ fromDOM: '.tile' } });
+  }
+  document.getElementById('myBalance')?.addEventListener('click', ()=>{
+    // [PATCH] UIX balance panel supersedes GameExtras
+    if (window.UIX && window.state) {
+      UIX.balance.show(window.state.current);
+    } else if (window.GameExtras && window.state) {
+      GameExtras.showMyBalance(window.state.current);
+    }
+  });
+  document.getElementById('insider')?.addEventListener('click', ()=>{
+    if (window.GameRiskPlus && window.state) {
+      GameRiskPlus.Insider.use(window.state.current);
+    }
+  });
+  document.getElementById('toggleHeatmap')?.addEventListener('click', ()=>{
+    if (window.UIX) UIX.heatmap.toggle({ metric:'landings', windowTurns:20 });
+  });
+});
+</script>
+</body>
+</html>
