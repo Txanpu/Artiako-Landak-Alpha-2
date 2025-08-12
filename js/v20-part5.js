@@ -311,13 +311,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     endBtn.__wired = true;
     endBtn.addEventListener('click', endTurn);
   }
-
-  document.getElementById('saveBtn')?.addEventListener('click', ()=>saveGame('slot1'));
-  document.getElementById('loadBtn')?.addEventListener('click', ()=>loadGame('slot1'));
-  document.getElementById('downloadSave')?.addEventListener('click', ()=>downloadSave('slot1'));
-  document.getElementById('importSave')?.addEventListener('change', e=>{
-    const f = e.target.files?.[0]; if (f) importSaveFile(f, 'slot1');
-  });
 });
 window.roll = roll;
 window.endTurn = endTurn;
