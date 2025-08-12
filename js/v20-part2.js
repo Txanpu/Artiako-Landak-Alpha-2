@@ -30,11 +30,12 @@ function createTileElement(tile, index){
   meta.appendChild(left); meta.appendChild(right);
 
   el.addEventListener('click', ()=>{
-  if (tile && typeof window.showCard === 'function'){
-    // Permitir iniciar subasta desde el click, si la propiedad está libre.
-    window.showCard(index); // por defecto canAuction=false
-  }
-});
+    const current = V13.tiles[index];
+    if (current && typeof window.showCard === 'function'){
+      // Permitir iniciar subasta desde el click, si la propiedad está libre.
+      window.showCard(index); // por defecto canAuction=false
+    }
+  });
 
   el.appendChild(band); el.appendChild(head); el.appendChild(idTag); el.appendChild(badges); el.appendChild(meta);
   return el;
