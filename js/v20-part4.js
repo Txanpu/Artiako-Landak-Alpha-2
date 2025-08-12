@@ -150,9 +150,9 @@ Estado.money = 0;
   if (window.Roles) {
     Roles.assign(state.players.map(p => ({ id: p.id, name: p.name })));
 
-    // Activa banca corrupta y registra las 3 casillas (pon tus IDs)
+    // Activa banca corrupta y registra casillas equidistantes
     Roles.setBankCorrupt(true);
-    Roles.registerCorruptBankTiles([12, 28, 42]);
+    Roles.registerCorruptBankTiles(window.CORRUPT_BANK_TILE_IDS || []);
 
     // Farmazixe con fentanilo (pon IDs de las farmacias)
     Roles.configureFentanyl({ tileIds: [62, 63], chance: 0.15, fee: 15 });
