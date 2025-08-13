@@ -20,7 +20,13 @@
     <div class="panelHeader">
     <h2 style="margin:0">Artiako Landak</h2>
     <button id="openSetup" class="primary" type="button">Nueva partida local</button>
-    <button id="startOnline" type="button">Nueva partida online</button>
+    <div id="net-ui">
+      <input id="roomCode" placeholder="room (ej: arti42)">
+      <input id="wsUrl" placeholder="wss://tu-signal.example" value="ws://localhost:8080">
+      <button id="btnHost">Host</button>
+      <button id="btnJoin">Join</button>
+      <span id="netStatus"></span>
+    </div>
   </div>
 
   <!-- diálogo con la configuración original (IDs intactos) -->
@@ -137,7 +143,17 @@
 </script>
 <!-- JS bundle -->
 <script src="dist/bundle.js"></script>
-<script src="js/online.js"></script>
+<script src="js/net.js"></script>
+<script>
+  document.getElementById('btnHost')?.addEventListener('click', () => {
+    const r = roomCode.value.trim(); const u = wsUrl.value.trim();
+    window.Net.host(r, u);
+  });
+  document.getElementById('btnJoin')?.addEventListener('click', () => {
+    const r = roomCode.value.trim(); const u = wsUrl.value.trim();
+    window.Net.join(r, u);
+  });
+</script>
 
 
 
