@@ -1539,6 +1539,29 @@ function importSaveFile(file, slot='slot1'){
 
 window.addEventListener('beforeunload', ()=>saveGame('autosave'));
 
+// ===== Keyboard shortcuts =====
+document.addEventListener('keydown', (e) => {
+  const tag = e.target?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  switch (e.key.toLowerCase()) {
+    case 'r':
+      document.getElementById('roll')?.click();
+      break;
+    case 'e':
+      document.getElementById('endTurn')?.click();
+      break;
+    case 'a':
+      document.getElementById('startAuction')?.click();
+      break;
+    case 'l':
+      if (typeof loadGame === 'function') loadGame();
+      break;
+    case 's':
+      if (typeof saveGame === 'function') saveGame();
+      break;
+  }
+});
+
 // ===== Noticias económicas (titulares) =====
 function headline(msg){ log(`🗞️ <b>${msg}</b>`); }
 
