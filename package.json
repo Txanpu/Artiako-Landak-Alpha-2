@@ -1,11 +1,7 @@
 {
   "name": "artiako-landak-alpha-2",
   "version": "1.0.0",
-  "description": "Visión general Este repositorio contiene una aplicación web llamada Artiako Landak. No usa frameworks ni empaquetadores: todo se ejecuta en el navegador a partir de un único index.html que carga múltiples ficheros JavaScript.",
-  "main": "index.js",
-  "scripts": {
-    "build": "node build.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+
   },
   "keywords": [],
   "author": "",

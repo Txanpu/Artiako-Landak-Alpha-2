@@ -75,5 +75,3 @@ Opcional: introducir herramientas modernas (bundlers, tests) si se busca manteni
 
 Con esta visión, un nuevo integrante puede orientarse rápidamente en el código y decidir qué parte estudiar o extender según sus intereses.
 
-Licencia
-Este proyecto se distribuye bajo la licencia MIT. Consulta el archivo LICENSE para más detalles.
