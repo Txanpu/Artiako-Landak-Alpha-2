@@ -451,22 +451,24 @@ window.BoardUI = {
 };
 
 /* ==== Auto-init ==== */
-function autoInit(attempt=0){
+function autoInit(){
   const tiles = window.TILES || [];
   const state = window.state || null;
   window.BoardUI.attach({ tiles, state });
   if (tiles.length){
     window.BoardUI.renderBoard();
-  } else if (attempt < 10){
-    setTimeout(() => autoInit(attempt + 1), 100);
+  } else {
+    setTimeout(autoInit, 100);
   }
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', autoInit);
-} else {
-  // Ensure other modules (like TILES) finish initializing before rendering
-  setTimeout(autoInit, 0);
+if (typeof window !== 'undefined' && typeof document !== 'undefined' && window.document === document) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoInit);
+  } else {
+    // Ensure other modules (like TILES) finish initializing before rendering
+    setTimeout(autoInit, 0);
+  }
 }
 
 'use strict';
