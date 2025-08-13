@@ -485,71 +485,96 @@ function getNextStep(current){
   return 100;
 }
 
+function maybeBotsAutoBid(){
+  const a = state.auction; if(!a || !a.open) return;
+  const t = TILES[a.tile];
+  const sealed = !!a.sealed;
+
+  try {
+    for (const p of state.players){
+      if (!p.isBot || !a.active.has(p.id)) continue;
+
+      if (sealed){
+        a.bids ||= {};
+        if (a.bids[p.id]) continue; // ya pujó
+        const max = Math.min(p.money||0, Math.round((t.price||1) * (0.9 + Math.random()*0.6)));
+        if (max > 0){
+          a.bids[p.id] = max;
+        } else {
+          a.active.delete(p.id);
+        }
+      } else {
+        if (a.bestPlayer === p.id) continue; // ya va ganando
+        const cap = Math.min(p.money||0, Math.round((t.price||1) * (1.1 + Math.random()*0.4)));
+        if (a.bestBid >= cap){
+          a.active.delete(p.id); // no puede superar
+          continue;
+        }
+        const step = getNextStep(a.bestBid);
+        const next = Math.min(cap, a.bestBid + step);
+        if (next > a.bestBid){
+          a.bestBid = next; a.bestPlayer = p.id;
+        } else {
+          a.active.delete(p.id);
+        }
+      }
+    }
+
+    // Hooks externos para IA avanzada
+    if (!sealed && window.GameRiskPlus?.Bots?.predatorTick){
+      for (const p of state.players){
+        if (p.isBot && p.id !== a.bestPlayer){
+          window.GameRiskPlus.Bots.predatorTick(p.id);
+        }
+      }
+    }
+  } catch(e){ console.error('Error en bot auto-bid', e); }
+}
+
 function maybeStateAutoBid(){
   const a = state.auction; if(!a || !a.open) return;
 
   const t = TILES[a.tile];
   if (t && ['casino_bj','casino_roulette','fiore'].includes(t.subtype)) return; // no puja esos
 
-  if (window.Roles && Roles.isEstadoAuctionBlocked && Roles.isEstadoAuctionBlocked()) {
-    log('Estado no puja (bloqueado desde debug).');
-    // salta la puja del Estado y sigue con la lógica del resto
-  } else {
-    const sealed = !!a.sealed;
+  const sealed = !!a.sealed;
 
-    // Si ya alcanzó su tope o no hay dinero, no puja
+  if (!(window.Roles && Roles.isEstadoAuctionBlocked && Roles.isEstadoAuctionBlocked())) {
     const cap = Math.max(0, Math.min(a.stateMax, Math.floor(Estado.money||0)));
 
     if (sealed){
       const currE = Math.max(0, (a.bids && a.bids['E']) || 0);
-      if (currE >= cap) return;
-
       const step = getNextStep(currE);
       const next = Math.min(cap, currE + step);
-      if (next <= currE) return;
-
-      a.bids ||= {};
-      a.bids['E'] = next;
-      drawAuction();
-
-      clearTimeout(a.timer);
-      a.timer = setTimeout(maybeStateAutoBid, 600);
-      return;
-    }
-
-    if (a.bestPlayer === 'E') return; // visible: si ya va ganando, no re-puja
-    if (a.bestBid >= cap) return;
-
-    // Calcular siguiente puja del Estado
-    const step = getNextStep(a.bestBid);
-    const next = Math.min(cap, a.bestBid + step);
-    if (next <= a.bestBid) return;
-
-    a.bestBid = next;
-    a.bestPlayer = 'E';
-    drawAuction();
-
-    // [PATCH] Bot AI Ticks during auction (only for non-sealed)
-    if (!a.sealed) {
-      try {
-        if (window.GameRiskPlus?.Bots?.predatorTick) {
-          // Itera sobre todos los jugadores para que los bots puedan actuar.
-          // La lógica del bot (predatorTick) decide si debe pujar o no.
-          (state.players || []).forEach(p => {
-            // Para que un bot actúe, se podría comprobar una flag como `p.isBot`.
-            // Por ahora, se llama para todos los jugadores vivos que no sean el postor actual.
-            if (p.alive && p.id !== a.bestPlayer) {
-               GameRiskPlus.Bots.predatorTick(p.id);
-            }
-          });
-          // Vuelve a dibujar la subasta por si un bot ha pujado
-          drawAuction();
+      if (next > currE){
+        a.bids ||= {};
+        a.bids['E'] = next;
+      }
+    } else {
+      if (a.bestPlayer !== 'E' && a.bestBid < cap){
+        const step = getNextStep(a.bestBid);
+        const next = Math.min(cap, a.bestBid + step);
+        if (next > a.bestBid){
+          a.bestBid = next; a.bestPlayer = 'E';
         }
-      } catch(e) { console.error("Error en bot tick de subasta", e); }
+      }
     }
+  } else {
+    log('Estado no puja (bloqueado desde debug).');
+  }
 
-    clearTimeout(a.timer);
-    a.timer = setTimeout(maybeStateAutoBid, 850); // Delay para dar tiempo a ver las pujas
+  maybeBotsAutoBid();
+
+  drawAuction();
+
+  clearTimeout(a.timer);
+  const pendingSealed = sealed && [...a.active].some(pid => !(a.bids && a.bids[pid] > 0));
+  if (!sealed && a.active.size <= 1) {
+    a.timer = setTimeout(awardAuction, 850);
+  } else if (sealed && !pendingSealed) {
+    a.timer = setTimeout(awardAuction, 850);
+  } else {
+    a.timer = setTimeout(maybeStateAutoBid, sealed ? 600 : 850);
   }
 }
 
