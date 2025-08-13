@@ -581,13 +581,16 @@
   }
 
   // Periodic refresh when panel open
+  // Slow down the refresh and avoid rerendering events while focused
   setInterval(()=>{
     if (DBG.enabled){
       render();
       if (secRoles.style.display === 'block') renderRoles();
-      if (secEvents.style.display === 'block') renderEvents();
+      if (secEvents.style.display === 'block' && !eventsBox.contains(document.activeElement)){
+        renderEvents();
+      }
     }
-  }, 500);
+  }, 1000);
 
   // Start open if env says so
   document.addEventListener('DOMContentLoaded', ()=>{
