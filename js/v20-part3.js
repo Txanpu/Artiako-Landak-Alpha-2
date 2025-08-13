@@ -1,3 +1,5 @@
+'use strict';
+
 const COLORS = {
   brown:'#78350f', cyan:'#06b6d4', pink:'#db2777', orange:'#f97316',
   red:'#ef4444', yellow:'#eab308', green:'#22c55e', blue:'#3b82f6',
