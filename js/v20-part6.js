@@ -331,8 +331,10 @@ async function onLand(p, idx){
         } catch(e) { console.error("Error en hook onRent", e); }
 
         if (adjusted > 0 && payee) {
-          // v22 — Huelga + Embargo/Securitización (redirige rentas al Estado)
-          if (window.Roles?.shouldBlockRent?.()) {
+          // Rol Okupa: posibilidad de evadir el alquiler
+          if (window.Roles?.shouldSkipRent?.(p.id)) {
+            log(`${p.name} evita pagar alquiler.`);
+          } else if (window.Roles?.shouldBlockRent?.()) {
             log('Huelga general: no se cobra alquiler.');
           } else {
             let redirectToEstado = false;

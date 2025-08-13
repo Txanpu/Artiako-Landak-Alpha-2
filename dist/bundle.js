@@ -1872,8 +1872,10 @@ async function onLand(p, idx){
         } catch(e) { console.error("Error en hook onRent", e); }
 
         if (adjusted > 0 && payee) {
-          // v22 — Huelga + Embargo/Securitización (redirige rentas al Estado)
-          if (window.Roles?.shouldBlockRent?.()) {
+          // Rol Okupa: posibilidad de evadir el alquiler
+          if (window.Roles?.shouldSkipRent?.(p.id)) {
+            log(`${p.name} evita pagar alquiler.`);
+          } else if (window.Roles?.shouldBlockRent?.()) {
             log('Huelga general: no se cobra alquiler.');
           } else {
             let redirectToEstado = false;
@@ -2966,26 +2968,51 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       profiles: {
         agresivo: { maxOverpay: 1.35, bidStep: 0.08 },
         value:    { maxOverpay: 1.05, bidStep: 0.05 },
-        liquidez: { maxOverpay: 0.95, bidStep: 0.03 }
+        liquidez: { maxOverpay: 0.95, bidStep: 0.03 },
+        dios:     { maxOverpay: 2.00, bidStep: 0.10 }
       },
-      estimateFair(kind, meta){
-        if (kind==='tile') return Math.max(1, meta.price||1);
-        if (kind==='bundle') return Math.max(1, sum(meta.tiles.map(i=> (GameExtras._getTile(i)?.price)||1)));
-        if (kind==='loan') return Math.max(1, pick(meta,'minPrice', 1));
+      estimateFair(kind, meta, playerId){
+        let base=1;
+        if (kind==='tile') base=Math.max(1, meta.price||1);
+        if (kind==='bundle') base=Math.max(1, sum(meta.tiles.map(i=> (GameExtras._getTile(i)?.price)||1)));
+        if (kind==='loan') base=Math.max(1, pick(meta,'minPrice', 1));
+        return Math.floor(base * this._synergyMult(kind, meta, playerId));
+      },
+      _synergyMult(kind, meta, playerId){
+        const s=GameExtras._cfg.state||{}; const T=s.board||s.tiles||[]; if(!playerId) return 1;
+        if (kind==='tile'){
+          const group=meta.color||meta.group; if(!group) return 1;
+          const tiles=T.filter(t=> t&&t.type==='prop'&&(t.color===group||t.group===group));
+          const owned=tiles.filter(t=> t.owner===playerId).length;
+          const after=owned+1;
+          if(after===tiles.length) return 1.6;
+          if(after===tiles.length-1) return 1.3;
+          return 1;
+        }
+        if (kind==='bundle'){
+          const groups={};
+          for(const i of meta.tiles||[]){ const t=T[i]; if(!t) continue; const g=t.color||t.group; if(!g) continue; groups[g]=(groups[g]||0)+1; }
+          let mult=1;
+          for(const [g,count] of Object.entries(groups)){
+            const tiles=T.filter(t=> t&&t.type==='prop'&&(t.color===g||t.group===g));
+            const owned=tiles.filter(t=> t.owner===playerId).length;
+            const after=owned+count;
+            if(after===tiles.length) mult=Math.max(mult,1.6);
+            else if(after===tiles.length-1) mult=Math.max(mult,1.3);
+          }
+          return mult;
+        }
         return 1;
       },
       maybeBid(profileName, playerId){
         const s=GameExtras._cfg.state; const a=s.auction; if (!a || !a.open) return;
         const prof=this.profiles[profileName||'value']; const p=(s.players||[]).find(x=>x.id===playerId); if(!p) return;
-        // Meta para fair value
         const meta = (a.kind==='bundle') ? { tiles:a.bundleTiles } : (a.kind==='tile' ? GameExtras._getTile(a.assetId) : (a.kind==='loan' ? (s.loanListings||[]).find(x=>x.id===a.assetId): {}));
-        const fair=this.estimateFair(a.kind, meta);
+        const fair=this.estimateFair(a.kind, meta, playerId);
         const cap = Math.floor(fair * prof.maxOverpay);
         const next = Math.min(cap, Math.max(a.price, (a.bestBid||0)) + Math.ceil(fair*prof.bidStep));
         if (next> (a.bestBid||0) && (p.money||0)>=next){
-          // usa tu función real de pujas si existe
           if (typeof global.placeBid === 'function') return safe(global.placeBid, playerId, next);
-          // fallback: manipula estado (no recomendado en producción)
           a.bestBid = next; a.bestPlayer = playerId;
         }
       }
@@ -5841,6 +5868,7 @@ if (typeof window.transfer === 'function'){
     PROXENETA: 'proxeneta',
     FLORENTINO: 'florentino',
     FBI: 'fbi',
+    OKUPA: 'okupa',
     CIVIL: 'civil'
   };
 
@@ -5898,6 +5926,7 @@ if (typeof window.transfer === 'function'){
     if(s==='proxeneta') return ROLE.PROXENETA;
     if(s==='florentino' || s==='florentino perez' || s==='florentino pérez') return ROLE.FLORENTINO;
     if(s==='fbi') return ROLE.FBI;
+    if(s==='okupa') return ROLE.OKUPA;
     if(s==='civil' || s==='ninguno' || s==='ningún' || s==='ningun' || s==='none' || s==='no role' || s==='sin rol' || s==='ningun rol' || s==='ningún rol') return ROLE.CIVIL;
     return x;
   }
@@ -5934,7 +5963,7 @@ if (typeof window.transfer === 'function'){
     state.players.forEach(p=>{
       let r = ROLE.CIVIL;
       if(rand.chance(roleP)){
-        const pool = fbiAssigned ? [ROLE.PROXENETA, ROLE.FLORENTINO] : [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
+        const pool = fbiAssigned ? [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.OKUPA] : [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI, ROLE.OKUPA];
         r = rand.pick(pool);
         if(r===ROLE.FBI) fbiAssigned = true;
       }
@@ -6362,6 +6391,29 @@ if (typeof window.transfer === 'function'){
         saveState(); uiUpdate();
       }
     }
+    // 3) Okupa: posibilidad de quedarse con la propiedad
+    try {
+      if(roleOf(id)===ROLE.OKUPA){
+        const t = window.TILES && window.TILES[tileId];
+        if(t && t.type==='prop' && t.owner!=null && t.owner!==id){
+          const ownerPl = (t.owner==='E') ? null : state.players[t.owner];
+          const mono = ownerPl && typeof ownsFullGroup==='function' && ownsFullGroup(ownerPl, t);
+          if(!mono && rand.chance(0.05)){
+            t.owner = id;
+            recomputeProps?.();
+            BoardUI?.refreshTiles?.();
+            uiLog(`🏚️ ${id} ocupa ${t.name}`);
+          }
+        }
+      }
+    } catch(e){}
+  };
+
+  // Okupa: 10% de probabilidad de no pagar alquiler
+  R.shouldSkipRent = function(player){
+    const id = (player&&player.id)||player;
+    if(roleOf(id)!==ROLE.OKUPA) return false;
+    return rand.chance(0.10);
   };
 
   R.clearStatus = function(playerId, key){
@@ -6935,7 +6987,7 @@ R.eventsList = [
   function teleportTo(subtype){
     try{
       const T = window.TILES || [];
-      const idx = T.findIndex(t=>t.subtype===subtype);
+      const idx = T.findIndex(t=>t.subtype===subtype || t.type===subtype);
       const p = window.state?.players?.[window.state?.current];
       if(idx>=0 && p){
         p.pos = idx;
@@ -6964,7 +7016,7 @@ R.eventsList = [
       const label2 = el('div',{textContent:'Ir a casilla:'});
       label2.style.marginTop = '8px';
       const sel2 = el('select');
-      ['casino_bj','casino_roulette','fiore','bus','rail','ferry','air'].forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
+      ['casino_bj','casino_roulette','fiore','bus','rail','ferry','air','bank'].forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
       const btn2 = el('button',{textContent:'Ir'});
       btn2.style.cssText='margin-left:6px';
       btn2.onclick=()=>{ teleportTo(sel2.value); };
@@ -7051,12 +7103,14 @@ R.eventsList = [
   tabRoles.onclick = () => selectTab('roles');
   tabEvents.onclick = () => selectTab('events');
 
-  toggleBtn.onclick = () => {
-    DBG.enabled = !DBG.enabled;
-    card.style.display = DBG.enabled ? 'block' : 'none';
-    toggleBtn.style.background = DBG.enabled ? '#ffe8a3' : '#fff';
+  function setDebugEnabled(on){
+    DBG.enabled = on;
+    card.style.display = on ? 'block' : 'none';
+    toggleBtn.style.background = on ? '#ffe8a3' : '#fff';
     persist();
-  };
+  }
+
+  toggleBtn.onclick = () => setDebugEnabled(!DBG.enabled);
 
   // Keyboard toggle
   document.addEventListener('keydown', (ev)=>{
@@ -7064,7 +7118,8 @@ R.eventsList = [
     const tag = ev.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ev.target.isContentEditable) return;
     if ((ev.key==='d' || ev.key==='D') && !ev.altKey && !ev.metaKey && !ev.ctrlKey){
-      toggleBtn.click(); ev.preventDefault();
+      setDebugEnabled(!DBG.enabled);
+      ev.preventDefault();
     }
   });
 
@@ -7348,4 +7403,23 @@ R.eventsList = [
         const sec = Math.round((Date.now() - window.SafeBug.lastActivityAt)/1000);
         row('last activity', `${sec}s ago`);
       }
+      renderLog();
+    }catch(e){}
+  }
 
+  // Periodic refresh when panel open
+  setInterval(()=>{
+    if (DBG.enabled){
+      render();
+      if (secRoles.style.display === 'block') renderRoles();
+      if (secEvents.style.display === 'block') renderEvents();
+    }
+  }, 500);
+
+  // Start open if env says so
+  document.addEventListener('DOMContentLoaded', ()=>{
+    setDebugEnabled(enabledFromEnv());
+    if (DBG.enabled) render();
+  });
+
+})();

@@ -50,6 +50,7 @@
     PROXENETA: 'proxeneta',
     FLORENTINO: 'florentino',
     FBI: 'fbi',
+    OKUPA: 'okupa',
     CIVIL: 'civil'
   };
 
@@ -107,6 +108,7 @@
     if(s==='proxeneta') return ROLE.PROXENETA;
     if(s==='florentino' || s==='florentino perez' || s==='florentino pérez') return ROLE.FLORENTINO;
     if(s==='fbi') return ROLE.FBI;
+    if(s==='okupa') return ROLE.OKUPA;
     if(s==='civil' || s==='ninguno' || s==='ningún' || s==='ningun' || s==='none' || s==='no role' || s==='sin rol' || s==='ningun rol' || s==='ningún rol') return ROLE.CIVIL;
     return x;
   }
@@ -143,7 +145,7 @@
     state.players.forEach(p=>{
       let r = ROLE.CIVIL;
       if(rand.chance(roleP)){
-        const pool = fbiAssigned ? [ROLE.PROXENETA, ROLE.FLORENTINO] : [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
+        const pool = fbiAssigned ? [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.OKUPA] : [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI, ROLE.OKUPA];
         r = rand.pick(pool);
         if(r===ROLE.FBI) fbiAssigned = true;
       }
@@ -571,6 +573,29 @@
         saveState(); uiUpdate();
       }
     }
+    // 3) Okupa: posibilidad de quedarse con la propiedad
+    try {
+      if(roleOf(id)===ROLE.OKUPA){
+        const t = window.TILES && window.TILES[tileId];
+        if(t && t.type==='prop' && t.owner!=null && t.owner!==id){
+          const ownerPl = (t.owner==='E') ? null : state.players[t.owner];
+          const mono = ownerPl && typeof ownsFullGroup==='function' && ownsFullGroup(ownerPl, t);
+          if(!mono && rand.chance(0.05)){
+            t.owner = id;
+            recomputeProps?.();
+            BoardUI?.refreshTiles?.();
+            uiLog(`🏚️ ${id} ocupa ${t.name}`);
+          }
+        }
+      }
+    } catch(e){}
+  };
+
+  // Okupa: 10% de probabilidad de no pagar alquiler
+  R.shouldSkipRent = function(player){
+    const id = (player&&player.id)||player;
+    if(roleOf(id)!==ROLE.OKUPA) return false;
+    return rand.chance(0.10);
   };
 
   R.clearStatus = function(playerId, key){
