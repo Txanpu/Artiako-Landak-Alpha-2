@@ -87,11 +87,22 @@ function refreshTile(i){
     const here = V13.state.players.filter(p => p.alive && p.pos === i);
     if (here.length) {
       const chips = document.createElement('div');
-      chips.className = 'chips';
-      here.forEach(p => {
+      chips.className = 'chips' + (here.length > 2 ? ' grid' : '');
+      const pos = [
+        { row:2, col:1 },
+        { row:2, col:2 },
+        { row:1, col:1 },
+        { row:1, col:2 }
+      ];
+      here.forEach((p, idx) => {
         const c = document.createElement('div');
         c.className = `chip p${p.id}`;
         c.textContent = (p.id + 1);
+        if (here.length > 2) {
+          const {row, col} = pos[idx] || pos[0];
+          c.style.gridRow = row;
+          c.style.gridColumn = col;
+        }
         chips.appendChild(c);
       });
       el.appendChild(chips);
