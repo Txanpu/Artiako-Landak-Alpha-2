@@ -533,15 +533,12 @@ function drawAuction(){
     ${header}
     <div class="auctionPlayers">
       ${players.map(p=>`
-        <div class="auctionPlayer ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" data-p="${p.id}">
+        <div class="auctionPlayer btn-row ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" id="J${p.id+1}" data-p="${p.id}">
           <div class="name">${p.name}</div>
-          <div class="money">${fmtMoney(p.money)}</div>
-          <div class="controls">
-            <button data-act="bid" data-step="10" data-p="${p.id}">+10</button>
-            <button data-act="bid" data-step="50" data-p="${p.id}">+50</button>
-            <button data-act="bid" data-step="100" data-p="${p.id}">+100</button>
-            <button data-act="pass" data-p="${p.id}">Pasar</button>
-          </div>
+          <button data-act="bid" data-step="10" data-p="${p.id}">+10</button>
+          <button data-act="bid" data-step="50" data-p="${p.id}">+50</button>
+          <button data-act="bid" data-step="100" data-p="${p.id}">+100</button>
+          <button data-act="pass" data-p="${p.id}">Pasar</button>
         </div>
       `).join('')}
     </div>
