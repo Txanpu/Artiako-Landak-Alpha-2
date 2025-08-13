@@ -2,6 +2,12 @@ const fs = require('fs');
 const path = require('path');
 
 const files = [
+  'js/utils/core.js',
+  'js/utils/rng.js',
+  'js/utils/state_sanitize.js',
+  'js/utils/tx.js',
+  'js/utils/fuzz.js',
+  'js/utils/watchdog.js',
   'js/v20-part2.js',
   'js/v20-part3.js',
   'js/v20-part4.js',

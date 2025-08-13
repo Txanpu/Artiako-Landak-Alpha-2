@@ -1,5 +1,10 @@
 'use strict';
 
+const utils = globalThis.utils || (globalThis.utils = {});
+if (typeof utils.assert !== 'function' && typeof require === 'function') {
+  try { Object.assign(utils, require('./utils/core.js')); } catch {}
+}
+
 /* v13 – Parte 2/7: motor de UI (tablero + casillas visibles tipo v11) */
 
 const V13_COLORS = {
@@ -8,7 +13,12 @@ const V13_COLORS = {
   bank:'#b91c1c', event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
   start:'#10b981', tax:'#f59e0b', park:'#22c55e', gotojail:'#ef4444', jail:'#111827'
 };
-function colorFor(tile){ if(!tile) return '#475569'; const k=(tile.color||tile.subtype||tile.type||'').toLowerCase(); return V13_COLORS[k]||'#475569'; }
+function colorFor(tile){
+  utils.assert(tile == null || typeof tile === 'object', 'tile debe ser objeto');
+  if(!tile) return '#475569';
+  const k=(tile.color||tile.subtype||tile.type||'').toLowerCase();
+  return V13_COLORS[k]||'#475569';
+}
 
 const V13 = { tiles:[], state:null, els:[], boardEl:null };
 
