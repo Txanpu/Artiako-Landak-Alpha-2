@@ -125,9 +125,10 @@ function renderBoard(){
   const total=V13.tiles.length;
   board.style.display='block'; board.innerHTML=''; V13.els=[];
   for(let i=0;i<total;i++){ const el=createTileElement(V13.tiles[i],i); board.appendChild(el); V13.els.push(el); }
-
-  layoutPerimeterScroll();
-  refreshTiles();
+  requestAnimationFrame(()=>{
+    layoutPerimeterScroll();
+    refreshTiles();
+  });
   window.removeEventListener('resize', layoutPerimeterScroll);
   window.addEventListener('resize', layoutPerimeterScroll);
 }
