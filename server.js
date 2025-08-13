@@ -10,37 +10,60 @@ const io = new Server(server);
 // Servir archivos estáticos del directorio actual
 app.use(express.static(__dirname));
 
-// Jugador en turno
-let currentTurn = null;
+// Gestión de partidas por código
+const rooms = {};
 
 io.on('connection', (socket) => {
-  // registrar jugador
-  socket.on('joinGame', (playerId) => {
+  // registrar jugador en una sala
+  socket.on('joinGame', ({ roomId, playerId }) => {
+    socket.join(roomId);
     socket.data.playerId = playerId;
-    if (currentTurn === null) {
-      currentTurn = playerId;
-      io.emit('turn', currentTurn);
+    socket.data.roomId = roomId;
+
+    if (!rooms[roomId]) {
+      rooms[roomId] = { currentTurn: null };
+    }
+    const room = rooms[roomId];
+
+    if (room.currentTurn === null) {
+      room.currentTurn = playerId;
+      io.to(roomId).emit('turn', room.currentTurn);
+    } else {
+      socket.emit('turn', room.currentTurn);
     }
   });
 
   // acciones de jugadores
   socket.on('playerAction', ({ action, secret }) => {
-    const playerId = socket.data.playerId;
-    if (playerId !== currentTurn) return; // validar turno
+    const { playerId, roomId } = socket.data;
+    if (!roomId) return;
+    const room = rooms[roomId];
+    if (!room || playerId !== room.currentTurn) return; // validar turno
     const payload = { action, playerId };
     if (secret) {
       socket.emit('actionResult', payload);
     } else {
-      io.emit('actionResult', payload);
+      io.to(roomId).emit('actionResult', payload);
     }
   });
 
   // finalizar turno
   socket.on('endTurn', () => {
-    const playerId = socket.data.playerId;
-    if (playerId === currentTurn) {
-      currentTurn = null;
-      io.emit('turnEnded', playerId);
+    const { playerId, roomId } = socket.data;
+    if (!roomId) return;
+    const room = rooms[roomId];
+    if (room && playerId === room.currentTurn) {
+      room.currentTurn = null;
+      io.to(roomId).emit('turnEnded', playerId);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    const { roomId } = socket.data;
+    if (!roomId) return;
+    const remaining = io.sockets.adapter.rooms.get(roomId);
+    if (!remaining || remaining.size === 0) {
+      delete rooms[roomId];
     }
   });
 });
