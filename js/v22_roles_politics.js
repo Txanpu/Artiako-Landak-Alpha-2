@@ -141,8 +141,14 @@
     state.fbiGuesses.clear();
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
-
-
+    // asignar roles especiales de forma única
+    const specialRoles = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
+    const totalRoles = Math.min(specialRoles.length, Math.floor(state.players.length * cfg.roleProbability));
+    const shuffledPlayers = [...state.players].sort(()=>Math.random()-0.5);
+    const shuffledRoles = [...specialRoles].sort(()=>Math.random()-0.5).slice(0, totalRoles);
+    for(let i=0;i<totalRoles;i++){
+      setRole(shuffledPlayers[i].id, shuffledRoles[i]);
+    }
 
     ensureFlorentinoUses();
     saveState();

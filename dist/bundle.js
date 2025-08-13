@@ -603,8 +603,10 @@ const cardBand = document.getElementById('cardBand');
 const cardName = document.getElementById('cardName');
 const cardPrice= document.getElementById('cardPrice');
 const cardRent = document.getElementById('cardRent');
+const cardBuild= document.getElementById('cardBuild');
 const cardRoi  = document.getElementById('cardRoi');
 if (cardRoi && cardRoi.parentElement) cardRoi.parentElement.style.display = 'none';
+if (cardBuild && cardBuild.parentElement) cardBuild.parentElement.style.display = 'none';
 
 // Permitir cerrar la carta clicando fuera del contenido
 if (overlay){
@@ -650,14 +652,20 @@ function showCard(tileIndex, {canAuction=false}={}) {
     cardName.oninput = cardName.onkeydown = cardName.onblur = null;
   }
 
-  const t = TILES[tileIndex]; state.pendingTile = tileIndex;
-  const noBuildings = (t.subtype && !['utility','rail','ferry','air','bus'].includes(t.subtype)) || ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
+  const t = TILES[tileIndex];
+  const st = window.state;
+  if (st) st.pendingTile = tileIndex;
+  const isVehicleOrUtil = ['utility','rail','bus','ferry','air'].includes(t.subtype);
+  const isNoBuildings   = ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
+  bankWarn.className = '';
+  bankWarn.textContent = '';
 
   cardBand.style.background = t.type==='prop' ? COLORS[t.color] : '#374151';
   cardBand.textContent = t.name;
 
-  const cardPriceRow = document.getElementById('cardPrice')?.parentElement;
-  const cardRentRow  = document.getElementById('cardRent')?.parentElement;
+  const cardPriceRow = cardPrice?.parentElement;
+  const cardRentRow  = cardRent?.parentElement;
+  const cardBuildRow = cardBuild?.parentElement;
   const rentsBox     = document.getElementById('cardRentsBox');
   const startBtn     = document.getElementById('startAuction');
 
@@ -673,11 +681,9 @@ function showCard(tileIndex, {canAuction=false}={}) {
     };
 
     // vehículos y utilities: ocultar “Renta base”, pero mostrar tabla
-const isVehicleOrUtil = ['utility','rail','bus','ferry','air'].includes(t.subtype);
-const isNoBuildings   = ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
-
 if (cardPriceRow) cardPriceRow.style.display = 'flex';
 if (cardRentRow)  cardRentRow.style.display  = (isVehicleOrUtil || isNoBuildings) ? 'none' : 'flex';
+if (cardBuildRow) cardBuildRow.style.display = (!isVehicleOrUtil && !isNoBuildings) ? 'flex' : 'none';
 
 cardPrice.textContent = fmtMoney(t.price);
 
@@ -687,16 +693,17 @@ rentsBox.innerHTML = (Array.isArray(model) && model.length) ? renderRentsTable(m
 
 if (!isVehicleOrUtil && !isNoBuildings){
   cardRent.textContent = fmtMoney(t.baseRent ?? Math.round((t.price||0)*0.3));
+  const cost = t.houseCost ?? Math.round((t.price||0)*0.5);
+  if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
 }
 
-    // v15-part3.js — dentro de showCard, si es Fiore
+    // v15-part3.js — dentro de showCard, mensajes especiales
     if (t.subtype === 'fiore') {
-      bankWarn.className = '';
-      bankWarn.innerHTML = `Fiore: <b>${t.workers||0}</b> zenbat langile?`;
-      const me = state.players[state.current];
+      bankWarn.innerHTML = `Fiore: contrata trabajadores (0-5). Cada uno cobra $7 y suma $70 a la renta.<br>Trabajadores: <b>${t.workers||0}</b>`;
+      const me = st?.players?.[st.current];
       if (me && t.owner === me.id) {
         const btn = document.createElement('button');
-        btn.textContent = 'Kontratatu (0–5)';
+        btn.textContent = 'Contratar (0–5)';
         btn.onclick = () => {
           const n = Number(prompt('Trabajadores en Fiore (0–5):', t.workers||0));
           if (Number.isFinite(n) && n>=0 && n<=5){ t.workers = n; BoardUI.refreshTiles(); }
@@ -704,11 +711,16 @@ if (!isVehicleOrUtil && !isNoBuildings){
         bankWarn.appendChild(document.createElement('br'));
         bankWarn.appendChild(btn);
       }
+    } else if (t.subtype === 'casino_bj') {
+      bankWarn.textContent = 'Casino Blackjack: pide cartas para acercarte a 21; el dueño gana las apuestas.';
+    } else if (t.subtype === 'casino_roulette') {
+      bankWarn.textContent = 'Casino Ruleta: apuesta a la ruleta, la casa siempre gana.';
     }
   } else {
     cardBand.onclick = null;
     if (cardPriceRow) cardPriceRow.style.display = 'none';
     if (cardRentRow)  cardRentRow.style.display  = 'none';
+    if (cardBuildRow) cardBuildRow.style.display = 'none';
     if (startBtn) startBtn.style.display = 'none';
     const msg = FUNNY[t.type] || FUNNY.default;
     bankWarn.className = 'muted';
@@ -732,7 +744,7 @@ if (typeof window.renderRentsTable !== 'function'){
 }
 
 window.showCard = showCard;
-if (cancelAuctionBtn) cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; state.pendingTile=null; };
+if (cancelAuctionBtn) cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; if (window.state) window.state.pendingTile=null; };
 if (startAuctionBtn && !startAuctionBtn.__wired) {
   startAuctionBtn.__wired = true;
   startAuctionBtn.onclick = ()=>{
@@ -746,12 +758,13 @@ if (startAuctionBtn && !startAuctionBtn.__wired) {
 }
 
 const FUNNY = {
-  start:    'Salida: como tu madre...',
-  tax:      'Putillas y coca',
+  start:    'salidas como tu madre.',
+  tax:      'dinerito pal politiko',
   jail:     'Buen sitio pa hacer Networking?',
   gotojail: 'A la cárcel, a la cárcel, a la cárcel, a la cárcel, a la cárcel…',
-  park:     'Buen sitio pa fumar porros… o mirar palomas.',
+  park:     'buen sitio pa fumar porros',
   slots:    'GANA GANA GANA!!!',
+  bank:     'Banca corrupta: pide préstamo o securitiza tus deudas.',
   default:  'Sin info, como tu madre...'
 };
 
@@ -5985,8 +5998,14 @@ if (typeof window.transfer === 'function'){
     state.fbiGuesses.clear();
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
-
-
+    // asignar roles especiales de forma única
+    const specialRoles = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
+    const totalRoles = Math.min(specialRoles.length, Math.floor(state.players.length * cfg.roleProbability));
+    const shuffledPlayers = [...state.players].sort(()=>Math.random()-0.5);
+    const shuffledRoles = [...specialRoles].sort(()=>Math.random()-0.5).slice(0, totalRoles);
+    for(let i=0;i<totalRoles;i++){
+      setRole(shuffledPlayers[i].id, shuffledRoles[i]);
+    }
 
     ensureFlorentinoUses();
     saveState();
