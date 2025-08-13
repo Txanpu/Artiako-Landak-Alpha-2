@@ -509,6 +509,7 @@
   function uiLog(msg){ try{ console.log('[Roles]', msg); }catch(e){} }
 
   function renderBanner(){
+    if (window.__V20_DEBUG_INSTALLED__) { if (bannerEl) bannerEl.remove(); return; }
     if(!document || !document.body) return;
     if(!bannerEl){
       bannerEl = document.createElement('div');
@@ -649,6 +650,7 @@
   };
 
   document.addEventListener('DOMContentLoaded', ()=>{
+
     // listener simple para toggle de panel de roles
     try {
       window.addEventListener('roles:toggle', function(){
