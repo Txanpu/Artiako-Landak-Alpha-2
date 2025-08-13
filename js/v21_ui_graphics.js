@@ -203,6 +203,7 @@
             <div class="card"><div class="k">Patrimonio</div><div class="v" id="v-net">${UIX.balance._netWorth(playerId)}</div><canvas id="sp-net" width="120" height="28"></canvas></div>
             <div class="card"><div class="k">ROI medio</div><div class="v" id="v-roi">${UIX.balance._roiAvg(playerId).toFixed(2)}%</div><canvas id="sp-roi" width="120" height="28"></canvas></div>
           </div>
+          <div class="propsList">${UIX.balance._propsByGroup(playerId)}</div>
           <div class="risk"><div class="label">Riesgo de liquidez</div><div class="bar"><div class="fill" id="risk-fill"></div></div></div>
           <div class="actions"><button id="uix-balance-close">Cerrar</button><button id="uix-balance-refresh">Actualizar</button></div>`;
         el.querySelector('#uix-balance-close').onclick=()=> el.remove();
@@ -227,7 +228,11 @@
         const base=sum(owned.map(t=> t.price||0)); if (!base) return 0; return (rents/base)*100;
       },
       _propsCount(pid){ const p=UIX._player(pid)||{}; return (p.props||[]).length; },
-      _netWorth(pid){ const p=UIX._player(pid)||{}; const s=UIX._cfg.state; const T=s.board||s.tiles||[]; const props=sum((p.props||[]).map(i=>T[i]?.price||0)); return (p.money||0)+props-UIX.balance._debtNet(pid); }
+      _netWorth(pid){ const p=UIX._player(pid)||{}; const s=UIX._cfg.state; const T=s.board||s.tiles||[]; const props=sum((p.props||[]).map(i=>T[i]?.price||0)); return (p.money||0)+props-UIX.balance._debtNet(pid); },
+      _propsByGroup(pid){ const s=UIX._cfg.state; const p=UIX._player(pid)||{}; const T=s.board||s.tiles||[]; const groups={};
+        (p.props||[]).forEach(i=>{ const t=T[i]; if(!t||t.type!=='prop') return; const key=t.familia||t.color||'Otros'; (groups[key]=groups[key]||[]).push(t.name||('Tile '+i)); });
+        const entries=Object.entries(groups); if(!entries.length) return '<div class="propGroup">Sin propiedades</div>';
+        return entries.map(([g,list])=>`<div class="propGroup"><span class="g">${g}</span>: ${list.join(', ')}</div>`).join(''); }
     },
 
     _metricSeries(kind, pid){ // genera serie dummy de 10 puntos con ruido leve; reemplaza con tu telemetría
@@ -246,6 +251,9 @@
       #uix-balance .card{background:rgba(255,255,255,.05);border-radius:12px;padding:8px}
       #uix-balance .k{opacity:.8;font-size:12px}
       #uix-balance .v{font-size:18px;font-weight:700;margin-bottom:4px}
+      #uix-balance .propsList{margin-top:10px}
+      #uix-balance .propGroup{margin-bottom:4px;font-size:13px}
+      #uix-balance .propGroup .g{font-weight:600;margin-right:4px}
       #uix-balance .risk{margin-top:10px}
       #uix-balance .risk .bar{height:10px;border-radius:8px;background:rgba(255,255,255,.08);overflow:hidden}
       #uix-balance .risk .fill{height:10px;background:linear-gradient(90deg,#4ade80,#facc15,#f97316,#ef4444)}

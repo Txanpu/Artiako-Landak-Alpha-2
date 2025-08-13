@@ -83,6 +83,54 @@ function ensureAlive(player){
   renderPlayers();
 }
 
+function updatePropertyButtons(){
+  const buildBtn = document.getElementById('build');
+  const sellBtn = document.getElementById('sell');
+  const unmortgageBtn = document.getElementById('unmortgage');
+  const p = state.players[state.current];
+
+  const hideAll = ()=>{
+    if (buildBtn) buildBtn.style.display = 'none';
+    if (sellBtn) sellBtn.style.display = 'none';
+    if (unmortgageBtn) unmortgageBtn.style.display = 'none';
+  };
+  if (!p){ hideAll(); return; }
+
+  const idx = state.pendingTile ?? p.pos;
+  const t = TILES[idx];
+
+  let canBuild = false;
+  try{
+    const baseCost  = t?.houseCost ?? Math.round((t?.price||0)*0.5);
+    const costNoIVA = Math.max(1, Math.round(baseCost * (state.buildEventMul||1)));
+    const finalCost = Math.max(1, Math.round(costNoIVA * (state.buildIVAMul||1)));
+    canBuild = isNormalProp?.(t) && t.owner===p.id && !t.mortgaged
+      && ownsFullGroup?.(p,t) && canBuildEven?.(t,p) && !t.hotel
+      && ((t.houses<4 && (BANK.housesAvail||0)>0) || (t.houses===4 && (BANK.hotelsAvail||0)>0))
+      && (p.money||0) >= finalCost
+      && (state.blockBuildTurns||0) <= 0;
+  } catch{}
+  if (buildBtn) buildBtn.style.display = canBuild ? '' : 'none';
+
+  let canSell = false;
+  try{
+    canSell = isNormalProp?.(t) && t.owner===p.id && (t.hotel || t.houses>0)
+      && canSellEven?.(t,p);
+  } catch{}
+  if (sellBtn) sellBtn.style.display = canSell ? '' : 'none';
+
+  let canUnmortgage = false;
+  try{
+    for (const tile of TILES){
+      if (tile.type!=='prop' || tile.owner!==p.id || !tile.mortgaged) continue;
+      const base = tile.mortgagePrincipal ?? Math.round((tile.price||0) * (state.mortgagePct ?? 0.50));
+      const cost = Math.round(base * (1 + (state.mortgageFeePct ?? 0.10)));
+      if ((p.money||0) >= cost){ canUnmortgage = true; break; }
+    }
+  } catch{}
+  if (unmortgageBtn) unmortgageBtn.style.display = canUnmortgage ? '' : 'none';
+}
+
 /* ===== Panel de jugadores (incluye Estado) ===== */
 function renderPlayers(){
   const wrap = $('#players'); if (!wrap) return;
@@ -120,6 +168,8 @@ function renderPlayers(){
       }
     }
   } catch(e) { console.warn('Error updating insider button', e); }
+
+  try { updatePropertyButtons(); } catch(e){ console.warn('Error updating property buttons', e); }
 }
 
 /* ===== Dados (pips y animación) ===== */
