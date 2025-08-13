@@ -39,6 +39,18 @@
     </form>
   </dialog>
 
+  <!-- diálogo genérico para solicitudes de entrada -->
+  <dialog id="promptDialog">
+    <form method="dialog" id="promptForm">
+      <p id="promptMessage"></p>
+      <input id="promptInput" type="text">
+      <div class="row" style="margin-top:8px; justify-content:flex-end">
+        <button type="button" id="promptCancel">Cancelar</button>
+        <button type="submit" class="primary">Aceptar</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- jugadores -->
   <div class="players" id="players"></div>
 
