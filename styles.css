@@ -24,6 +24,16 @@ body{
   border: 1px solid var(--border);
 }
 
+html.mobile body{
+  grid-template-columns:1fr;
+}
+html.mobile .panel{
+  position:static; width:auto; height:auto; top:auto; right:auto; overflow:visible;
+}
+html.mobile .boardWrap{
+  max-width:100%;
+}
+
 @media (max-width:900px){
   body{ grid-template-columns:1fr; }
   .boardWrap{ max-width:100%; }
