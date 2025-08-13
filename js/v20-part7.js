@@ -154,25 +154,48 @@ function buildHouse(){
   const costNoIVA = Math.max(1, Math.round(baseCost * (state.buildEventMul||1)));   // sin IVA
   const finalCost = Math.max(1, Math.round(costNoIVA * (state.buildIVAMul||1)));    // con IVA
   const ivaPart   = Math.max(0, finalCost - costNoIVA);
+  const gov = window.Roles?.getGovernment?.();
+  let mult = 1;
+  let buildHotel = false;
   if (t.hotel){ log('Ya tiene hotel.'); return; }
-  if (p.money < finalCost){ log('No te llega el dinero para construir.'); return; }
 
   if (t.houses < 4) {
-    if (BANK.housesAvail <= 0) { alert('No hay casas disponibles en el banco.'); return; }
-    BANK.housesAvail--;
-    t.houses++;
+    if (BANK.housesAvail <= 0) {
+      if (gov === 'right') {
+        mult = 4;
+      } else {
+        alert('No hay casas disponibles en el banco.'); return;
+      }
+    }
   } else {
     if (!canBuildHotel(t,p)) { log('Para hotel: todas las del grupo con 4 casas.'); return; }
-    if (BANK.hotelsAvail <= 0) { alert('No hay hoteles disponibles en el banco.'); return; }
-    BANK.hotelsAvail--;
+    if (BANK.hotelsAvail <= 0) {
+      if (gov === 'right') {
+        mult = 4;
+      } else {
+        alert('No hay hoteles disponibles en el banco.'); return;
+      }
+    }
+    buildHotel = true;
+  }
+
+  const totalCost = finalCost * mult;
+  const ivaTotal  = ivaPart * mult;
+  if (p.money < totalCost){ log('No te llega el dinero para construir.'); return; }
+
+  if (!buildHotel) {
+    if (BANK.housesAvail > 0) BANK.housesAvail--;
+    t.houses++;
+  } else {
+    if (BANK.hotelsAvail > 0) BANK.hotelsAvail--;
     BANK.housesAvail += 4; // se devuelven al banco
     t.hotel = true; t.houses = 0;
   }
 
   // El jugador paga el coste total (con IVA) al Estado.
-  transfer(p, Estado, finalCost, {taxable:false, reason:`Construcción en ${t.name}`});
+  transfer(p, Estado, totalCost, {taxable:false, reason:`Construcción en ${t.name}`});
   // La parte del IVA se marca como "soportado" para la futura liquidación.
-  if (ivaPart > 0) markIVAPaid(p, ivaPart, ' (construcción)');
+  if (ivaTotal > 0) markIVAPaid(p, ivaTotal, ' (construcción)');
   log(`🏠 Construido en ${t.name}.`);
   BoardUI.refreshTiles(); renderPlayers();
 }
