@@ -258,12 +258,13 @@ function createTileElement(tile, index){
     }
   });
 
-  el.addEventListener('click', ()=>{
-    const current = V13.tiles[index];
-    if (current && typeof window.showCard === 'function'){
-      // Permitir iniciar subasta desde el click, si la propiedad está libre.
-      window.showCard(index); // por defecto canAuction=false
-    }
+  el.addEventListener('click', () => {
+    const idx = Number(el.dataset.idx);
+    const current = V13.tiles[idx];
+    if (!current || typeof window.showCard !== 'function') return;
+    // Permitir iniciar subasta desde el click, si la propiedad está libre.
+    const canAuction = current.type === 'prop' && current.owner === null;
+    window.showCard(idx, { canAuction });
   });
 
   el.appendChild(band); el.appendChild(head); el.appendChild(idTag); el.appendChild(badges); el.appendChild(meta);
@@ -457,8 +458,13 @@ function autoInit(){
   if (tiles.length){ window.BoardUI.renderBoard(); }
 }
 
-if (document.readyState !== 'loading') autoInit();
-else document.addEventListener('DOMContentLoaded', autoInit);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', autoInit);
+} else {
+  // Ensure other modules (like TILES) finish initializing before rendering
+  setTimeout(autoInit, 0);
+}
+
 'use strict';
 
 const COLORS = {
