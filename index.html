@@ -23,8 +23,8 @@
     <div id="net-ui">
       <input id="roomCode" placeholder="room (ej: arti42)">
       <input id="wsUrl" placeholder="wss://tu-signal.example" value="ws://localhost:8080">
-      <button id="btnHost">Host</button>
-      <button id="btnJoin">Join</button>
+      <button id="btnShare">Compartir</button>
+      <button id="btnJoin">Unirse</button>
       <button id="btnLeave" style="display:none">Salir</button>
       <span id="netStatus"></span>
     </div>
@@ -147,26 +147,37 @@
 <script src="dist/bundle.js"></script>
 <script src="js/net.js"></script>
 <script>
-  const btnHost = document.getElementById('btnHost');
+  const btnShare = document.getElementById('btnShare');
   const btnJoin = document.getElementById('btnJoin');
   const btnLeave = document.getElementById('btnLeave');
   const room = document.getElementById('roomCode');
   const ws = document.getElementById('wsUrl');
-  btnHost?.addEventListener('click', () => {
+  const params = new URLSearchParams(location.search);
+  if(params.get('room')) room.value = params.get('room');
+  if(params.get('ws')) ws.value = params.get('ws');
+  btnShare?.addEventListener('click', async () => {
     const r = room.value.trim(); const u = ws.value.trim();
-    window.Net.host(r, u);
-    btnHost.disabled = btnJoin.disabled = true;
+    await window.Net.host(r, u);
+    btnShare.disabled = btnJoin.disabled = true;
     if (btnLeave) btnLeave.style.display = 'inline-block';
+    const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(r)}&ws=${encodeURIComponent(u)}`;
+    if (navigator.share) {
+      navigator.share({ url: link }).catch(()=>{});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(link).then(()=>alert('Enlace copiado')).catch(()=>prompt('Comparte este enlace', link));
+    } else {
+      prompt('Comparte este enlace', link);
+    }
   });
   btnJoin?.addEventListener('click', () => {
     const r = room.value.trim(); const u = ws.value.trim();
     window.Net.join(r, u);
-    btnHost.disabled = btnJoin.disabled = true;
+    btnShare.disabled = btnJoin.disabled = true;
     if (btnLeave) btnLeave.style.display = 'inline-block';
   });
   btnLeave?.addEventListener('click', () => {
     window.Net.disconnect();
-    btnHost.disabled = btnJoin.disabled = false;
+    btnShare.disabled = btnJoin.disabled = false;
     btnLeave.style.display = 'none';
   });
 </script>

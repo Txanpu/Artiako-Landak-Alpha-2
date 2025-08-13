@@ -9,7 +9,9 @@
     room: null,
     ws: null,
     hostId: null,
-    peers: new Map(), // peerId -> { pc, dc }
+    peers: new Map(), // peerId -> { pc, dc, num }
+    playerNum: null,
+    _nextPeerNum: 2,
     onOp: (op, from)=>console.log('op', op, 'from', from),        // override en tu juego
     onCommit: (patch)=>console.log('commit', patch),              // override en clientes
     onPeersChanged: ()=>{},                                       // override si quieres UI
@@ -18,15 +20,15 @@
 
     // HOST
     async host(room, wsUrl){
-      this.role='host'; this.room=room;
+      this.role='host'; this.room=room; this.playerNum=1; this._nextPeerNum=2;
       await this._connectWS(wsUrl);
       this._send({ type:'host-hello', id:this.id });
-      this.status(`Host en sala ${room}`);
+      this.status(`Host en sala ${room} (J1)`);
     },
 
     // PEER
     async join(room, wsUrl){
-      this.role='peer'; this.room=room;
+      this.role='peer'; this.room=room; this.playerNum=null;
       await this._connectWS(wsUrl);
       this._send({ type:'peer-hello', id:this.id });
       this.status(`Join a ${room}`);
@@ -71,6 +73,8 @@
       this.role=null;
       this.room=null;
       this.hostId=null;
+      this.playerNum=null;
+      this._nextPeerNum=2;
       for(const {pc} of this.peers.values()) pc.close();
       this.peers.clear();
       this.onPeersChanged();
@@ -110,9 +114,13 @@
     },
 
     async _hostAcceptPeer(peerId){
+      const num = this._nextPeerNum++;
       const pc = new RTCPeerConnection({ iceServers: ICE });
       const dc = pc.createDataChannel('game', { ordered:true });
-      dc.onopen = ()=> this.status(`DC→${peerId} abierto`);
+      dc.onopen = ()=>{
+        this.status(`DC→${peerId} abierto (J${num})`);
+        dc.send(JSON.stringify({ t:'assign', num }));
+      };
       dc.onmessage = (e)=> this._onDCMessage(peerId, e.data);
 
       pc.onicecandidate = (e)=>{
@@ -122,7 +130,7 @@
         if (pc.connectionState==='failed' || pc.connectionState==='closed'){ this.peers.delete(peerId); this.onPeersChanged(); }
       };
 
-      this.peers.set(peerId, { pc, dc });
+      this.peers.set(peerId, { pc, dc, num });
       this.onPeersChanged();
 
       const offer = await pc.createOffer();
@@ -157,7 +165,11 @@
 
     _onDCMessage(fromId, raw){
       let msg; try{ msg = JSON.parse(raw); }catch{ return; }
-      if (msg.t==='op' && this.role==='host'){
+      if (msg.t==='assign' && this.role==='peer'){
+        this.playerNum = msg.num;
+        this.status(`Conectado como J${msg.num}`);
+        this.onPeersChanged();
+      } else if (msg.t==='op' && this.role==='host'){
         // Host valida, aplica y difunde parche
         const patch = window.applyOpAuthoritatively ? window.applyOpAuthoritatively(msg.op, fromId) : { echo: msg.op };
         this.broadcastCommit(patch);
