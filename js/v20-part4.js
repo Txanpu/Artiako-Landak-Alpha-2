@@ -93,14 +93,14 @@ function renderPlayers(){
     b.className = 'badge player' + (p.id===state.current ? ' active' : '');
     const color = COLORS[p.id % COLORS.length];
     b.style.borderColor = color;
-    b.innerHTML = `<span class="dot" style="background:${color}"></span>${p.name}: ${fmtMoney(p.money)}${p.alive?'':' (OUT)'}`;
+    b.innerHTML = `<span class="dot" style="background:${color}"></span>${p.name}: <span class="money">${fmtMoney(p.money)}</span>${p.alive?'':' (OUT)'}`;
     wrap.appendChild(b);
   });
 
   // Estado (banca) al final
   const e = document.createElement('div');
   e.className = 'badge state';
-  e.textContent = `Estado: ${fmtMoney(Estado.money||0)}`;
+  e.innerHTML = `Estado: <span class="money">${fmtMoney(Estado.money||0)}</span>`;
   wrap.appendChild(e);
 
   // visible solo cuando hay partida
