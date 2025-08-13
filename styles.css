@@ -80,12 +80,14 @@ button:focus-visible{ outline:3px solid #facc15; outline-offset:2px }
   display:flex;
   flex-direction:column;
   gap:12px;
+  position:relative;
+  z-index:1;
 }
 .auctionHeader h3{ margin:0; font-size:1.1rem; }
 .auctionPlayers{ display:flex; flex-direction:column; gap:4px; }
 
 .auctionActions{ display:flex; justify-content:flex-end; }
-.log{ background:#0d1117; border:1px solid #30363d; border-radius:12px; padding:10px; min-height:160px; max-height:380px; overflow:auto; font-family:ui-monospace,monospace; font-size:.9rem }
+.log{ background:#0d1117; border:1px solid #30363d; border-radius:12px; padding:10px; min-height:160px; max-height:380px; overflow:auto; font-family:ui-monospace,monospace; font-size:.9rem; position:relative; z-index:0 }
 
 /* diálogo de configuración */
 dialog{ border:1px solid var(--border); border-radius:12px; padding:16px; background:#111827; color:var(--txt); max-width:420px }
