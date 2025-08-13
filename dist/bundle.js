@@ -717,11 +717,17 @@ if (!isVehicleOrUtil && !isNoBuildings){
   overlay.style.display = 'flex';
 }
 
-if (typeof renderRentsTable !== 'function'){
-  function renderRentsTable(model){
-    const rows = model.map(r=>{ const label = ('label' in r) ? r.label : (r.houses===5 ? 'Hotel' : r.houses); const rent  = (typeof r.rent === 'number') ? `$${Math.max(0, Math.round(r.rent||0))}` : r.rent; return `<tr><td>${label}</td><td style="text-align:right">${rent}</td></tr>`; }).join('');
+if (typeof window.renderRentsTable !== 'function'){
+  window.renderRentsTable = function renderRentsTable(model){
+    const rows = model
+      .map(r => {
+        const label = ('label' in r) ? r.label : (r.houses === 5 ? 'Hotel' : r.houses);
+        const rent  = (typeof r.rent === 'number') ? `$${Math.max(0, Math.round(r.rent || 0))}` : r.rent;
+        return `<tr><td>${label}</td><td style="text-align:right">${rent}</td></tr>`;
+      })
+      .join('');
     return `<table><thead><tr><th>Nº</th><th>Alquiler</th></tr></thead><tbody>${rows}</tbody></table>`;
-  }
+  };
 }
 
 window.showCard = showCard;
@@ -1040,7 +1046,6 @@ Estado.money = 0;
   if (typeof window.randomizeSpecials === 'function') window.randomizeSpecials();
 
   if (typeof applySavedPropNames === 'function') applySavedPropNames(); // ← aquí
-
   document.body.classList.add('playing');   // <- esto debe estar
 
   BoardUI.attach({ tiles:TILES, state });
