@@ -19,8 +19,12 @@
 
     <div class="panelHeader">
     <h2 style="margin:0">Artiako Landak</h2>
-    <button id="openSetup" class="primary" type="button">Nueva partida</button>
+    <div class="row">
+      <button id="openSetup" class="primary" type="button">Nueva partida</button>
+      <button id="hostP2P" type="button">Crear partida P2P</button>
+    </div>
   </div>
+  <div id="netStatus" class="muted"></div>
 
   <!-- diálogo con la configuración original (IDs intactos) -->
   <dialog id="setupDialog">
@@ -130,6 +134,8 @@
     dice0to9: true
   });
 </script>
+<!-- Red P2P -->
+<script src="js/net.js"></script>
 <!-- JS bundle -->
 <script src="dist/bundle.js"></script>
 
@@ -139,6 +145,7 @@
 <script>
 (()=>{
   const openBtn = document.getElementById('openSetup');
+  const hostBtn = document.getElementById('hostP2P');
   const dlg = document.getElementById('setupDialog');
   const cancelBtn = document.getElementById('cancelSetup');
   const startBtn = document.getElementById('newGame');
@@ -146,6 +153,20 @@
   cancelBtn?.addEventListener('click',()=>dlg.close());
   // cerramos el diálogo, la lógica de #newGame la lleva el v15
   startBtn?.addEventListener('click',()=>dlg.close());
+  hostBtn?.addEventListener('click', async ()=>{
+    const room = prompt('ID de sala P2P:', 'sala'+Math.floor(Math.random()*1000));
+    if(!room) return;
+    const wsUrl = `ws://${location.hostname}:8080`;
+    await Net.host(room, wsUrl);
+    const link = `${location.origin}${location.pathname}?room=${room}`;
+    prompt('Comparte este enlace con tus amigos:', link);
+  });
+  const params = new URLSearchParams(location.search);
+  const joinRoom = params.get('room');
+  if (joinRoom){
+    const wsUrl = `ws://${location.hostname}:8080`;
+    Net.join(joinRoom, wsUrl);
+  }
 })();
 
 document.querySelectorAll('.tile').forEach(tile=>{
