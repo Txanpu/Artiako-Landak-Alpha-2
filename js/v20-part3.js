@@ -424,19 +424,7 @@ function showCard(tileIndex, {canAuction=false}={}) {
   const t = TILES[tileIndex];
   const st = window.state;
   if (st) st.pendingTile = tileIndex;
-  const isVehicleOrUtil = ['utility','rail','bus','ferry','air'].includes(t.subtype);
-  const isNoBuildings   = ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
-  bankWarn.className = '';
-  bankWarn.textContent = '';
 
-  cardBand.style.background = t.type==='prop' ? COLORS[t.color] : '#374151';
-  cardBand.textContent = t.name;
-
-  const cardPriceRow = cardPrice?.parentElement;
-  const cardRentRow  = cardRent?.parentElement;
-  const cardBuildRow = cardBuild?.parentElement;
-  const rentsBox     = document.getElementById('cardRentsBox');
-  const startBtn     = document.getElementById('startAuction');
 
   if (t.type === 'prop') {
     cardBand.onclick = ()=>{
@@ -466,31 +454,7 @@ if (!isVehicleOrUtil && !isNoBuildings){
   if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
 }
 
-    // v15-part3.js — dentro de showCard, mensajes especiales
-    if (t.subtype === 'fiore') {
-      bankWarn.innerHTML = `Fiore: contrata trabajadores (0-5). Cada uno cobra $7 y suma $70 a la renta.<br>Trabajadores: <b>${t.workers||0}</b>`;
-      const me = st?.players?.[st.current];
-      if (me && t.owner === me.id) {
-        const btn = document.createElement('button');
-        btn.textContent = 'Contratar (0–5)';
-        btn.onclick = () => {
-          const n = Number(prompt('Trabajadores en Fiore (0–5):', t.workers||0));
-          if (Number.isFinite(n) && n>=0 && n<=5){ t.workers = n; BoardUI.refreshTiles(); }
-        };
-        bankWarn.appendChild(document.createElement('br'));
-        bankWarn.appendChild(btn);
-      }
-    } else if (t.subtype === 'casino_bj') {
-      bankWarn.textContent = 'Casino Blackjack: pide cartas para acercarte a 21; el dueño gana las apuestas.';
-    } else if (t.subtype === 'casino_roulette') {
-      bankWarn.textContent = 'Casino Ruleta: apuesta a la ruleta, la casa siempre gana.';
-    }
-  } else {
-    cardBand.onclick = null;
-    if (cardPriceRow) cardPriceRow.style.display = 'none';
-    if (cardRentRow)  cardRentRow.style.display  = 'none';
-    if (cardBuildRow) cardBuildRow.style.display = 'none';
-    if (startBtn) startBtn.style.display = 'none';
+
     const msg = FUNNY[t.type] || FUNNY.default;
     bankWarn.className = 'muted';
     bankWarn.textContent = msg;

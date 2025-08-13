@@ -598,25 +598,6 @@ function getRent(tile){
 window.getRent = getRent;
 
 /* ===== Carta de propiedad (modal) ===== */
-const overlay = document.getElementById('overlay');
-const cardBand = document.getElementById('cardBand');
-const cardName = document.getElementById('cardName');
-const cardPrice= document.getElementById('cardPrice');
-const cardRent = document.getElementById('cardRent');
-const cardBuild= document.getElementById('cardBuild');
-const cardRoi  = document.getElementById('cardRoi');
-if (cardRoi && cardRoi.parentElement) cardRoi.parentElement.style.display = 'none';
-if (cardBuild && cardBuild.parentElement) cardBuild.parentElement.style.display = 'none';
-
-// Permitir cerrar la carta clicando fuera del contenido
-if (overlay){
-  overlay.addEventListener('click', (ev)=>{
-    if (ev.target === overlay){
-      overlay.style.display = 'none';
-      if (window.state) window.state.pendingTile = null;
-    }
-  });
-}
 
 const rentsBox = document.getElementById('cardRentsBox');
 const bankWarn = document.getElementById('bankWarn');
@@ -645,29 +626,7 @@ function buildRentModel(t){
   return Array.from({length:6},(_,i)=>({ label: i===5 ? 'Hotel' : i, rent: i===5 ? base + 5*step : base + i*step, houses: i }));
 }
 
-function showCard(tileIndex, {canAuction=false}={}) {
-  if (cardName){
-    cardName.style.display = 'none';   // no mostramos el duplicado
-    cardName.textContent = '';         // evitamos que “se herede” el último nombre
-    cardName.oninput = cardName.onkeydown = cardName.onblur = null;
-  }
 
-  const t = TILES[tileIndex];
-  const st = window.state;
-  if (st) st.pendingTile = tileIndex;
-  const isVehicleOrUtil = ['utility','rail','bus','ferry','air'].includes(t.subtype);
-  const isNoBuildings   = ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
-  bankWarn.className = '';
-  bankWarn.textContent = '';
-
-  cardBand.style.background = t.type==='prop' ? COLORS[t.color] : '#374151';
-  cardBand.textContent = t.name;
-
-  const cardPriceRow = cardPrice?.parentElement;
-  const cardRentRow  = cardRent?.parentElement;
-  const cardBuildRow = cardBuild?.parentElement;
-  const rentsBox     = document.getElementById('cardRentsBox');
-  const startBtn     = document.getElementById('startAuction');
 
   if (t.type === 'prop') {
     cardBand.onclick = ()=>{
@@ -697,35 +656,7 @@ if (!isVehicleOrUtil && !isNoBuildings){
   if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
 }
 
-    // v15-part3.js — dentro de showCard, mensajes especiales
-    if (t.subtype === 'fiore') {
-      bankWarn.innerHTML = `Fiore: contrata trabajadores (0-5). Cada uno cobra $7 y suma $70 a la renta.<br>Trabajadores: <b>${t.workers||0}</b>`;
-      const me = st?.players?.[st.current];
-      if (me && t.owner === me.id) {
-        const btn = document.createElement('button');
-        btn.textContent = 'Contratar (0–5)';
-        btn.onclick = () => {
-          const n = Number(prompt('Trabajadores en Fiore (0–5):', t.workers||0));
-          if (Number.isFinite(n) && n>=0 && n<=5){ t.workers = n; BoardUI.refreshTiles(); }
-        };
-        bankWarn.appendChild(document.createElement('br'));
-        bankWarn.appendChild(btn);
-      }
-    } else if (t.subtype === 'casino_bj') {
-      bankWarn.textContent = 'Casino Blackjack: pide cartas para acercarte a 21; el dueño gana las apuestas.';
-    } else if (t.subtype === 'casino_roulette') {
-      bankWarn.textContent = 'Casino Ruleta: apuesta a la ruleta, la casa siempre gana.';
-    }
-  } else {
-    cardBand.onclick = null;
-    if (cardPriceRow) cardPriceRow.style.display = 'none';
-    if (cardRentRow)  cardRentRow.style.display  = 'none';
-    if (cardBuildRow) cardBuildRow.style.display = 'none';
-    if (startBtn) startBtn.style.display = 'none';
-    const msg = FUNNY[t.type] || FUNNY.default;
-    bankWarn.className = 'muted';
-    bankWarn.textContent = msg;
-    rentsBox.innerHTML = '';
+
   }
   overlay.style.display = 'flex';
 }
@@ -744,7 +675,7 @@ if (typeof window.renderRentsTable !== 'function'){
 }
 
 window.showCard = showCard;
-if (cancelAuctionBtn) cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; if (window.state) window.state.pendingTile=null; };
+
 if (startAuctionBtn && !startAuctionBtn.__wired) {
   startAuctionBtn.__wired = true;
   startAuctionBtn.onclick = ()=>{
@@ -757,16 +688,7 @@ if (startAuctionBtn && !startAuctionBtn.__wired) {
   };
 }
 
-const FUNNY = {
-  start:    'salidas como tu madre.',
-  tax:      'dinerito pal politiko',
-  jail:     'Buen sitio pa hacer Networking?',
-  gotojail: 'A la cárcel, a la cárcel, a la cárcel, a la cárcel, a la cárcel…',
-  park:     'buen sitio pa fumar porros',
-  slots:    'GANA GANA GANA!!!',
-  bank:     'Banca corrupta: pide préstamo o securitiza tus deudas.',
-  default:  'Sin info, como tu madre...'
-};
+
 
 window.dispatchEvent(new Event('game-core-ready'));
 
@@ -1120,12 +1042,27 @@ function nextAlive(from){
   return from;
 }
 
+function botEndTurnWhenIdle(){
+  const p = state.players[state.current];
+  if (!p?.isBot) return;
+  // Esperar a que no haya subastas ni acciones pendientes
+  if (!state.rolled) { setTimeout(botEndTurnWhenIdle, 500); return; }
+  if (state.auction && state.auction.open) { setTimeout(botEndTurnWhenIdle, 500); return; }
+  if (state.pendingTile != null) { setTimeout(botEndTurnWhenIdle, 500); return; }
+  const overlay = document.getElementById('overlay');
+  if (overlay && overlay.style.display !== 'none') { setTimeout(botEndTurnWhenIdle, 500); return; }
+  const auctionBox = document.getElementById('auction');
+  if (auctionBox && auctionBox.style.display !== 'none') { setTimeout(botEndTurnWhenIdle, 500); return; }
+  endTurn();
+}
+
 function botAutoPlay(){
   const p = state.players[state.current];
   if (!p?.isBot) return;
   setTimeout(()=>{
     if (!state.rolled) roll();
-    setTimeout(()=>{ if (state.rolled) endTurn(); }, 900);
+    // Revisa periódicamente si puede finalizar el turno
+    setTimeout(botEndTurnWhenIdle, 600);
   }, 600);
 }
 
@@ -2241,6 +2178,26 @@ function awardAuction(){
     price    = bestV;
   }
 
+  // Impugnación por un tercero antes de adjudicar
+  try {
+    const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+    if (who) {
+      const byId = Number(who) - 1;
+      const base = Math.max(1, t.price || 1);
+      const imbalance = Math.max(0, Math.min(1, (base - price) / base));
+      const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+      if (res.annulled) {
+        alert('⚖️ Juez IA anula la adjudicación.');
+        $('#auction').style.display = 'none';
+        state.auction = null;
+        const endTurnBtn = document.getElementById('endTurn');
+        if (endTurnBtn) endTurnBtn.disabled = false;
+        updateTurnButtons();
+        return;
+      }
+    }
+  } catch {}
+
   // Ganó Estado
   if (winnerId==='E'){
     if ((Estado.money||0) < price){
@@ -2590,6 +2547,23 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       a.open = false;
 
       if (a.bestPlayer && a.bestBid > 0) {
+        // Impugnación por un tercero antes de adjudicar
+        try {
+          const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+          if (who) {
+            const byId = Number(who) - 1;
+            const base = Math.max(1, a.price || 1);
+            const imbalance = Math.max(0, Math.min(1, (base - a.bestBid) / base));
+            const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+            if (res.annulled) {
+              alert('⚖️ Juez IA anula la adjudicación.');
+              state.auction = null;
+              this._closeAuctionOverlay();
+              return;
+            }
+          }
+        } catch {}
+
         if (a.kind === 'tile') {
           this._assignTileTo(a.assetId, a.bestPlayer, a.bestBid);
         } else if (a.kind === 'loan') {
@@ -5998,14 +5972,7 @@ if (typeof window.transfer === 'function'){
     state.fbiGuesses.clear();
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
-    // asignar roles especiales de forma única
-    const specialRoles = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
-    const totalRoles = Math.min(specialRoles.length, Math.floor(state.players.length * cfg.roleProbability));
-    const shuffledPlayers = [...state.players].sort(()=>Math.random()-0.5);
-    const shuffledRoles = [...specialRoles].sort(()=>Math.random()-0.5).slice(0, totalRoles);
-    for(let i=0;i<totalRoles;i++){
-      setRole(shuffledPlayers[i].id, shuffledRoles[i]);
-    }
+
 
     ensureFlorentinoUses();
     saveState();
@@ -7451,18 +7418,12 @@ R.eventsList = [
   }
 
   // Periodic refresh when panel open
+  // Slow down the refresh and avoid rerendering events while focused
   setInterval(()=>{
     if (DBG.enabled){
       render();
       if (secRoles.style.display === 'block') renderRoles();
-      if (secEvents.style.display === 'block') renderEvents();
-    }
-  }, 500);
+      if (secEvents.style.display === 'block' && !eventsBox.contains(document.activeElement)){
+        renderEvents();
+      }
 
-  // Start open if env says so
-  document.addEventListener('DOMContentLoaded', ()=>{
-    setDebugEnabled(enabledFromEnv());
-    if (DBG.enabled) render();
-  });
-
-})();
