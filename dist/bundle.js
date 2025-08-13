@@ -709,7 +709,7 @@ if (!isVehicleOrUtil && !isNoBuildings){
     if (cardPriceRow) cardPriceRow.style.display = 'none';
     if (cardRentRow)  cardRentRow.style.display  = 'none';
     if (startBtn) startBtn.style.display = 'none';
-    const msg = FUNNY[t.type] || '';
+    const msg = FUNNY[t.type] || FUNNY.default;
     bankWarn.className = 'muted';
     bankWarn.textContent = msg;
     rentsBox.innerHTML = '';
@@ -745,12 +745,13 @@ if (startAuctionBtn && !startAuctionBtn.__wired) {
 }
 
 const FUNNY = {
-  start:    'Salida, como tu madre',
+  start:    'Salida: como tu madre...',
   tax:      'Putillas y coca',
   jail:     'Buen sitio pa hacer Networking?',
   gotojail: 'A la cárcel, a la cárcel, a la cárcel, a la cárcel, a la cárcel…',
   park:     'Buen sitio pa fumar porros… o mirar palomas.',
-  slots: 'GANA GANA GANA!!!'
+  slots:    'GANA GANA GANA!!!',
+  default:  'Sin info, como tu madre...'
 };
 
 window.dispatchEvent(new Event('game-core-ready'));
@@ -999,7 +1000,7 @@ function renderDice(d1, d2, meta=''){
 function newGame(){
 Estado.money = 0;
   let humans = Math.max(0, Math.min(6, parseInt($('#numHumans').value||'2',10)));
-  let bots   = Math.max(0, Math.min(6, parseInt($('#numBots').value||'1',10)));
+  let bots   = Math.max(0, Math.min(6, parseInt($('#numBots').value||'0',10)));
   let total  = humans + bots;
   if (total < 2){ bots = Math.max(0, 2 - humans); total = humans + bots; }
   if (total > 6){ bots = Math.max(0, 6 - humans); total = humans + bots; }
@@ -1606,6 +1607,28 @@ function adjustRentForEvents(payer, tile, base){
   return Math.max(0, rent|0);
 }
 
+// Casillas cubiertas por el Estado cuando gobierna la izquierda
+const WELFARE_TILES = new Set([
+  'Eskolie',
+  'Baratze',
+  'Farmazixe',
+  'Medikue',
+  'Frontoie',
+  'Skateko Pistie',
+  'Txarlin Pistie',
+  'Artiako GYM-e',
+  'Ereñoko GYM-e',
+  'Frontoiko Bici estatikak',
+  'Farolak'
+]);
+
+function isEstadoCovered(tile){
+  if(!tile) return false;
+  if(WELFARE_TILES.has(tile.name)) return true;
+  if(['bus','rail','ferry','air'].includes(tile.subtype)) return true;
+  return false;
+}
+
 async function onLand(p, idx){
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
   const t = TILES[idx];
@@ -1869,18 +1892,34 @@ async function onLand(p, idx){
               }
             } catch (e) {}
 
-            const target = redirectToEstado ? Estado : payee;
-            const ivaMul = state.rentIVAMul || 1;
-            if (ivaMul > 1){
-              const base = Math.round(adjusted / ivaMul);
-              const iva  = Math.max(0, adjusted - base);
-              transfer(p, target, base, { taxable:false, deductible:true, reason: reason });
-              transfer(p, target, iva,  { taxable:false, deductible:true, reason: `IVA ${reason}` });
-              try { markIVAPaid(p, iva, ' (alquiler)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler)'); } catch{}
-            } else {
-              transfer(p, target, adjusted, { taxable:false, deductible:true, reason: reason });
-            }
-            ensureAlive(p);
+              const target = redirectToEstado ? Estado : payee;
+              const ivaMul = state.rentIVAMul || 1;
+              const govLeft = (()=>{ try{ return window.Roles?.exportState?.().government === 'left'; }catch{ return false; }})();
+              const stateCovers = govLeft && isEstadoCovered(t);
+
+              if (stateCovers) {
+                if (ivaMul > 1){
+                  const base = Math.round(adjusted / ivaMul);
+                  const iva  = Math.max(0, adjusted - base);
+                  transfer(Estado, target, base, { taxable:false, reason: reason });
+                  transfer(Estado, target, iva,  { taxable:false, reason: `IVA ${reason}` });
+                  try { markIVAPaid(Estado, iva, ' (alquiler estatal)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler estatal)'); } catch{}
+                } else {
+                  transfer(Estado, target, adjusted, { taxable:false, reason: reason });
+                }
+                log(`El Estado cubre el alquiler en ${t.name}.`);
+              } else {
+                if (ivaMul > 1){
+                  const base = Math.round(adjusted / ivaMul);
+                  const iva  = Math.max(0, adjusted - base);
+                  transfer(p, target, base, { taxable:false, deductible:true, reason: reason });
+                  transfer(p, target, iva,  { taxable:false, deductible:true, reason: `IVA ${reason}` });
+                  try { markIVAPaid(p, iva, ' (alquiler)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler)'); } catch{}
+                } else {
+                  transfer(p, target, adjusted, { taxable:false, deductible:true, reason: reason });
+                }
+                ensureAlive(p);
+              }
           }
         } else {
           log(`${p.name} no paga alquiler (sin dueño válido o alquiler 0).`);
@@ -2075,10 +2114,7 @@ function drawAuction(){
       ${players.map(p=>`
         <div class="auctionPlayer btn-row ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" id="J${p.id+1}" data-p="${p.id}">
           <div class="name">${p.name}</div>
-          <button data-act="bid" data-step="10" data-p="${p.id}">+10</button>
-          <button data-act="bid" data-step="50" data-p="${p.id}">+50</button>
-          <button data-act="bid" data-step="100" data-p="${p.id}">+100</button>
-          <button data-act="pass" data-p="${p.id}">Pasar</button>
+
         </div>
       `).join('')}
     </div>
