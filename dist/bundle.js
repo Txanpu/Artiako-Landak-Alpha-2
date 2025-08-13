@@ -2075,7 +2075,6 @@ function drawAuction(){
       ${players.map(p=>`
         <div class="auctionPlayer ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" data-p="${p.id}">
           <div class="name">${p.name}</div>
-          <div class="money">${fmtMoney(p.money)}</div>
           <div class="controls">
             <button data-act="bid" data-step="10" data-p="${p.id}">+10</button>
             <button data-act="bid" data-step="50" data-p="${p.id}">+50</button>
@@ -7027,6 +7026,9 @@ R.eventsList = [
 
   // Keyboard toggle
   document.addEventListener('keydown', (ev)=>{
+    if (ev.repeat) return;
+    const tag = ev.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ev.target.isContentEditable) return;
     if ((ev.key==='d' || ev.key==='D') && !ev.altKey && !ev.metaKey && !ev.ctrlKey){
       toggleBtn.click(); ev.preventDefault();
     }

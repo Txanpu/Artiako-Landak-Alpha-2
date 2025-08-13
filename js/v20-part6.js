@@ -535,7 +535,6 @@ function drawAuction(){
       ${players.map(p=>`
         <div class="auctionPlayer ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" data-p="${p.id}">
           <div class="name">${p.name}</div>
-          <div class="money">${fmtMoney(p.money)}</div>
           <div class="controls">
             <button data-act="bid" data-step="10" data-p="${p.id}">+10</button>
             <button data-act="bid" data-step="50" data-p="${p.id}">+50</button>
