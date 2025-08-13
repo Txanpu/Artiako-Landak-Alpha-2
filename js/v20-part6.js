@@ -258,6 +258,22 @@ async function onLand(p, idx){
           if (Number.isFinite(n) && n>=0 && n<=5){ t.workers = n; BoardUI.refreshTiles(); }
         }
       } else {
+        // Gobierno liberal: el Estado se desprende de sus propiedades
+        try {
+          if (t.owner === 'E' && window.Roles?.getGovernment?.() === 'libertarian') {
+            log(`\ud83c\udfdb\ufe0f Gobierno liberal subasta ${t.name}.`);
+            t.owner = null;
+            t.mortgaged = false;
+            try { recomputeProps?.(); BoardUI.refreshTiles?.(); } catch {}
+            if (window.GameDebtMarket?.onLandProperty) {
+              window.GameDebtMarket.onLandProperty(idx, t);
+            }
+            showCard(idx, { canAuction: true });
+            startAuctionFlow(idx, { sealed: false });
+            return;
+          }
+        } catch {}
+
         // Casinos: solo si el dueño NO es el Estado (el Estado no puede ser dueño de casinos)
         if (t.subtype==='casino_bj' || t.subtype==='casino_roulette'){
           if (t.owner !== 'E'){
