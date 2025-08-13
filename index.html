@@ -47,7 +47,7 @@ body{
 .panelHeader{ display:flex; align-items:center; justify-content:space-between; gap:8px }
 .row{ display:flex; gap:8px; flex-wrap:wrap }
 .tools{ margin-top:-2px }
-button{ background:#1f2937; border:1px solid #30363d; color:#e6edf3; border-radius:10px; padding:8px 10px; cursor:pointer }
+button{ background:#1f2937; border:1px solid #30363d; color:#e6edf3; border-radius:8px; padding:6px 8px; cursor:pointer }
 button:hover{ filter:brightness(1.08) }
 button.primary{ background:#22c55e; border-color:#16a34a; color:#06280f; }
 .btnLike{ display:inline-block; padding:6px 12px; border:1px solid var(--border); border-radius:8px; background:#1f2937; cursor:pointer }
@@ -61,8 +61,8 @@ button.primary{ background:#22c55e; border-color:#16a34a; color:#06280f; }
 #players{ margin-bottom:10px }
 
 /* acciones + dados en la misma fila */
-.actions{ width:100%; min-height:88px; align-items:stretch }
-.actions > *{ height:100% }
+.actions{ width:100%; align-items:center }
+.actions > *{ height:auto }
 
 /* subasta + log pegados al panel */
 .auction{ border:1px dashed #f59e0b; padding:12px; border-radius:12px; font-size:1rem; min-height:120px }
@@ -199,7 +199,7 @@ body.playing .setup { justify-content:flex-end; gap:8px; }
   <div class="panel">
 
     <div class="panelHeader">
-    <h2 style="margin:0; font-size:6rem">Artiako Landak</h2>
+    <h2 style="margin:0">Artiako Landak</h2>
     <button id="openSetup" class="primary" type="button">Nueva partida</button>
   </div>
 
@@ -370,6 +370,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
   document.getElementById('toggleHeatmap')?.addEventListener('click', ()=>{
     if (window.UIX) UIX.heatmap.toggle({ metric:'landings', windowTurns:20 });
+  });
+  const board = document.getElementById('board');
+  board?.addEventListener('click', (e) => {
+    const tile = e.target.closest('.tile');
+    if (!tile) return;
+    const tiles = Array.from(board.querySelectorAll('.tile'));
+    const idx = tiles.indexOf(tile);
+    const ov = document.getElementById('overlay');
+    if (idx > -1 && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
+      window.showCard(idx);
+    }
   });
 });
 </script>
