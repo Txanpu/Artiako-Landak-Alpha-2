@@ -5272,19 +5272,29 @@ if (typeof window.transfer === 'function'){
     `;
     document.head.appendChild(css);
   })();
-  function showEventCard(title, text){
-    return new Promise((resolve)=>{
-      const ov = document.getElementById('doubleOverlay');
-      if (!ov) return resolve(); // fallback si no hay overlay
-      ov.innerHTML = `<div class="eventCard">
-        <div class="eventTitle">${title||'SUERTE'}</div>
-        <div class="eventText">${text||''}</div>
-        <button class="eventBtn" autofocus>Aceptar</button>
-      </div>`;
-      ov.style.display = 'flex';
-      ov.querySelector('.eventBtn').onclick = ()=>{ ov.style.display='none'; resolve(); };
-    });
-  }
+    function showEventCard(title, text){
+      return new Promise((resolve)=>{
+        const ov = document.getElementById('doubleOverlay');
+        if (!ov) return resolve(); // fallback si no hay overlay
+        ov.innerHTML = `<div class="eventCard">
+          <div class="eventTitle">${title||'SUERTE'}</div>
+          <div class="eventText">${text||''}</div>
+          <button class="eventBtn" autofocus>Aceptar</button>
+        </div>`;
+        ov.style.display = 'flex';
+        ov.style.opacity = '1';
+        ov.style.transition = 'opacity 0.2s';
+        let closed = false;
+        function close(){
+          if(closed) return;
+          closed = true;
+          ov.style.opacity = '0';
+          setTimeout(()=>{ ov.style.display='none'; ov.style.opacity=''; resolve(); }, 200);
+        }
+        ov.querySelector('.eventBtn').onclick = close;
+        setTimeout(close, 700);
+      });
+    }
 
   // Mapa de descripciones (nombre → desc)
   const EVENT_DESCS = {
@@ -6394,7 +6404,7 @@ if (typeof window.transfer === 'function'){
     }
   };
 
-  document.addEventListener('DOMContentLoaded', ()=>{ $1
+  document.addEventListener('DOMContentLoaded', ()=>{
     // listener simple para toggle de panel de roles
     try {
       window.addEventListener('roles:toggle', function(){

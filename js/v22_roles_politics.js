@@ -648,7 +648,7 @@
     }
   };
 
-  document.addEventListener('DOMContentLoaded', ()=>{ $1
+  document.addEventListener('DOMContentLoaded', ()=>{
     // listener simple para toggle de panel de roles
     try {
       window.addEventListener('roles:toggle', function(){
