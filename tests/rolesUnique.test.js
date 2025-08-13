@@ -17,6 +17,26 @@ const Roles = global.window.Roles;
   assert.strictEqual(roles.length, unique.size);
 });
 
+// Approximately 20% of players should receive a role
+test('assigns ~20% roles', () => {
+  window.RolesConfig.roleProbability = 0.2;
+  const players = Array.from({length:10}, (_,i) => ({id:i+1}));
+  Roles.assign(players);
+  const assigned = Roles.listAssignments().filter(r => r.role !== 'civil');
+  assert.strictEqual(assigned.length, 2);
+});
+
+// When there are enough players, all roles should appear
+test('all roles present with many players', () => {
+  window.RolesConfig.roleProbability = 0.2;
+  const players = Array.from({length:15}, (_,i) => ({id:i+1}));
+  Roles.assign(players);
+  const roles = new Set(Roles.listAssignments().map(r => r.role));
+  ['proxeneta', 'florentino', 'fbi'].forEach(role => {
+    assert.ok(roles.has(role));
+  });
+});
+
 // Setting a role to a player should clear it from others
  test('setRole removes duplicate', () => {
   Roles.assign([{id:1},{id:2}]);

@@ -53,7 +53,9 @@
     CIVIL: 'civil'
   };
 
-  const defaultConfig = {$1dice0to9: false,
+  const defaultConfig = {
+    roleProbability: 0.20,
+    dice0to9: false,
     securiAdvance: 150,
     securiTicks: 3,
     bankMaxTicks: 30,
@@ -73,7 +75,8 @@
     bankCorrupt: false,
     turnCounter: 0,
     government: null, // 'left'|'right'|null
-    governmentTurnsLeft: 0,$1loans: [],
+    governmentTurnsLeft: 0,
+    loans: [],
     securitizations: new Map(),
     powerOffTicks: 0,
     strikeTicks: 0,
@@ -137,16 +140,16 @@
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
 
-    const roleP = Math.max(0, Math.min(1, cfg.roleProbability||0.20));
-    const available = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
-    state.players.forEach(p=>{
-      let r = ROLE.CIVIL;
-      if(rand.chance(roleP) && available.length){
-        const idx = Math.floor(Math.random() * available.length);
-        r = available.splice(idx,1)[0];
-      }
-      setRole(p.id, r);
-    });
+    const roleP = Math.max(0, Math.min(1, cfg.roleProbability ?? 0.20));
+    const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
+    const playersShuffled = [...state.players].sort(() => Math.random() - 0.5);
+    const rolesShuffled = [...rolesPool].sort(() => Math.random() - 0.5);
+    const count = Math.min(rolesPool.length, Math.round(playersShuffled.length * roleP));
+
+    playersShuffled.forEach(p => setRole(p.id, ROLE.CIVIL));
+    for(let i = 0; i < count; i++){
+      setRole(playersShuffled[i].id, rolesShuffled[i]);
+    }
 
     ensureFlorentinoUses();
     saveState();
