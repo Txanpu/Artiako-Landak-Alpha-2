@@ -25,6 +25,7 @@
       <input id="wsUrl" placeholder="wss://tu-signal.example" value="ws://localhost:8080">
       <button id="btnHost">Host</button>
       <button id="btnJoin">Join</button>
+      <button id="btnLeave" style="display:none">Salir</button>
       <span id="netStatus"></span>
     </div>
   </div>
@@ -96,6 +97,7 @@
   <div id="auction" class="auction" style="display:none"></div>
   <div class="log" id="log"></div>
   <div class="chat" id="chatBox">
+    <div id="chatMsgs"></div>
     <input id="chatInput" type="text" placeholder="Escribe un mensaje" />
     <button id="sendChat" type="button">Enviar</button>
   </div>
@@ -145,14 +147,45 @@
 <script src="dist/bundle.js"></script>
 <script src="js/net.js"></script>
 <script>
-  document.getElementById('btnHost')?.addEventListener('click', () => {
-    const r = roomCode.value.trim(); const u = wsUrl.value.trim();
+  const btnHost = document.getElementById('btnHost');
+  const btnJoin = document.getElementById('btnJoin');
+  const btnLeave = document.getElementById('btnLeave');
+  const room = document.getElementById('roomCode');
+  const ws = document.getElementById('wsUrl');
+  btnHost?.addEventListener('click', () => {
+    const r = room.value.trim(); const u = ws.value.trim();
     window.Net.host(r, u);
+    btnHost.disabled = btnJoin.disabled = true;
+    if (btnLeave) btnLeave.style.display = 'inline-block';
   });
-  document.getElementById('btnJoin')?.addEventListener('click', () => {
-    const r = roomCode.value.trim(); const u = wsUrl.value.trim();
+  btnJoin?.addEventListener('click', () => {
+    const r = room.value.trim(); const u = ws.value.trim();
     window.Net.join(r, u);
+    btnHost.disabled = btnJoin.disabled = true;
+    if (btnLeave) btnLeave.style.display = 'inline-block';
   });
+  btnLeave?.addEventListener('click', () => {
+    window.Net.disconnect();
+    btnHost.disabled = btnJoin.disabled = false;
+    btnLeave.style.display = 'none';
+  });
+</script>
+<script>
+  const chatInput = document.getElementById('chatInput');
+  const chatMsgs = document.getElementById('chatMsgs');
+  document.getElementById('sendChat')?.addEventListener('click', () => {
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+    Net.sendChat(msg);
+    chatInput.value='';
+  });
+  Net.onChat = (msg, from)=> add(from, msg);
+  function add(from, msg){
+    if (!chatMsgs) return;
+    const line = document.createElement('div');
+    line.textContent = `${from}: ${msg}`;
+    chatMsgs.appendChild(line);
+  }
 </script>
 
 
