@@ -223,12 +223,14 @@ window.BoardUI = {
 };
 
 /* ==== Auto-init ==== */
-document.addEventListener('DOMContentLoaded', ()=>{
+function autoInit(){
   const tiles = window.TILES || [];
   const state = window.state || null;
   window.BoardUI.attach({ tiles, state });
   if (tiles.length){ window.BoardUI.renderBoard(); }
-});
+}
+if (document.readyState !== 'loading') autoInit();
+else document.addEventListener('DOMContentLoaded', autoInit);
 'use strict';
 
 const COLORS = {
