@@ -367,33 +367,57 @@ function getRent(tile){
 window.getRent = getRent;
 
 /* ===== Carta de propiedad (modal) ===== */
-const overlay = document.getElementById('overlay');
-const cardBand = document.getElementById('cardBand');
-const cardName = document.getElementById('cardName');
-const cardPrice= document.getElementById('cardPrice');
-const cardRent = document.getElementById('cardRent');
-const cardBuild= document.getElementById('cardBuild');
-const cardRoi  = document.getElementById('cardRoi');
-const cardPriceRow = cardPrice ? cardPrice.parentElement : null;
-const cardRentRow  = cardRent  ? cardRent.parentElement  : null;
-const cardBuildRow = cardBuild ? cardBuild.parentElement : null;
-if (cardRoi && cardRoi.parentElement) cardRoi.parentElement.style.display = 'none';
-if (cardBuildRow) cardBuildRow.style.display = 'none';
+let overlay, cardBand, cardName, cardPrice, cardRent, cardBuild, cardRoi;
+let cardPriceRow, cardRentRow, cardBuildRow;
+let rentsBox, bankWarn, startAuctionBtn, cancelAuctionBtn;
 
-// Permitir cerrar la carta clicando fuera del contenido
-if (overlay){
-  overlay.addEventListener('click', (ev)=>{
-    if (ev.target === overlay){
-      overlay.style.display = 'none';
-      if (window.state) window.state.pendingTile = null;
-    }
-  });
+function initCardModal(){
+  if (overlay) return; // ya inicializado
+  overlay       = document.getElementById('overlay');
+  cardBand      = document.getElementById('cardBand');
+  cardName      = document.getElementById('cardName');
+  cardPrice     = document.getElementById('cardPrice');
+  cardRent      = document.getElementById('cardRent');
+  cardBuild     = document.getElementById('cardBuild');
+  cardRoi       = document.getElementById('cardRoi');
+  rentsBox      = document.getElementById('cardRentsBox');
+  bankWarn      = document.getElementById('bankWarn');
+  startAuctionBtn = document.getElementById('startAuction');
+  cancelAuctionBtn= document.getElementById('cancelAuction');
+
+  cardPriceRow = cardPrice ? cardPrice.parentElement : null;
+  cardRentRow  = cardRent  ? cardRent.parentElement  : null;
+  cardBuildRow = cardBuild ? cardBuild.parentElement : null;
+  if (cardRoi && cardRoi.parentElement) cardRoi.parentElement.style.display = 'none';
+  if (cardBuildRow) cardBuildRow.style.display = 'none';
+
+  // Permitir cerrar la carta clicando fuera del contenido
+  if (overlay && !overlay.__wired){
+    overlay.__wired = true;
+    overlay.addEventListener('click', (ev)=>{
+      if (ev.target === overlay){
+        overlay.style.display = 'none';
+        if (window.state) window.state.pendingTile = null;
+      }
+    });
+  }
+
+  if (cancelAuctionBtn && !cancelAuctionBtn.__wired){
+    cancelAuctionBtn.__wired = true;
+    cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; if (window.state) window.state.pendingTile=null; };
+  }
+  if (startAuctionBtn && !startAuctionBtn.__wired) {
+    startAuctionBtn.__wired = true;
+    startAuctionBtn.onclick = ()=>{
+      const ti = window.state?.pendingTile; console.log('[auction] click', { ti, hasFlow: typeof window.startAuctionFlow });
+      overlay.style.display='none'; window.state && (window.state.pendingTile = null);
+      if (ti==null) return;
+      if (typeof window.startAuctionFlow === 'function') return window.startAuctionFlow(ti);
+      if (typeof window.startAuction === 'function')     return window.startAuction(ti);
+      alert('No hay handler de subasta (startAuctionFlow/startAuction)');
+    };
+  }
 }
-
-const rentsBox = document.getElementById('cardRentsBox');
-const bankWarn = document.getElementById('bankWarn');
-const startAuctionBtn = document.getElementById('startAuction');
-const cancelAuctionBtn= document.getElementById('cancelAuction');
 
 // ==== Nombres custom de propiedades (autosave/autoload) ====
 const PROP_NAMES_KEY = 'propNames.v15';
@@ -418,6 +442,7 @@ function buildRentModel(t){
 }
 
 function showCard(tileIndex, {canAuction=false}={}) {
+  initCardModal();
   if (cardName){
     cardName.style.display = 'none';   // no mostramos el duplicado
     cardName.textContent = '';         // evitamos que “se herede” el último nombre
@@ -495,18 +520,6 @@ if (typeof window.renderRentsTable !== 'function'){
 }
 
 window.showCard = showCard;
-if (cancelAuctionBtn) cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; if (window.state) window.state.pendingTile=null; };
-if (startAuctionBtn && !startAuctionBtn.__wired) {
-  startAuctionBtn.__wired = true;
-  startAuctionBtn.onclick = ()=>{
-    const ti = window.state?.pendingTile; console.log('[auction] click', { ti, hasFlow: typeof window.startAuctionFlow });
-    overlay.style.display='none'; window.state && (window.state.pendingTile = null);
-    if (ti==null) return;
-    if (typeof window.startAuctionFlow === 'function') return window.startAuctionFlow(ti);
-    if (typeof window.startAuction === 'function')     return window.startAuction(ti);
-    alert('No hay handler de subasta (startAuctionFlow/startAuction)');
-  };
-}
 
 const FUNNY = {
   start:    'salidas como tu madre.',
