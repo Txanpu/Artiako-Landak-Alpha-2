@@ -1,7 +1,10 @@
 (() => {
-
+  const socket = typeof io !== 'undefined' ? io() : null;
+  let roomKey;
+  let playerId;
 
   function joinGame(key) {
+    if (!socket) return;
     roomKey = key;
     if (!playerId) {
       playerId = Math.random().toString(36).slice(2, 8);
@@ -10,6 +13,7 @@
   }
 
   function shareGame() {
+    if (!socket) return;
     if (!roomKey) {
       roomKey = Math.random().toString(36).slice(2, 8);
     }
@@ -18,28 +22,34 @@
   }
 
   function sendAction(action, secret = false) {
+    if (!socket) return;
     socket.emit('playerAction', { action, secret });
   }
 
   function endTurn() {
+    if (!socket) return;
     socket.emit('endTurn');
   }
 
-  socket.on('turn', (playerId) => {
+  socket?.on('turn', (playerId) => {
     console.log('Turno de', playerId);
   });
 
-  socket.on('actionResult', (data) => {
+  socket?.on('actionResult', (data) => {
     console.log('Acción recibida', data);
   });
 
-  socket.on('turnEnded', (playerId) => {
+  socket?.on('turnEnded', (playerId) => {
     console.log('Turno finalizado de', playerId);
   });
 
   const onlineBtn = document.getElementById('startOnline');
 
   onlineBtn?.addEventListener('click', () => {
+    if (!socket) {
+      alert('Online no disponible. Revisa tu conexión.');
+      return;
+    }
     const share = window.confirm('¿Quieres compartir la partida?\nAceptar para compartir, cancelar para unirse');
     if (share) {
       shareGame();
