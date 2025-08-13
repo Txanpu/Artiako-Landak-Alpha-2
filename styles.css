@@ -194,9 +194,7 @@ body:not(.playing) #dice,
 body:not(.playing) #auction,
 body:not(.playing) #log { display:none; }
 
-body.playing .setup label,
-body.playing .setup input { display:none; }
-body.playing .setup { justify-content:flex-end; gap:8px; }
+/* Mantener visibles los campos de configuración incluso durante la partida */
 
 /* responsive */
 @media (max-width:900px){
