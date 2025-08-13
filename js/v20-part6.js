@@ -1,5 +1,38 @@
 /* v13 – Parte 6/7: efectos al caer y sistema de subastas */
 
+// Utilidad: cuadro de diálogo personalizado que sustituye a window.prompt
+function promptDialog(message, defaultValue = '') {
+  return new Promise(resolve => {
+    const dialog = document.getElementById('promptDialog');
+    if (!dialog) {
+      resolve(defaultValue);
+      return;
+    }
+    const form = document.getElementById('promptForm');
+    const msgEl = document.getElementById('promptMessage');
+    const input = document.getElementById('promptInput');
+    const cancelBtn = document.getElementById('promptCancel');
+    msgEl.textContent = message;
+    input.value = defaultValue || '';
+    const handleClose = () => {
+      dialog.removeEventListener('close', handleClose);
+      resolve(dialog.returnValue === 'cancel' ? null : dialog.returnValue);
+    };
+    dialog.addEventListener('close', handleClose);
+    form.addEventListener('submit', function onSubmit(e) {
+      e.preventDefault();
+      dialog.close(input.value);
+      form.removeEventListener('submit', onSubmit);
+    });
+    cancelBtn.addEventListener('click', function onCancel() {
+      dialog.close('cancel');
+      cancelBtn.removeEventListener('click', onCancel);
+    });
+    dialog.showModal();
+    input.select();
+  });
+}
+
 // === [PATCH] Ajuste de alquileres con eventos ===
 function adjustRentForEvents(payer, tile, base){
   let rent = Math.max(0, Math.round(base||0));
@@ -31,7 +64,7 @@ function adjustRentForEvents(payer, tile, base){
   return Math.max(0, rent|0);
 }
 
-function onLand(p, idx){
+async function onLand(p, idx){
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
   const t = TILES[idx];
   if (!t) return;
@@ -44,20 +77,20 @@ function onLand(p, idx){
 
   // Si es una casilla de banca corrupta: menú rápido
   try {
-    var st = Roles.exportState ? Roles.exportState() : null;
-    var cbt = st && st.corruptBankTiles || [];
+    const st = Roles.exportState ? Roles.exportState() : null;
+    const cbt = st && st.corruptBankTiles || [];
     if (Array.isArray(cbt) && cbt.indexOf(idx) !== -1) {
-      var opt = window.prompt(
+      const opt = await promptDialog(
         'Banca corrupta:\n1) Préstamo corrupto\n2) Securitizar alquileres (' +
         (Roles && RolesConfig ? (RolesConfig.securiTicks||3) : 3) + ' ticks, anticipo ' +
         (Roles && RolesConfig ? (RolesConfig.securiAdvance||150) : 150) + ')\n(Enter = nada)',
         ''
       );
       if (opt === '1') {
-        var A = Number(window.prompt('Importe del préstamo:', '300'))||0;
-        var Rr = Number(window.prompt('Tipo (%, ej 20):', '20'))||0;
-        var Tt = Number(window.prompt('Ticks (<=30):', '12'))||0;
-        var L = Roles.requestCorruptLoan({ playerId: p.id, amount: A, rate: Rr, ticks: Tt, tileId: idx });
+        const A = Number(await promptDialog('Importe del préstamo:', '300'))||0;
+        const Rr = Number(await promptDialog('Tipo (%, ej 20):', '20'))||0;
+        const Tt = Number(await promptDialog('Ticks (<=30):', '12'))||0;
+        const L = Roles.requestCorruptLoan({ playerId: p.id, amount: A, rate: Rr, ticks: Tt, tileId: idx });
         if (!L || !L.accepted) { alert((L && L.reason) ? L.reason : 'Rechazado'); }
         else {
           // abona el principal al jugador (dinero “sale” del Estado si quieres reflejarlo)
@@ -65,7 +98,7 @@ function onLand(p, idx){
           log('Préstamo OK: devolver ' + L.dueAmount + ' en T' + L.dueTurn + '.');
         }
       } else if (opt === '2') {
-        var S = Roles.corruptBankSecuritize({ playerId: p.id });
+        const S = Roles.corruptBankSecuritize({ playerId: p.id });
         if (!S || !S.ok) { alert((S && S.reason) ? S.reason : 'No se pudo securitizar'); }
         else {
           // anticipo al jugador y a partir de ahora sus alquileres van al Estado por S.ticks
@@ -108,9 +141,9 @@ function onLand(p, idx){
       p.vatOut = 0; p.vatIn = 0;
 
       // 3.2 Impuesto sobre la renta (33%) sobre taxBase
-      var taxMul = (window.Roles?.getTaxMultiplier?.() || 1) *
-                   (window.Roles?.getPlayerTaxMultiplier?.(p.id) || 1);
-      var base = Math.max(0, Math.round((p.taxBase || 0) * 0.33 * taxMul));
+      const taxMul = (window.Roles?.getTaxMultiplier?.() || 1) *
+                     (window.Roles?.getPlayerTaxMultiplier?.(p.id) || 1);
+      const base = Math.max(0, Math.round((p.taxBase || 0) * 0.33 * taxMul));
       if (base > 0){
         transfer(p, Estado, base, { taxable:false, reason:'Impuesto' });
         try { window.Roles?.onTaxCollected?.(base); } catch(e){}
@@ -160,9 +193,9 @@ function onLand(p, idx){
       }
       if (t.owner === p.id){
         log(`${p.name} cae en su propia propiedad.`);
-        if (['rail','ferry','air','bus'].includes(t.subtype)) offerTransportHop(p, idx, t);
+        if (['rail','ferry','air','bus'].includes(t.subtype)) await offerTransportHop(p, idx, t);
         if (t.subtype==='fiore'){
-          const n = Number(prompt('Trabajadores en Fiore (0-5):', t.workers||0));
+          const n = Number(await promptDialog('Trabajadores en Fiore (0-5):', t.workers||0));
           if (Number.isFinite(n) && n>=0 && n<=5){ t.workers = n; BoardUI.refreshTiles(); }
         }
       } else {
@@ -170,8 +203,8 @@ function onLand(p, idx){
         if (t.subtype==='casino_bj' || t.subtype==='casino_roulette'){
           if (t.owner !== 'E'){
             const owner = state.players[t.owner];
-            if (t.subtype==='casino_bj'){ playBlackjack(p, owner, t); break; }
-            if (t.subtype==='casino_roulette'){ playRoulette(p, owner, t); break; }
+            if (t.subtype==='casino_bj'){ await playBlackjack(p, owner, t); break; }
+            if (t.subtype==='casino_roulette'){ await playRoulette(p, owner, t); break; }
           }
           // si llegase a ser del Estado (no debería), cae a pago de "alquiler" normal abajo
         }
@@ -289,30 +322,30 @@ function resolverCarta(carta, jugador, idx) {
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
 
   // v22: carta/evento unificado
-  var out = (window.Roles && Roles.triggerEvent)
+  const out = (window.Roles && Roles.triggerEvent)
     ? Roles.triggerEvent(carta && carta.nombre, { playerId: jugador.id, tileId: idx })
     : null;
   if (out && out.banner) { alert(out.banner); }
 
   // Aplica colas de pagos y movimientos
-  var pays = (window.Roles && Roles.consumePendingPayments) ? Roles.consumePendingPayments() : [];
-  for (var i = 0; i < pays.length; i++) {
-    var pay = pays[i];
+  const pays = (window.Roles && Roles.consumePendingPayments) ? Roles.consumePendingPayments() : [];
+  for (let i = 0; i < pays.length; i++) {
+    const pay = pays[i];
     if (pay.toType === 'estado') {
       transfer(getPlayerById(pay.fromId), Estado, pay.amount, { taxable:false, reason: pay.reason });
     } else if (pay.toType === 'opponents') {
-      for (var j = 0; j < state.players.length; j++) {
-        var pl = state.players[j];
+      for (let j = 0; j < state.players.length; j++) {
+        const pl = state.players[j];
         if (pl.id !== pay.toId) transfer(pl, getPlayerById(pay.toId), pay.amount, { taxable:false, reason: pay.reason });
       }
     } else if (pay.toType === 'tileOwner') {
-      var t = TILES[pay.tileId], owner = t && t.owner;
+      const t = TILES[pay.tileId], owner = t && t.owner;
       if (owner != null) transfer(getPlayerById(pay.fromId), getPlayerById(owner), pay.amount, { taxable:false, reason: pay.reason });
     }
   }
-  var moves = (window.Roles && Roles.consumePendingMoves) ? Roles.consumePendingMoves() : [];
-  for (var k = 0; k < moves.length; k++) {
-    var mv = moves[k];
+  const moves = (window.Roles && Roles.consumePendingMoves) ? Roles.consumePendingMoves() : [];
+  for (let k = 0; k < moves.length; k++) {
+    const mv = moves[k];
     if (mv.effect === 'jail')  sendToJail(getPlayerById(mv.playerId), mv.turns);
     if (mv.effect === 'skip')  addSkipTurn(getPlayerById(mv.playerId), mv.turns);
   }
@@ -655,7 +688,7 @@ function updateTurnButtons() {
     }
   } catch {}
 }
-function offerTransportHop(p, idx, t){
+async function offerTransportHop(p, idx, t){
   if (state.usedTransportHop) return;
   const same = (x)=> x.type==='prop' && (
     (t.subtype==='rail'&& (x.subtype==='rail'||(window.BUS_COUNTS_WITH_METRO&&x.subtype==='bus'))) ||
@@ -668,7 +701,7 @@ function offerTransportHop(p, idx, t){
   const niceNames = { rail: 'metro', bus: 'Bizkaibus', ferry: 'ferry', air: 'aéreo' };
   const nice = niceNames[t.subtype] || t.subtype;
   const list = owns.map((o,k)=>`${k+1}. ${o.x.name}`).join('\n');
-  const sel = prompt(`Moverte gratis a otro transporte (${nice}) tuyo este turno:\n${list}\nElige número (o cancela)`);
+  const sel = await promptDialog(`Moverte gratis a otro transporte (${nice}) tuyo este turno:\n${list}\nElige número (o cancela)`);
   const n = parseInt(sel,10);
   if (!Number.isFinite(n) || n<1 || n>owns.length) return;
 
@@ -731,9 +764,9 @@ function playBlackjack(player, owner, tile){
 }
 
 // === Casino: Ruleta (rojo/negro/verde)
-function playRoulette(player, owner, tile){
+async function playRoulette(player, owner, tile){
   if (!owner?.alive){ log('El dueño no puede actuar.'); return; }
-  const apuesta = prompt('Apuesta color (rojo/negro/verde) y cantidad. Ej: "rojo 50"');
+  const apuesta = await promptDialog('Apuesta color (rojo/negro/verde) y cantidad. Ej: "rojo 50"');
   if(!apuesta) return;
   const m = apuesta.trim().toLowerCase().match(/(rojo|negro|verde)\s+(\d+)/);
   if(!m){ alert('Formato inválido'); return; }
