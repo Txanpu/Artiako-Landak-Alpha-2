@@ -1,3 +1,5 @@
+'use strict';
+
 /* v13 – Parte 2/7: motor de UI (tablero + casillas visibles tipo v11) */
 
 const V13_COLORS = {
@@ -226,6 +228,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   window.BoardUI.attach({ tiles, state });
   if (tiles.length){ window.BoardUI.renderBoard(); }
 });
+'use strict';
+
 const COLORS = {
   brown:'#78350f', cyan:'#06b6d4', pink:'#db2777', orange:'#f97316',
   red:'#ef4444', yellow:'#eab308', green:'#22c55e', blue:'#3b82f6',
@@ -793,6 +797,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   } catch {}
 });
 
+'use strict';
+
 /* v13 – Parte 4/7 (patched): setup, panel jugadores, utilidades de dinero
    — Esta versión mantiene TODA la economía y turnos aquí (fuente de verdad).
    — Muestra también el Estado (banca) al final del panel.
@@ -918,7 +924,10 @@ function renderPlayers(){
 /* ===== Dados (pips y animación) ===== */
 function diceHTML(n){
   const spots = { 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,3,4,6,7,9] };
-  const cells = (spots[n]||[]).map(idx=>{
+  if (!spots[n]) {
+    return `<div class="die num">${n}</div>`;
+  }
+  const cells = spots[n].map(idx=>{
     const r = Math.ceil(idx/3), c = ((idx-1)%3)+1;
     return `<div class="pip" style="grid-row:${r};grid-column:${c}"></div>`;
   }).join('');
@@ -1011,6 +1020,8 @@ window.ensureAlive   = ensureAlive;
 window.renderDice    = renderDice;
 window.newGame       = newGame;
 // <- FIN DE ARCHIVO
+'use strict';
+
 /* v13 – Parte 5/7: dados, movimiento, SALIDA, turnos */
 
 function addSkipTurn(player, turns = 1) {
@@ -1449,7 +1460,42 @@ function news_iva_build(pct=21, turns=3){
 // Exponer por consola si quieres probar rápido:
 Object.assign(window, { headline, news_build_cost, news_rent_mul, news_rent_flat, news_iva_rent, news_iva_build });
 
+'use strict';
+
 /* v13 – Parte 6/7: efectos al caer y sistema de subastas */
+
+// Utilidad: cuadro de diálogo personalizado que sustituye a window.prompt
+function promptDialog(message, defaultValue = '') {
+  return new Promise(resolve => {
+    const dialog = document.getElementById('promptDialog');
+    if (!dialog) {
+      resolve(defaultValue);
+      return;
+    }
+    const form = document.getElementById('promptForm');
+    const msgEl = document.getElementById('promptMessage');
+    const input = document.getElementById('promptInput');
+    const cancelBtn = document.getElementById('promptCancel');
+    msgEl.textContent = message;
+    input.value = defaultValue || '';
+    const handleClose = () => {
+      dialog.removeEventListener('close', handleClose);
+      resolve(dialog.returnValue === 'cancel' ? null : dialog.returnValue);
+    };
+    dialog.addEventListener('close', handleClose);
+    form.addEventListener('submit', function onSubmit(e) {
+      e.preventDefault();
+      dialog.close(input.value);
+      form.removeEventListener('submit', onSubmit);
+    });
+    cancelBtn.addEventListener('click', function onCancel() {
+      dialog.close('cancel');
+      cancelBtn.removeEventListener('click', onCancel);
+    });
+    dialog.showModal();
+    input.select();
+  });
+}
 
 // === [PATCH] Ajuste de alquileres con eventos ===
 function adjustRentForEvents(payer, tile, base){
@@ -1482,7 +1528,7 @@ function adjustRentForEvents(payer, tile, base){
   return Math.max(0, rent|0);
 }
 
-function onLand(p, idx){
+async function onLand(p, idx){
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
   const t = TILES[idx];
   if (!t) return;
@@ -1495,20 +1541,20 @@ function onLand(p, idx){
 
   // Si es una casilla de banca corrupta: menú rápido
   try {
-    var st = Roles.exportState ? Roles.exportState() : null;
-    var cbt = st && st.corruptBankTiles || [];
+    const st = Roles.exportState ? Roles.exportState() : null;
+    const cbt = st && st.corruptBankTiles || [];
     if (Array.isArray(cbt) && cbt.indexOf(idx) !== -1) {
-      var opt = window.prompt(
+      const opt = await promptDialog(
         'Banca corrupta:\n1) Préstamo corrupto\n2) Securitizar alquileres (' +
         (Roles && RolesConfig ? (RolesConfig.securiTicks||3) : 3) + ' ticks, anticipo ' +
         (Roles && RolesConfig ? (RolesConfig.securiAdvance||150) : 150) + ')\n(Enter = nada)',
         ''
       );
       if (opt === '1') {
-        var A = Number(window.prompt('Importe del préstamo:', '300'))||0;
-        var Rr = Number(window.prompt('Tipo (%, ej 20):', '20'))||0;
-        var Tt = Number(window.prompt('Ticks (<=30):', '12'))||0;
-        var L = Roles.requestCorruptLoan({ playerId: p.id, amount: A, rate: Rr, ticks: Tt, tileId: idx });
+        const A = Number(await promptDialog('Importe del préstamo:', '300'))||0;
+        const Rr = Number(await promptDialog('Tipo (%, ej 20):', '20'))||0;
+        const Tt = Number(await promptDialog('Ticks (<=30):', '12'))||0;
+        const L = Roles.requestCorruptLoan({ playerId: p.id, amount: A, rate: Rr, ticks: Tt, tileId: idx });
         if (!L || !L.accepted) { alert((L && L.reason) ? L.reason : 'Rechazado'); }
         else {
           // abona el principal al jugador (dinero “sale” del Estado si quieres reflejarlo)
@@ -1516,7 +1562,7 @@ function onLand(p, idx){
           log('Préstamo OK: devolver ' + L.dueAmount + ' en T' + L.dueTurn + '.');
         }
       } else if (opt === '2') {
-        var S = Roles.corruptBankSecuritize({ playerId: p.id });
+        const S = Roles.corruptBankSecuritize({ playerId: p.id });
         if (!S || !S.ok) { alert((S && S.reason) ? S.reason : 'No se pudo securitizar'); }
         else {
           // anticipo al jugador y a partir de ahora sus alquileres van al Estado por S.ticks
@@ -1559,9 +1605,9 @@ function onLand(p, idx){
       p.vatOut = 0; p.vatIn = 0;
 
       // 3.2 Impuesto sobre la renta (33%) sobre taxBase
-      var taxMul = (window.Roles?.getTaxMultiplier?.() || 1) *
-                   (window.Roles?.getPlayerTaxMultiplier?.(p.id) || 1);
-      var base = Math.max(0, Math.round((p.taxBase || 0) * 0.33 * taxMul));
+      const taxMul = (window.Roles?.getTaxMultiplier?.() || 1) *
+                     (window.Roles?.getPlayerTaxMultiplier?.(p.id) || 1);
+      const base = Math.max(0, Math.round((p.taxBase || 0) * 0.33 * taxMul));
       if (base > 0){
         transfer(p, Estado, base, { taxable:false, reason:'Impuesto' });
         try { window.Roles?.onTaxCollected?.(base); } catch(e){}
@@ -1611,9 +1657,9 @@ function onLand(p, idx){
       }
       if (t.owner === p.id){
         log(`${p.name} cae en su propia propiedad.`);
-        if (['rail','ferry','air','bus'].includes(t.subtype)) offerTransportHop(p, idx, t);
+        if (['rail','ferry','air','bus'].includes(t.subtype)) await offerTransportHop(p, idx, t);
         if (t.subtype==='fiore'){
-          const n = Number(prompt('Trabajadores en Fiore (0-5):', t.workers||0));
+          const n = Number(await promptDialog('Trabajadores en Fiore (0-5):', t.workers||0));
           if (Number.isFinite(n) && n>=0 && n<=5){ t.workers = n; BoardUI.refreshTiles(); }
         }
       } else {
@@ -1621,8 +1667,8 @@ function onLand(p, idx){
         if (t.subtype==='casino_bj' || t.subtype==='casino_roulette'){
           if (t.owner !== 'E'){
             const owner = state.players[t.owner];
-            if (t.subtype==='casino_bj'){ playBlackjack(p, owner, t); break; }
-            if (t.subtype==='casino_roulette'){ playRoulette(p, owner, t); break; }
+            if (t.subtype==='casino_bj'){ await playBlackjack(p, owner, t); break; }
+            if (t.subtype==='casino_roulette'){ await playRoulette(p, owner, t); break; }
           }
           // si llegase a ser del Estado (no debería), cae a pago de "alquiler" normal abajo
         }
@@ -1740,30 +1786,30 @@ function resolverCarta(carta, jugador, idx) {
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
 
   // v22: carta/evento unificado
-  var out = (window.Roles && Roles.triggerEvent)
+  const out = (window.Roles && Roles.triggerEvent)
     ? Roles.triggerEvent(carta && carta.nombre, { playerId: jugador.id, tileId: idx })
     : null;
   if (out && out.banner) { alert(out.banner); }
 
   // Aplica colas de pagos y movimientos
-  var pays = (window.Roles && Roles.consumePendingPayments) ? Roles.consumePendingPayments() : [];
-  for (var i = 0; i < pays.length; i++) {
-    var pay = pays[i];
+  const pays = (window.Roles && Roles.consumePendingPayments) ? Roles.consumePendingPayments() : [];
+  for (let i = 0; i < pays.length; i++) {
+    const pay = pays[i];
     if (pay.toType === 'estado') {
       transfer(getPlayerById(pay.fromId), Estado, pay.amount, { taxable:false, reason: pay.reason });
     } else if (pay.toType === 'opponents') {
-      for (var j = 0; j < state.players.length; j++) {
-        var pl = state.players[j];
+      for (let j = 0; j < state.players.length; j++) {
+        const pl = state.players[j];
         if (pl.id !== pay.toId) transfer(pl, getPlayerById(pay.toId), pay.amount, { taxable:false, reason: pay.reason });
       }
     } else if (pay.toType === 'tileOwner') {
-      var t = TILES[pay.tileId], owner = t && t.owner;
+      const t = TILES[pay.tileId], owner = t && t.owner;
       if (owner != null) transfer(getPlayerById(pay.fromId), getPlayerById(owner), pay.amount, { taxable:false, reason: pay.reason });
     }
   }
-  var moves = (window.Roles && Roles.consumePendingMoves) ? Roles.consumePendingMoves() : [];
-  for (var k = 0; k < moves.length; k++) {
-    var mv = moves[k];
+  const moves = (window.Roles && Roles.consumePendingMoves) ? Roles.consumePendingMoves() : [];
+  for (let k = 0; k < moves.length; k++) {
+    const mv = moves[k];
     if (mv.effect === 'jail')  sendToJail(getPlayerById(mv.playerId), mv.turns);
     if (mv.effect === 'skip')  addSkipTurn(getPlayerById(mv.playerId), mv.turns);
   }
@@ -2106,7 +2152,7 @@ function updateTurnButtons() {
     }
   } catch {}
 }
-function offerTransportHop(p, idx, t){
+async function offerTransportHop(p, idx, t){
   if (state.usedTransportHop) return;
   const same = (x)=> x.type==='prop' && (
     (t.subtype==='rail'&& (x.subtype==='rail'||(window.BUS_COUNTS_WITH_METRO&&x.subtype==='bus'))) ||
@@ -2119,7 +2165,7 @@ function offerTransportHop(p, idx, t){
   const niceNames = { rail: 'metro', bus: 'Bizkaibus', ferry: 'ferry', air: 'aéreo' };
   const nice = niceNames[t.subtype] || t.subtype;
   const list = owns.map((o,k)=>`${k+1}. ${o.x.name}`).join('\n');
-  const sel = prompt(`Moverte gratis a otro transporte (${nice}) tuyo este turno:\n${list}\nElige número (o cancela)`);
+  const sel = await promptDialog(`Moverte gratis a otro transporte (${nice}) tuyo este turno:\n${list}\nElige número (o cancela)`);
   const n = parseInt(sel,10);
   if (!Number.isFinite(n) || n<1 || n>owns.length) return;
 
@@ -2182,9 +2228,9 @@ function playBlackjack(player, owner, tile){
 }
 
 // === Casino: Ruleta (rojo/negro/verde)
-function playRoulette(player, owner, tile){
+async function playRoulette(player, owner, tile){
   if (!owner?.alive){ log('El dueño no puede actuar.'); return; }
-  const apuesta = prompt('Apuesta color (rojo/negro/verde) y cantidad. Ej: "rojo 50"');
+  const apuesta = await promptDialog('Apuesta color (rojo/negro/verde) y cantidad. Ej: "rojo 50"');
   if(!apuesta) return;
   const m = apuesta.trim().toLowerCase().match(/(rojo|negro|verde)\s+(\d+)/);
   if(!m){ alert('Formato inválido'); return; }
@@ -3865,6 +3911,8 @@ function animateTransportHop(player, fromIdx, toIdx, done){
 
 })();
 
+'use strict';
+
 /* v13 – Parte 7/7 (patched): construir, vender, hipoteca, préstamos
    — Sólo acciones del propietario + utilidades (applyTax, sendToJail).
    — NO redefine ni transfer, ni renderPlayers, ni newGame (eso queda en part4).
@@ -5129,7 +5177,12 @@ if (typeof window.transfer === 'function'){
     }},
     { name: 'Duelo de dados', run(p){
         const rival = pickPlayer(p.id); if (!rival) return log('Sin rival.');
-        function roll(){ return (1+Math.floor(Math.random()*6)) + (1+Math.floor(Math.random()*6)); }
+        function roll(){
+            if (window.RolesConfig?.dice0to9 && window.Roles?.rollDie0to9) {
+                return Roles.rollDie0to9() + Roles.rollDie0to9();
+            }
+            return (1+Math.floor(Math.random()*6)) + (1+Math.floor(Math.random()*6));
+        }
         let a=roll(), b=roll();
         log(`${p.name} tira ${a} vs ${rival.name} ${b}.`);
         while(a===b){ a=roll(); b=roll(); log(`Empate. Nueva tirada: ${a} vs ${b}.`); }
@@ -6371,6 +6424,14 @@ Aceptar=A, Cancelar=B') ? 'A' : 'B';
   R.setEstadoAuctionBlocked = function(flag){ state.estadoAuctionBlocked = !!flag; saveState(); uiUpdate(); };
   R.isEstadoAuctionBlocked = function(){ return !!state.estadoAuctionBlocked; };
   R.listAssignments = function(){ return (state.players||[]).map(p=>({ id:p.id, name:p.name, role: roleOf(p.id) })); };
+  R.setRole = function(playerId, role){
+    var id = (playerId&&playerId.id)||playerId;
+    setRole(id, normalizeRoleGuess(role));
+    ensureFlorentinoUses();
+    saveState();
+    uiUpdate();
+  };
+  R.ROLES = Object.assign({}, ROLE);
 
   // === Eventos/CARTAS unificados ===
 // Llamas con el nombre que uses en tu mazo o en tus triggers de casilla.
@@ -6585,13 +6646,15 @@ R.eventsList = [
     'box-shadow:0 12px 28px rgba(0,0,0,.25)'].join(';');
 
   const tabs = el('div', { className:'tabs' });
-  const tabState = el('button', { textContent:'State' });
-  const tabLog   = el('button', { textContent:'Log' });
-  const tabRoles = el('button', { textContent:'Roles' });
-  [tabState, tabLog, tabRoles].forEach(b => b.style.cssText='margin-right:6px;padding:4px 8px;border:1px solid #ddd;background:#f8fafc;border-radius:8px;cursor:pointer;color:#111');
-  const secState = el('div');
-  const secLog   = el('div'); secLog.style.display = 'none';
-  const secRoles = el('div'); secRoles.style.display = 'none';
+  const tabState  = el('button', { textContent:'State' });
+  const tabLog    = el('button', { textContent:'Log' });
+  const tabRoles  = el('button', { textContent:'Roles' });
+  const tabEvents = el('button', { textContent:'Events' });
+  [tabState, tabLog, tabRoles, tabEvents].forEach(b => b.style.cssText='margin-right:6px;padding:4px 8px;border:1px solid #ddd;background:#f8fafc;border-radius:8px;cursor:pointer;color:#111');
+  const secState  = el('div');
+  const secLog    = el('div'); secLog.style.display = 'none';
+  const secRoles  = el('div'); secRoles.style.display = 'none';
+  const secEvents = el('div'); secEvents.style.display = 'none';
 
   const grid = el('div'); grid.style.cssText='display:grid;grid-template-columns:110px 1fr;gap:4px 8px;margin-top:6px';
   function row(k,v){ const a=el('div',{textContent:k,style:'color:#555'}), b=el('div',{textContent:v||''}); grid.append(a,b); }
@@ -6602,7 +6665,7 @@ R.eventsList = [
 
   // Roles tab content
   const rolesBox = el('div');
-  rolesBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:120px;white-space:pre-wrap';
+  rolesBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:120px';
   const rolesActions = el('div');
   rolesActions.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-top:8px';
   const btnEstadoBid = el('button', { textContent:'Bloquear Estado' });
@@ -6610,6 +6673,11 @@ R.eventsList = [
   rolesActions.appendChild(btnEstadoBid);
   secRoles.appendChild(rolesBox);
   secRoles.appendChild(rolesActions);
+
+  // Events tab content
+  const eventsBox = el('div');
+  eventsBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:120px';
+  secEvents.appendChild(eventsBox);
 
   function _roleNice(r){
     if (r==='proxeneta') return 'Proxeneta';
@@ -6627,8 +6695,19 @@ R.eventsList = [
       }
       const list = (Roles.listAssignments && Roles.listAssignments()) ||
                    ((window.state?.players)||[]).map(p=>({id:p.id, name:p.name, role:'?'}));
-      const lines = list.map(r => `${r.name||r.id} — ${_roleNice(r.role)}`).join('\n') || 'Sin jugadores';
-      rolesBox.textContent = lines;
+      rolesBox.innerHTML = '';
+      const allRoles = window.Roles?.ROLES ? Object.values(window.Roles.ROLES) : ['civil','proxeneta','florentino','fbi'];
+      list.forEach(r=>{
+        const row = el('div');
+        row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:4px';
+        row.appendChild(el('span',{textContent:r.name||r.id}));
+        const sel = el('select');
+        allRoles.forEach(opt=> sel.appendChild(el('option',{value:opt,textContent:_roleNice(opt),selected:r.role===opt})));
+        sel.onchange=()=>{ try{ Roles.setRole?.(r.id, sel.value); renderRoles(); }catch{} };
+        row.appendChild(sel);
+        rolesBox.appendChild(row);
+      });
+      if(list.length===0) rolesBox.textContent='Sin jugadores';
 
       if (Roles.isEstadoAuctionBlocked){
         const blocked = !!Roles.isEstadoAuctionBlocked();
@@ -6637,6 +6716,48 @@ R.eventsList = [
       }
     } catch(e){
       rolesBox.textContent = '(error al renderizar roles)';
+    }
+  }
+
+  function teleportTo(subtype){
+    try{
+      const T = window.TILES || [];
+      const idx = T.findIndex(t=>t.subtype===subtype);
+      const p = window.state?.players?.[window.state?.current];
+      if(idx>=0 && p){
+        p.pos = idx;
+        window.renderPlayers?.();
+        window.BoardUI?.refreshTiles?.();
+        const tile = T[idx];
+        window.onLand?.(p, tile);
+      }
+    }catch{}
+  }
+
+  function renderEvents(){
+    try{
+      eventsBox.innerHTML = '';
+      if(window.Roles){
+        const label = el('div',{textContent:'Evento:'});
+        const sel = el('select');
+        (Roles.eventsList||[]).forEach(ev=> sel.appendChild(el('option',{value:ev,textContent:ev})));
+        const btn = el('button',{textContent:'Lanzar'});
+        btn.style.cssText='margin-left:6px';
+        btn.onclick=()=>{ try{ Roles.triggerEvent?.(sel.value,{playerId: window.state?.players?.[window.state?.current]?.id}); }catch{} };
+        eventsBox.append(label, sel, btn);
+      } else {
+        eventsBox.appendChild(el('div',{textContent:'Roles/events no cargados.'}));
+      }
+      const label2 = el('div',{textContent:'Ir a casilla:'});
+      label2.style.marginTop = '8px';
+      const sel2 = el('select');
+      ['casino_bj','casino_roulette','fiore','bus','rail','ferry','air'].forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
+      const btn2 = el('button',{textContent:'Ir'});
+      btn2.style.cssText='margin-left:6px';
+      btn2.onclick=()=>{ teleportTo(sel2.value); };
+      eventsBox.append(label2, sel2, btn2);
+    }catch{
+      eventsBox.textContent = '(error eventos)';
     }
   }
 
@@ -6652,11 +6773,12 @@ R.eventsList = [
   secState.appendChild(grid); secState.appendChild(actions);
   secLog.appendChild(logBox);
 
-  tabs.append(tabState, tabLog, tabRoles);
+  tabs.append(tabState, tabLog, tabRoles, tabEvents);
   card.appendChild(tabs);
   card.appendChild(secState);
   card.appendChild(secLog);
   card.appendChild(secRoles);
+  card.appendChild(secEvents);
   panel.appendChild(toggleBtn);
   panel.appendChild(card);
   document.addEventListener('DOMContentLoaded', () => document.body.appendChild(panel));
@@ -6666,29 +6788,46 @@ R.eventsList = [
       secState.style.display='none';
       secLog.style.display='block';
       secRoles.style.display='none';
+      secEvents.style.display='none';
       tabLog.style.background='#fff';
       tabState.style.background='#f8fafc';
       tabRoles.style.background='#f8fafc';
+      tabEvents.style.background='#f8fafc';
     } else if (which==='roles'){
       secState.style.display='none';
       secLog.style.display='none';
       secRoles.style.display='block';
+      secEvents.style.display='none';
       tabRoles.style.background='#fff';
       tabState.style.background='#f8fafc';
       tabLog.style.background='#f8fafc';
+      tabEvents.style.background='#f8fafc';
       renderRoles();
+    } else if (which==='events') {
+      secState.style.display='none';
+      secLog.style.display='none';
+      secRoles.style.display='none';
+      secEvents.style.display='block';
+      tabEvents.style.background='#fff';
+      tabState.style.background='#f8fafc';
+      tabLog.style.background='#f8fafc';
+      tabRoles.style.background='#f8fafc';
+      renderEvents();
     } else {
       secState.style.display='block';
       secLog.style.display='none';
       secRoles.style.display='none';
+      secEvents.style.display='none';
       tabState.style.background='#fff';
       tabLog.style.background='#f8fafc';
       tabRoles.style.background='#f8fafc';
+      tabEvents.style.background='#f8fafc';
     }
   }
   tabState.onclick = () => selectTab('state');
   tabLog.onclick   = () => selectTab('log');
   tabRoles.onclick = () => selectTab('roles');
+  tabEvents.onclick = () => selectTab('events');
 
   toggleBtn.onclick = () => {
     DBG.enabled = !DBG.enabled;
@@ -6993,6 +7132,7 @@ R.eventsList = [
     if (DBG.enabled){
       render();
       if (secRoles.style.display === 'block') renderRoles();
+      if (secEvents.style.display === 'block') renderEvents();
     }
   }, 500);
 

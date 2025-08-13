@@ -302,7 +302,12 @@
     }},
     { name: 'Duelo de dados', run(p){
         const rival = pickPlayer(p.id); if (!rival) return log('Sin rival.');
-        function roll(){ return (1+Math.floor(Math.random()*6)) + (1+Math.floor(Math.random()*6)); }
+        function roll(){
+            if (window.RolesConfig?.dice0to9 && window.Roles?.rollDie0to9) {
+                return Roles.rollDie0to9() + Roles.rollDie0to9();
+            }
+            return (1+Math.floor(Math.random()*6)) + (1+Math.floor(Math.random()*6));
+        }
         let a=roll(), b=roll();
         log(`${p.name} tira ${a} vs ${rival.name} ${b}.`);
         while(a===b){ a=roll(); b=roll(); log(`Empate. Nueva tirada: ${a} vs ${b}.`); }
