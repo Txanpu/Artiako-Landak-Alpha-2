@@ -700,6 +700,26 @@ function awardAuction(){
     price    = bestV;
   }
 
+  // Impugnación por un tercero antes de adjudicar
+  try {
+    const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+    if (who) {
+      const byId = Number(who) - 1;
+      const base = Math.max(1, t.price || 1);
+      const imbalance = Math.max(0, Math.min(1, (base - price) / base));
+      const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+      if (res.annulled) {
+        alert('⚖️ Juez IA anula la adjudicación.');
+        $('#auction').style.display = 'none';
+        state.auction = null;
+        const endTurnBtn = document.getElementById('endTurn');
+        if (endTurnBtn) endTurnBtn.disabled = false;
+        updateTurnButtons();
+        return;
+      }
+    }
+  } catch {}
+
   // Ganó Estado
   if (winnerId==='E'){
     if ((Estado.money||0) < price){
