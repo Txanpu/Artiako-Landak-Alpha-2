@@ -1,3 +1,5 @@
+'use strict';
+
 /* v13 – Parte 6/7: efectos al caer y sistema de subastas */
 
 // === [PATCH] Ajuste de alquileres con eventos ===

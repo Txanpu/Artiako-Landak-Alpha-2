@@ -1,3 +1,5 @@
+'use strict';
+
 /* v13 – Parte 4/7 (patched): setup, panel jugadores, utilidades de dinero
    — Esta versión mantiene TODA la economía y turnos aquí (fuente de verdad).
    — Muestra también el Estado (banca) al final del panel.

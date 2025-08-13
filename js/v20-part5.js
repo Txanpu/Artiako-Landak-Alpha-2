@@ -1,3 +1,5 @@
+'use strict';
+
 /* v13 – Parte 5/7: dados, movimiento, SALIDA, turnos */
 
 function addSkipTurn(player, turns = 1) {

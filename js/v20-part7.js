@@ -1,3 +1,5 @@
+'use strict';
+
 /* v13 – Parte 7/7 (patched): construir, vender, hipoteca, préstamos
    — Sólo acciones del propietario + utilidades (applyTax, sendToJail).
    — NO redefine ni transfer, ni renderPlayers, ni newGame (eso queda en part4).
