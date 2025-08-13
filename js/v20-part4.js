@@ -125,7 +125,10 @@ function renderPlayers(){
 /* ===== Dados (pips y animación) ===== */
 function diceHTML(n){
   const spots = { 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,3,4,6,7,9] };
-  const cells = (spots[n]||[]).map(idx=>{
+  if (!spots[n]) {
+    return `<div class="die num">${n}</div>`;
+  }
+  const cells = spots[n].map(idx=>{
     const r = Math.ceil(idx/3), c = ((idx-1)%3)+1;
     return `<div class="pip" style="grid-row:${r};grid-column:${c}"></div>`;
   }).join('');
