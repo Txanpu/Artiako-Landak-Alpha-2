@@ -650,7 +650,9 @@ function showCard(tileIndex, {canAuction=false}={}) {
     cardName.oninput = cardName.onkeydown = cardName.onblur = null;
   }
 
-  const t = TILES[tileIndex]; state.pendingTile = tileIndex;
+  const t = TILES[tileIndex];
+  const st = window.state;
+  if (st) st.pendingTile = tileIndex;
   const noBuildings = (t.subtype && !['utility','rail','ferry','air','bus'].includes(t.subtype)) || ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
 
   cardBand.style.background = t.type==='prop' ? COLORS[t.color] : '#374151';
@@ -693,7 +695,7 @@ if (!isVehicleOrUtil && !isNoBuildings){
     if (t.subtype === 'fiore') {
       bankWarn.className = '';
       bankWarn.innerHTML = `Fiore: <b>${t.workers||0}</b> zenbat langile?`;
-      const me = state.players[state.current];
+      const me = st?.players?.[st.current];
       if (me && t.owner === me.id) {
         const btn = document.createElement('button');
         btn.textContent = 'Kontratatu (0–5)';
@@ -732,7 +734,7 @@ if (typeof window.renderRentsTable !== 'function'){
 }
 
 window.showCard = showCard;
-if (cancelAuctionBtn) cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; state.pendingTile=null; };
+if (cancelAuctionBtn) cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; if (window.state) window.state.pendingTile=null; };
 if (startAuctionBtn && !startAuctionBtn.__wired) {
   startAuctionBtn.__wired = true;
   startAuctionBtn.onclick = ()=>{
@@ -5985,8 +5987,14 @@ if (typeof window.transfer === 'function'){
     state.fbiGuesses.clear();
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
-
-
+    // asignar roles especiales de forma única
+    const specialRoles = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
+    const totalRoles = Math.min(specialRoles.length, Math.floor(state.players.length * cfg.roleProbability));
+    const shuffledPlayers = [...state.players].sort(()=>Math.random()-0.5);
+    const shuffledRoles = [...specialRoles].sort(()=>Math.random()-0.5).slice(0, totalRoles);
+    for(let i=0;i<totalRoles;i++){
+      setRole(shuffledPlayers[i].id, shuffledRoles[i]);
+    }
 
     ensureFlorentinoUses();
     saveState();
