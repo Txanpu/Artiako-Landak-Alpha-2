@@ -373,6 +373,16 @@ const cardRent = document.getElementById('cardRent');
 const cardRoi  = document.getElementById('cardRoi');
 if (cardRoi && cardRoi.parentElement) cardRoi.parentElement.style.display = 'none';
 
+// Permitir cerrar la carta clicando fuera del contenido
+if (overlay){
+  overlay.addEventListener('click', (ev)=>{
+    if (ev.target === overlay){
+      overlay.style.display = 'none';
+      if (window.state) window.state.pendingTile = null;
+    }
+  });
+}
+
 const rentsBox = document.getElementById('cardRentsBox');
 const bankWarn = document.getElementById('bankWarn');
 const startAuctionBtn = document.getElementById('startAuction');
