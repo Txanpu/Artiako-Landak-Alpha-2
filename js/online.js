@@ -1,7 +1,5 @@
 (() => {
-  const socket = io();
-  let roomKey = null;
-  let playerId = null;
+
 
   function joinGame(key) {
     roomKey = key;
