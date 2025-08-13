@@ -176,26 +176,51 @@
       profiles: {
         agresivo: { maxOverpay: 1.35, bidStep: 0.08 },
         value:    { maxOverpay: 1.05, bidStep: 0.05 },
-        liquidez: { maxOverpay: 0.95, bidStep: 0.03 }
+        liquidez: { maxOverpay: 0.95, bidStep: 0.03 },
+        dios:     { maxOverpay: 2.00, bidStep: 0.10 }
       },
-      estimateFair(kind, meta){
-        if (kind==='tile') return Math.max(1, meta.price||1);
-        if (kind==='bundle') return Math.max(1, sum(meta.tiles.map(i=> (GameExtras._getTile(i)?.price)||1)));
-        if (kind==='loan') return Math.max(1, pick(meta,'minPrice', 1));
+      estimateFair(kind, meta, playerId){
+        let base=1;
+        if (kind==='tile') base=Math.max(1, meta.price||1);
+        if (kind==='bundle') base=Math.max(1, sum(meta.tiles.map(i=> (GameExtras._getTile(i)?.price)||1)));
+        if (kind==='loan') base=Math.max(1, pick(meta,'minPrice', 1));
+        return Math.floor(base * this._synergyMult(kind, meta, playerId));
+      },
+      _synergyMult(kind, meta, playerId){
+        const s=GameExtras._cfg.state||{}; const T=s.board||s.tiles||[]; if(!playerId) return 1;
+        if (kind==='tile'){
+          const group=meta.color||meta.group; if(!group) return 1;
+          const tiles=T.filter(t=> t&&t.type==='prop'&&(t.color===group||t.group===group));
+          const owned=tiles.filter(t=> t.owner===playerId).length;
+          const after=owned+1;
+          if(after===tiles.length) return 1.6;
+          if(after===tiles.length-1) return 1.3;
+          return 1;
+        }
+        if (kind==='bundle'){
+          const groups={};
+          for(const i of meta.tiles||[]){ const t=T[i]; if(!t) continue; const g=t.color||t.group; if(!g) continue; groups[g]=(groups[g]||0)+1; }
+          let mult=1;
+          for(const [g,count] of Object.entries(groups)){
+            const tiles=T.filter(t=> t&&t.type==='prop'&&(t.color===g||t.group===g));
+            const owned=tiles.filter(t=> t.owner===playerId).length;
+            const after=owned+count;
+            if(after===tiles.length) mult=Math.max(mult,1.6);
+            else if(after===tiles.length-1) mult=Math.max(mult,1.3);
+          }
+          return mult;
+        }
         return 1;
       },
       maybeBid(profileName, playerId){
         const s=GameExtras._cfg.state; const a=s.auction; if (!a || !a.open) return;
         const prof=this.profiles[profileName||'value']; const p=(s.players||[]).find(x=>x.id===playerId); if(!p) return;
-        // Meta para fair value
         const meta = (a.kind==='bundle') ? { tiles:a.bundleTiles } : (a.kind==='tile' ? GameExtras._getTile(a.assetId) : (a.kind==='loan' ? (s.loanListings||[]).find(x=>x.id===a.assetId): {}));
-        const fair=this.estimateFair(a.kind, meta);
+        const fair=this.estimateFair(a.kind, meta, playerId);
         const cap = Math.floor(fair * prof.maxOverpay);
         const next = Math.min(cap, Math.max(a.price, (a.bestBid||0)) + Math.ceil(fair*prof.bidStep));
         if (next> (a.bestBid||0) && (p.money||0)>=next){
-          // usa tu función real de pujas si existe
           if (typeof global.placeBid === 'function') return safe(global.placeBid, playerId, next);
-          // fallback: manipula estado (no recomendado en producción)
           a.bestBid = next; a.bestPlayer = playerId;
         }
       }
