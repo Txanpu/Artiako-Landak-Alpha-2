@@ -16,6 +16,7 @@ body{
 #board{
   position: relative;
   width: 100%;
+  min-height:600px;
   background-image:url('img/bg.jpg');
   background-size:cover;
   background-position:center;
