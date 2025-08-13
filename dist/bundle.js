@@ -7056,12 +7056,14 @@ R.eventsList = [
   tabRoles.onclick = () => selectTab('roles');
   tabEvents.onclick = () => selectTab('events');
 
-  toggleBtn.onclick = () => {
-    DBG.enabled = !DBG.enabled;
-    card.style.display = DBG.enabled ? 'block' : 'none';
-    toggleBtn.style.background = DBG.enabled ? '#ffe8a3' : '#fff';
+  function setDebugEnabled(on){
+    DBG.enabled = on;
+    card.style.display = on ? 'block' : 'none';
+    toggleBtn.style.background = on ? '#ffe8a3' : '#fff';
     persist();
-  };
+  }
+
+  toggleBtn.onclick = () => setDebugEnabled(!DBG.enabled);
 
   // Keyboard toggle
   document.addEventListener('keydown', (ev)=>{
@@ -7069,7 +7071,8 @@ R.eventsList = [
     const tag = ev.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ev.target.isContentEditable) return;
     if ((ev.key==='d' || ev.key==='D') && !ev.altKey && !ev.metaKey && !ev.ctrlKey){
-      toggleBtn.click(); ev.preventDefault();
+      setDebugEnabled(!DBG.enabled);
+      ev.preventDefault();
     }
   });
 
@@ -7368,9 +7371,7 @@ R.eventsList = [
 
   // Start open if env says so
   document.addEventListener('DOMContentLoaded', ()=>{
-    DBG.enabled = enabledFromEnv();
-    card.style.display = DBG.enabled ? 'block' : 'none';
-    toggleBtn.style.background = DBG.enabled ? '#ffe8a3' : '#fff';
+    setDebugEnabled(enabledFromEnv());
     if (DBG.enabled) render();
   });
 
