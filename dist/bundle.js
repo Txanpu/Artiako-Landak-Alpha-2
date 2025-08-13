@@ -675,21 +675,23 @@ function showCard(tileIndex, {canAuction=false}={}) {
     };
 
     // vehículos y utilities: ocultar “Renta base”, pero mostrar tabla
-if (cardPriceRow) cardPriceRow.style.display = 'flex';
-if (cardRentRow)  cardRentRow.style.display  = (isVehicleOrUtil || isNoBuildings) ? 'none' : 'flex';
-if (cardBuildRow) cardBuildRow.style.display = (!isVehicleOrUtil && !isNoBuildings) ? 'flex' : 'none';
+    const isVehicleOrUtil = ['rail','bus','ferry','air','utility'].includes(t.subtype);
+    const isNoBuildings   = ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
+    if (cardPriceRow) cardPriceRow.style.display = 'flex';
+    if (cardRentRow)  cardRentRow.style.display  = (isVehicleOrUtil || isNoBuildings) ? 'none' : 'flex';
+    if (cardBuildRow) cardBuildRow.style.display = (!isVehicleOrUtil && !isNoBuildings) ? 'flex' : 'none';
 
-cardPrice.textContent = fmtMoney(t.price);
+    cardPrice.textContent = fmtMoney(t.price);
 
-// siempre que haya modelo, mostrar tabla (incluye vehículos)
-const model = buildRentModel(t);
-rentsBox.innerHTML = (Array.isArray(model) && model.length) ? renderRentsTable(model) : '';
+    // siempre que haya modelo, mostrar tabla (incluye vehículos)
+    const model = buildRentModel(t);
+    rentsBox.innerHTML = (Array.isArray(model) && model.length) ? renderRentsTable(model) : '';
 
-if (!isVehicleOrUtil && !isNoBuildings){
-  cardRent.textContent = fmtMoney(t.baseRent ?? Math.round((t.price||0)*0.3));
-  const cost = t.houseCost ?? Math.round((t.price||0)*0.5);
-  if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
-}
+    if (!isVehicleOrUtil && !isNoBuildings){
+      cardRent.textContent = fmtMoney(t.baseRent ?? Math.round((t.price||0)*0.3));
+      const cost = t.houseCost ?? Math.round((t.price||0)*0.5);
+      if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
+    }
 
 
     const msg = FUNNY[t.type] || FUNNY.default;
