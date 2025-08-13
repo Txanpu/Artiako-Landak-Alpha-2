@@ -54,7 +54,9 @@ function movePlayer(p, steps){
   p.pos = np;
   BoardUI?.refreshTiles?.(); // <-- Esto es clave
   log(`${p.name} avanza ${steps} hasta #${np} (${TILES[np].name || TILES[np].type})`);
-  onLand(p, np);
+  // Usa window.onLand con optional chaining para evitar errores si falta la función
+  // (por ejemplo, si el bundle no incluye v20-part6.js).
+  window.onLand?.(p, np);
 }
 
 function roll(){
