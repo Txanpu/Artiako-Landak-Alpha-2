@@ -193,13 +193,22 @@ function renderDice(d1, d2, meta=''){
 /* ===== Nueva partida ===== */
 function newGame(){
 Estado.money = 0;
-  const n = Math.max(2, Math.min(6, parseInt($('#numPlayers').value||'3',10)));
+  let humans = Math.max(0, Math.min(6, parseInt($('#numHumans').value||'2',10)));
+  let bots   = Math.max(0, Math.min(6, parseInt($('#numBots').value||'1',10)));
+  let total  = humans + bots;
+  if (total < 2){ bots = Math.max(0, 2 - humans); total = humans + bots; }
+  if (total > 6){ bots = Math.max(0, 6 - humans); total = humans + bots; }
   const startMoney = Math.max(100, parseInt($('#startMoney').value||'500',10));
 
-  state.players = Array.from({length:n},(_,i)=>({
-    id:i, name:`J${i+1}`, money:startMoney, pos:0, alive:true,
-    jail:0, taxBase:0, doubleStreak:0
-  }));
+  state.players = [];
+  for (let i=0;i<humans;i++){
+    state.players.push({ id: state.players.length, name:`J${i+1}`, money:startMoney, pos:0, alive:true,
+      jail:0, taxBase:0, doubleStreak:0 });
+  }
+  for (let i=0;i<bots;i++){
+    state.players.push({ id: state.players.length, name:`Bot${i+1}`, money:startMoney, pos:0, alive:true,
+      jail:0, taxBase:0, doubleStreak:0, isBot:true });
+  }
 
   // v22: roles y casillas especiales
   if (window.Roles) {
@@ -239,6 +248,7 @@ Estado.money = 0;
   $('#log').innerHTML = '';
   log('Nueva partida creada.');
   updateTurnButtons();
+  if (state.players[state.current]?.isBot) botAutoPlay?.();
   document.body.classList.add('playing');   // <- esto debe estar
   renderPlayers(); // asegúrate de llamarlo después de setear el estado
 }
