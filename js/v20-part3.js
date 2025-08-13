@@ -372,8 +372,10 @@ const cardBand = document.getElementById('cardBand');
 const cardName = document.getElementById('cardName');
 const cardPrice= document.getElementById('cardPrice');
 const cardRent = document.getElementById('cardRent');
+const cardBuild= document.getElementById('cardBuild');
 const cardRoi  = document.getElementById('cardRoi');
 if (cardRoi && cardRoi.parentElement) cardRoi.parentElement.style.display = 'none';
+if (cardBuild && cardBuild.parentElement) cardBuild.parentElement.style.display = 'none';
 
 // Permitir cerrar la carta clicando fuera del contenido
 if (overlay){
@@ -422,15 +424,7 @@ function showCard(tileIndex, {canAuction=false}={}) {
   const t = TILES[tileIndex];
   const st = window.state;
   if (st) st.pendingTile = tileIndex;
-  const noBuildings = (t.subtype && !['utility','rail','ferry','air','bus'].includes(t.subtype)) || ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
 
-  cardBand.style.background = t.type==='prop' ? COLORS[t.color] : '#374151';
-  cardBand.textContent = t.name;
-
-  const cardPriceRow = document.getElementById('cardPrice')?.parentElement;
-  const cardRentRow  = document.getElementById('cardRent')?.parentElement;
-  const rentsBox     = document.getElementById('cardRentsBox');
-  const startBtn     = document.getElementById('startAuction');
 
   if (t.type === 'prop') {
     cardBand.onclick = ()=>{
@@ -444,11 +438,9 @@ function showCard(tileIndex, {canAuction=false}={}) {
     };
 
     // vehículos y utilities: ocultar “Renta base”, pero mostrar tabla
-const isVehicleOrUtil = ['utility','rail','bus','ferry','air'].includes(t.subtype);
-const isNoBuildings   = ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
-
 if (cardPriceRow) cardPriceRow.style.display = 'flex';
 if (cardRentRow)  cardRentRow.style.display  = (isVehicleOrUtil || isNoBuildings) ? 'none' : 'flex';
+if (cardBuildRow) cardBuildRow.style.display = (!isVehicleOrUtil && !isNoBuildings) ? 'flex' : 'none';
 
 cardPrice.textContent = fmtMoney(t.price);
 
@@ -458,29 +450,11 @@ rentsBox.innerHTML = (Array.isArray(model) && model.length) ? renderRentsTable(m
 
 if (!isVehicleOrUtil && !isNoBuildings){
   cardRent.textContent = fmtMoney(t.baseRent ?? Math.round((t.price||0)*0.3));
+  const cost = t.houseCost ?? Math.round((t.price||0)*0.5);
+  if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
 }
 
-    // v15-part3.js — dentro de showCard, si es Fiore
-    if (t.subtype === 'fiore') {
-      bankWarn.className = '';
-      bankWarn.innerHTML = `Fiore: <b>${t.workers||0}</b> zenbat langile?`;
-      const me = st?.players?.[st.current];
-      if (me && t.owner === me.id) {
-        const btn = document.createElement('button');
-        btn.textContent = 'Kontratatu (0–5)';
-        btn.onclick = () => {
-          const n = Number(prompt('Trabajadores en Fiore (0–5):', t.workers||0));
-          if (Number.isFinite(n) && n>=0 && n<=5){ t.workers = n; BoardUI.refreshTiles(); }
-        };
-        bankWarn.appendChild(document.createElement('br'));
-        bankWarn.appendChild(btn);
-      }
-    }
-  } else {
-    cardBand.onclick = null;
-    if (cardPriceRow) cardPriceRow.style.display = 'none';
-    if (cardRentRow)  cardRentRow.style.display  = 'none';
-    if (startBtn) startBtn.style.display = 'none';
+
     const msg = FUNNY[t.type] || FUNNY.default;
     bankWarn.className = 'muted';
     bankWarn.textContent = msg;
@@ -517,12 +491,13 @@ if (startAuctionBtn && !startAuctionBtn.__wired) {
 }
 
 const FUNNY = {
-  start:    'Salida: como tu madre...',
-  tax:      'Putillas y coca',
+  start:    'salidas como tu madre.',
+  tax:      'dinerito pal politiko',
   jail:     'Buen sitio pa hacer Networking?',
   gotojail: 'A la cárcel, a la cárcel, a la cárcel, a la cárcel, a la cárcel…',
-  park:     'Buen sitio pa fumar porros… o mirar palomas.',
+  park:     'buen sitio pa fumar porros',
   slots:    'GANA GANA GANA!!!',
+  bank:     'Banca corrupta: pide préstamo o securitiza tus deudas.',
   default:  'Sin info, como tu madre...'
 };
 
