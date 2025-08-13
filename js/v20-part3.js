@@ -374,8 +374,11 @@ const cardPrice= document.getElementById('cardPrice');
 const cardRent = document.getElementById('cardRent');
 const cardBuild= document.getElementById('cardBuild');
 const cardRoi  = document.getElementById('cardRoi');
+const cardPriceRow = cardPrice ? cardPrice.parentElement : null;
+const cardRentRow  = cardRent  ? cardRent.parentElement  : null;
+const cardBuildRow = cardBuild ? cardBuild.parentElement : null;
 if (cardRoi && cardRoi.parentElement) cardRoi.parentElement.style.display = 'none';
-if (cardBuild && cardBuild.parentElement) cardBuild.parentElement.style.display = 'none';
+if (cardBuildRow) cardBuildRow.style.display = 'none';
 
 // Permitir cerrar la carta clicando fuera del contenido
 if (overlay){
