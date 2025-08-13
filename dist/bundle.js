@@ -7559,9 +7559,9 @@ R.eventsList = [
       if(idx>=0 && p){
         p.pos = idx;
         window.renderPlayers?.();
+        // ejecuta efectos como si hubiera caído en la casilla
+        Promise.resolve(window.onLand?.(p, idx));
         window.BoardUI?.refreshTiles?.();
-        const tile = T[idx];
-        window.onLand?.(p, tile);
       }
     }catch{}
   }
@@ -7583,7 +7583,12 @@ R.eventsList = [
       const label2 = el('div',{textContent:'Ir a casilla:'});
       label2.style.marginTop = '8px';
       const sel2 = el('select');
-      ['casino_bj','casino_roulette','fiore','bus','rail','ferry','air','bank'].forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
+      try{
+        const rare = Array.from(new Set(
+          (window.TILES||[]).map(t=> t.subtype || (t.type!=='prop' ? t.type : null))
+        )).filter(Boolean).sort();
+        rare.forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
+      }catch{}
       const btn2 = el('button',{textContent:'Ir'});
       btn2.style.cssText='margin-left:6px';
       btn2.onclick=()=>{ teleportTo(sel2.value); };
