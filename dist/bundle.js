@@ -1266,7 +1266,7 @@ function roll(){
     // Especiales adicionales (p.ej. 0–0 repite) si Roles lo define
     try {
       const sp = window.Roles?.handleDiceSpecials?.({ d1, d2, playerId: p.id }) || {};
-      if (sp.repeatTile) {
+      if (sp.repeatTile && !(d1===0 && d2===0)) {
         log('⟳ Regla 0–0: repites la casilla y resuelves de nuevo.');
         onLand(p, p.pos);
       }
@@ -1291,16 +1291,18 @@ function roll(){
 
   renderDice(d1, d2, `Total: ${sum}${isDouble?' — Dobles':''}`);
 
-  // Doble 1: imagen + cárcel inmediata
-  if (isSnake){
+  if (d1===0 && d2===0){
+    log(`${p.name} saca 0–0 y se queda en la misma casilla.`);
+    onLand(p, p.pos);
+  } else if (isSnake){
     log(`${p.name} dobles de 1 → cárcel directa (sin repetir).`);
     showDoublesOverlay();
     window.sendToJail?.(p);
     p.doubleStreak = 0;        // ← evita estados raros
     return;                     // endTurn ya lo hace sendToJail
+  } else {
+    movePlayer(p, sum);
   }
-
-  movePlayer(p, sum);
 
   // Dobles normales: hasta 3 tiradas, luego cárcel
   if (isDouble){
