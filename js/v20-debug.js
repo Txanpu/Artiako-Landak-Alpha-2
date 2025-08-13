@@ -285,6 +285,9 @@
 
   // Keyboard toggle
   document.addEventListener('keydown', (ev)=>{
+    if (ev.repeat) return;
+    const tag = ev.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ev.target.isContentEditable) return;
     if ((ev.key==='d' || ev.key==='D') && !ev.altKey && !ev.metaKey && !ev.ctrlKey){
       toggleBtn.click(); ev.preventDefault();
     }
