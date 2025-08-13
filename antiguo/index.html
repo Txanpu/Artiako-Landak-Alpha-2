@@ -1,0 +1,231 @@
+<!-- v15.html — panel fusionado con el estilo del 200.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artiako Landak – v13</title>
+<script src="js/device.js"></script>
+<link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+<div class="boardWrap">
+  <div id="board" class="board dark"></div>
+</div>
+
+<!-- ===== PANEL nuevo (manteniendo IDs del v15) ===== -->
+  <div class="panel">
+
+    <div class="panelHeader">
+    <h2 style="margin:0">Artiako Landak</h2>
+    <button id="openSetup" class="primary" type="button">Nueva partida</button>
+  </div>
+
+  <!-- diálogo con la configuración original (IDs intactos) -->
+  <dialog id="setupDialog">
+    <form method="dialog" id="setupForm">
+      <div class="row" style="align-items:center; justify-content:space-between">
+        <h3 style="margin:0">Configurar partida</h3>
+        <button id="cancelSetup" type="button">Cancelar</button>
+      </div>
+      <div class="setup row" style="margin:.5rem 0">
+        <label>Humanos:
+          <input id="numHumans" type="number" min="0" max="6" value="2">
+        </label>
+        <label>Bots:
+          <input id="numBots" type="number" min="0" max="6" value="0">
+        </label>
+        <label>Dinero inicial:
+          <input id="startMoney" type="number" min="100" step="50" value="500">
+        </label>
+        <button id="newGame" class="primary" type="button">Empezar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- diálogo genérico para solicitudes de entrada -->
+  <dialog id="promptDialog">
+    <form method="dialog" id="promptForm">
+      <p id="promptMessage"></p>
+      <input id="promptInput" type="text">
+      <div class="row" style="margin-top:8px; justify-content:flex-end">
+        <button type="button" id="promptCancel">Cancelar</button>
+        <button type="submit" class="primary">Aceptar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- diálogo para confirmar intercambios -->
+  <dialog id="dealDialog">
+    <div id="dealDetails"></div>
+    <div class="row" style="margin-top:8px; justify-content:flex-end">
+      <button type="button" id="dealCancel">Cancelar</button>
+      <button type="button" id="dealOk" class="primary">Aceptar</button>
+    </div>
+  </dialog>
+
+  <!-- jugadores -->
+  <div class="players" id="players"></div>
+
+  <!-- acciones + dados (dados a la derecha) -->
+  <div class="row actions" id="actionsRow">
+    <button id="roll" class="primary" type="button">Tirar dados</button>
+    <button id="endTurn" type="button">Terminar turno</button>
+    <button id="loan" type="button">Prestar dinero</button>
+    <button id="corruptLoan" type="button" style="display:none; background-color: #b91c1c;">Préstamo Corrupto</button>
+    <button id="build" type="button">Construir</button>
+    <button id="sell" type="button">Vender casa</button>
+    <button id="mortgage" type="button">Hipotecar</button>
+    <button id="unmortgage" type="button">Levant. hipoteca</button>
+    <button id="myBalance" type="button">Mi Balance</button>
+    <button id="insider" type="button" style="display:none;">Insider</button>
+
+    <!-- los dados del v15 se siguen pintando aquí -->
+    <div id="dice" class="diceWrap" aria-live="polite" aria-label="Resultado de los dados"></div>
+  </div>
+
+  <!-- subasta y log fijos dentro del panel -->
+  <div id="auction" class="auction" style="display:none"></div>
+  <div class="log" id="log"></div>
+
+  <details class="rules" id="rules" style="display:none;">
+    <summary>Reglas</summary>
+    <ul>
+      <li>Impuesto: 33% de tus ganancias desde tu último impuesto.</li>
+      <li>Si el Estado elimina a alguien, todos pierden.</li>
+      <li>Todo va por subasta.</li>
+      <li>Construir paga al Estado.</li>
+    </ul>
+  </details>
+</div>
+
+<!-- Modal carta propiedad (duplicado original, no tocado) -->
+<div id="overlay" class="overlay" role="dialog" aria-modal="true">
+  <div class="card" role="document">
+    <div id="cardBand" class="top">Propiedad</div>
+    <div class="body">
+      <div class="title" id="cardName"></div>
+      <div class="row"><div class="muted">Precio</div><div id="cardPrice">$0</div></div>
+      <div class="row"><div class="muted">Renta base</div><div id="cardRent">$0</div></div>
+      <div class="row"><div class="muted">Casa/Hotel</div><div id="cardBuild">$0</div></div>
+      <div id="cardRentsBox"></div>
+      <div id="bankWarn" class="muted"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="startAuction" class="primary">Ir a subasta</button>
+        <button id="cancelAuction">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="doubleOverlay" class="overlay" aria-hidden="true" style="display:none"></div>
+
+
+<!-- Config opcional -->
+<script>
+  window.RolesConfig = Object.assign({}, window.RolesConfig||{}, {
+    roleProbability: 0.20,
+    bankMaxTicks: 30,
+    dice0to9: true
+  });
+</script>
+<!-- JS bundle -->
+<script src="dist/bundle.js"></script>
+
+
+
+<!-- JS mínimo del panel: abrir/cerrar diálogo sin interferir con v15 -->
+<script>
+(()=>{
+  const openBtn = document.getElementById('openSetup');
+  const dlg = document.getElementById('setupDialog');
+  const cancelBtn = document.getElementById('cancelSetup');
+  const startBtn = document.getElementById('newGame');
+  openBtn?.addEventListener('click',()=>dlg.showModal());
+  cancelBtn?.addEventListener('click',()=>dlg.close());
+  // cerramos el diálogo, la lógica de #newGame la lleva el v15
+  startBtn?.addEventListener('click',()=>dlg.close());
+})();
+
+document.querySelectorAll('.tile').forEach(tile=>{
+  tile.addEventListener('click',()=>{ tile.classList.toggle('active'); });
+});
+document.querySelectorAll('.badge').forEach(badge=>{
+  badge.addEventListener('click',(e)=>{ e.stopPropagation(); badge.classList.toggle('active'); });
+});
+
+// legacy opcional del v15 (no hay .controls en este layout, se deja seguro)
+document.querySelector('.controls button.primary')?.addEventListener('click',()=>{ alert('El juego ha comenzado!'); });
+document.querySelector('.controls button:last-child')?.addEventListener('click',()=>{
+  const r=document.querySelector('.rules'); if(r) r.open=!r.open;
+});
+
+function initGameBindings(){
+  // [PATCH] Inicialización de módulos
+  if (window.GameDebtMarket) {
+    GameDebtMarket.install({ state: window.state, fixPropertyAuction: true });
+  }
+  if (window.GameSecuritization) {
+    GameSecuritization.install({ state: window.state });
+  }
+  if (window.GameRiskPlus) {
+    GameRiskPlus.install({
+      state: window.state,
+      margin: { cashThreshold: 120, graceTurns: 1 },
+      maint:  { monoMult: 1.5, nonMonoMult: 0.7, basePct: 0.05 }
+    });
+  }
+  if (window.GameExtras) {
+    GameExtras.install({ state: window.state, cooldownTurns: 6 });
+  }
+  if (window.UIX) {
+    UIX.install({ state: window.state, map:{ fromDOM: '.tile' } });
+  }
+  document.getElementById('myBalance')?.addEventListener('click', ()=>{
+    // [PATCH] UIX balance panel supersedes GameExtras
+    if (window.UIX && window.state) {
+      UIX.balance.show(window.state.current);
+    } else if (window.GameExtras && window.state) {
+      GameExtras.showMyBalance(window.state.current);
+    }
+  });
+  document.getElementById('insider')?.addEventListener('click', ()=>{
+    if (window.GameRiskPlus && window.state) {
+      GameRiskPlus.Insider.use(window.state.current);
+    }
+  });
+  const board = document.getElementById('board');
+  board?.addEventListener('click', (e) => {
+    const tile = e.target.closest('.tile');
+    if (!tile) return;
+    const tiles = Array.from(board.querySelectorAll('.tile'));
+    const idx = tiles.indexOf(tile);
+    const ov = document.getElementById('overlay');
+    if (idx > -1 && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
+      window.showCard(idx);
+    }
+  });
+}
+
+if (document.readyState !== 'loading') initGameBindings();
+else document.addEventListener('DOMContentLoaded', initGameBindings);
+</script>
+<script>
+(()=>{
+  let zoom=1;
+  const wrap=document.querySelector('.boardWrap');
+  if(!wrap) return;
+  document.addEventListener('wheel', (e)=>{
+    if(e.ctrlKey){
+      e.preventDefault();
+      zoom += e.deltaY < 0 ? 0.1 : -0.1;
+      zoom = Math.min(Math.max(zoom,0.5),2);
+      wrap.style.transform=`scale(${zoom})`;
+      wrap.style.transformOrigin='top left';
+    }
+  }, {passive:false});
+})();
+</script>
+</body>
+</html>
