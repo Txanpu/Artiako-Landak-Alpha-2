@@ -7348,25 +7348,4 @@ R.eventsList = [
         const sec = Math.round((Date.now() - window.SafeBug.lastActivityAt)/1000);
         row('last activity', `${sec}s ago`);
       }
-      renderLog();
-    }catch(e){}
-  }
 
-  // Periodic refresh when panel open
-  setInterval(()=>{
-    if (DBG.enabled){
-      render();
-      if (secRoles.style.display === 'block') renderRoles();
-      if (secEvents.style.display === 'block') renderEvents();
-    }
-  }, 500);
-
-  // Start open if env says so
-  document.addEventListener('DOMContentLoaded', ()=>{
-    DBG.enabled = enabledFromEnv();
-    card.style.display = DBG.enabled ? 'block' : 'none';
-    toggleBtn.style.background = DBG.enabled ? '#ffe8a3' : '#fff';
-    if (DBG.enabled) render();
-  });
-
-})();
