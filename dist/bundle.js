@@ -11,7 +11,7 @@
   }
 
   const toCents = (n) => (n==null?0:Math.round(Number(n)*100));
-  const fromCents = (c) => (c|0)/100;
+  const fromCents = (c) => Math.trunc(c || 0) / 100;
   const money = {
     add:(a,b)=>a+b,
     sub:(a,b)=>a-b,
@@ -82,13 +82,13 @@
   function repairState(state, TILES){
     state.players.forEach(p=>{
       if (!isFinite(p.money)) p.money = 0;
-      p.pos = clamp(p.pos|0, 0, TILES.length-1);
+      p.pos = clamp(Math.trunc(p.pos || 0), 0, TILES.length-1);
       p.alive = !!p.alive;
-      if (p.jail!=null) p.jail = clamp(p.jail|0, 0, 10);
+      if (p.jail!=null) p.jail = clamp(Math.trunc(p.jail || 0), 0, 10);
     });
     TILES.forEach(t=>{
       if (t.owner!=null && (t.owner<0 || t.owner>=state.players.length)) t.owner=null;
-      if (t.houses!=null) t.houses = clamp(t.houses|0, 0, 5);
+      if (t.houses!=null) t.houses = clamp(Math.trunc(t.houses || 0), 0, 5);
       if (t.mortgaged!=null) t.mortgaged = !!t.mortgaged;
     });
     recomputeDerived(state, TILES);
@@ -108,7 +108,7 @@
       Object.entries(families).forEach(([fam,info])=>{
         if (info.ownedBy.get(pi) === info.count) p.monopolies.push(fam);
       });
-      p.netWorth = (p.money|0) + TILES.reduce((s,t)=> s + (t.owner===pi ? (t.basePrice||0) + (t.houses||0)*(t.housePrice||0) : 0), 0);
+      p.netWorth = Math.trunc(p.money || 0) + TILES.reduce((s,t)=> s + (t.owner===pi ? (t.basePrice||0) + (t.houses||0)*(t.housePrice||0) : 0), 0);
     });
   }
 
@@ -196,35 +196,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
 (function(global){
-  function overlay(text='', opts={}){
-    const { id, closeOnClick=false, duration=0 } = opts;
-    const el = document.createElement('div');
-    if (id) el.id = id;
-    Object.assign(el.style, {
-      position:'fixed', inset:'0', background:'rgba(0,0,0,.6)',
-      color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
-      zIndex:99999, fontFamily:'system-ui, sans-serif', fontSize:'20px'
-    });
-    el.textContent = text;
-    document.body.appendChild(el);
-    let intervalId = null;
-    if (duration > 0) {
-      const start = Date.now();
-      intervalId = setInterval(()=>{
-        if (Date.now() - start >= duration) unmount();
-      }, 200);
-    }
-    const handler = (ev)=>{ if(ev.key==='Escape') unmount(); };
-    document.addEventListener('keydown', handler);
-    function unmount(){
-      if (intervalId) clearInterval(intervalId);
-      document.removeEventListener('keydown', handler);
-      el.remove();
-    }
-    if (closeOnClick) el.addEventListener('click', unmount);
-    return unmount;
-  }
-  const api = { overlay };
+
   global.utils = Object.assign(global.utils || {}, api);
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -1083,10 +1055,18 @@ function transfer(from, to, amount, {taxable=false, reason=''}={}) {
 
   // Debitar
   if (from === Estado) {
-    Estado.money = Math.max(0, Math.round((Estado.money||0) - amount));
+    const available = Math.max(0, Math.round(Estado.money || 0));
+    if (available < amount) {
+      log?.(`💸 Estado sin fondos: intenta pagar ${fmtMoney(amount)}${reason ? ' — ' + reason : ''}.`);
+      amount = available; // pagar solo lo disponible (0 si nada)
+    }
+    Estado.money = Math.max(0, available - amount);
   } else if (from) {
     giveMoney(from, -amount, {taxable, reason});
   }
+
+  // Si no hay importe tras ajustar, salir
+  if (amount <= 0) { renderPlayers?.(); return; }
 
   // Acreditar
   if (to === Estado) {
