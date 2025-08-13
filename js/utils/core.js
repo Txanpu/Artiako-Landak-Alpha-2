@@ -11,7 +11,7 @@
   }
 
   const toCents = (n) => (n==null?0:Math.round(Number(n)*100));
-  const fromCents = (c) => (c|0)/100;
+  const fromCents = (c) => Math.trunc(c || 0) / 100;
   const money = {
     add:(a,b)=>a+b,
     sub:(a,b)=>a-b,
