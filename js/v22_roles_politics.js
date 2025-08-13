@@ -57,7 +57,7 @@
   };
 
   const defaultConfig = {
-    roleProbability: 0.20,
+    roleProbability: 0.50,
     dice0to9: false,
     securiAdvance: 150,
     securiTicks: 3,
@@ -168,8 +168,16 @@
 
     const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI, ROLE.OKUPA];
     const nRoles = Math.min(rolesPool.length, Math.round(state.players.length * (cfg.roleProbability||0)));
+    // Shuffle players and roles using Fisher-Yates to avoid bias
+    function shuffle(arr){
+      for(let i = arr.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
     const shuffled = [...state.players];
-    shuffled.sort(()=>Math.random()-0.5);
+    shuffle(shuffled);
+    shuffle(rolesPool);
     for(let i=0;i<nRoles;i++){
       state.assignments.set(shuffled[i].id, rolesPool[i]);
     }

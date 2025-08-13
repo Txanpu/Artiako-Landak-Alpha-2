@@ -17,24 +17,38 @@ const Roles = global.window.Roles;
   assert.strictEqual(roles.length, unique.size);
 });
 
-// Approximately 20% of players should receive a role
-test('assigns ~20% roles', () => {
-  window.RolesConfig.roleProbability = 0.2;
-  const players = Array.from({length:10}, (_,i) => ({id:i+1}));
+// Approximately 50% of players should receive a role
+test('assigns ~50% roles', () => {
+  window.RolesConfig.roleProbability = 0.5;
+  const players = Array.from({length:8}, (_,i) => ({id:i+1}));
   Roles.assign(players);
   const assigned = Roles.listAssignments().filter(r => r.role !== 'civil');
-  assert.strictEqual(assigned.length, 2);
+  assert.strictEqual(assigned.length, 4);
 });
 
-// When there are enough players, all roles should appear
-test('all roles present with many players', () => {
-  window.RolesConfig.roleProbability = 0.2;
-  const players = Array.from({length:15}, (_,i) => ({id:i+1}));
+// When probability allows assigning every role, all roles should appear
+test('all roles present when probability is 100%', () => {
+  window.RolesConfig.roleProbability = 1;
+  const players = Array.from({length:4}, (_,i) => ({id:i+1}));
   Roles.assign(players);
   const roles = new Set(Roles.listAssignments().map(r => r.role));
-  ['proxeneta', 'florentino', 'fbi'].forEach(role => {
+  ['proxeneta', 'florentino', 'fbi', 'okupa'].forEach(role => {
     assert.ok(roles.has(role));
   });
+});
+
+// Role assignment should not always pick the same role when only one is needed
+test('assign picks random role from pool when limited', () => {
+  window.RolesConfig.roleProbability = 0.2; // 4 players -> 1 role
+  const players = [{id:1},{id:2},{id:3},{id:4}];
+  const origRandom = Math.random;
+  Math.random = () => 0; // deterministic shuffle
+  Roles.assign(players);
+  Math.random = origRandom;
+  const roles = Roles.listAssignments().map(r => r.role).filter(r => r !== 'civil');
+  assert.strictEqual(roles.length, 1);
+  // With Math.random mocked to 0, first role becomes 'florentino'
+  assert.strictEqual(roles[0], 'florentino');
 });
 
 // Setting a role to a player should clear it from others
