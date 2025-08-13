@@ -137,15 +137,13 @@
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
 
-    const n = state.players.length;
     const roleP = Math.max(0, Math.min(1, cfg.roleProbability||0.20));
-    let fbiAssigned = false;
+    const available = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
     state.players.forEach(p=>{
       let r = ROLE.CIVIL;
-      if(rand.chance(roleP)){
-        const pool = fbiAssigned ? [ROLE.PROXENETA, ROLE.FLORENTINO] : [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
-        r = rand.pick(pool);
-        if(r===ROLE.FBI) fbiAssigned = true;
+      if(rand.chance(roleP) && available.length){
+        const idx = Math.floor(Math.random() * available.length);
+        r = available.splice(idx,1)[0];
       }
       setRole(p.id, r);
     });
@@ -827,7 +825,13 @@
   R.listAssignments = function(){ return (state.players||[]).map(p=>({ id:p.id, name:p.name, role: roleOf(p.id) })); };
   R.setRole = function(playerId, role){
     var id = (playerId&&playerId.id)||playerId;
-    setRole(id, normalizeRoleGuess(role));
+    var r = normalizeRoleGuess(role);
+    if(r !== ROLE.CIVIL){
+      state.assignments.forEach((val, key)=>{
+        if(val===r && key!==id){ setRole(key, ROLE.CIVIL); }
+      });
+    }
+    setRole(id, r);
     ensureFlorentinoUses();
     saveState();
     uiUpdate();
