@@ -241,6 +241,7 @@ Estado.money = 0;
   if (typeof window.randomizeSpecials === 'function') window.randomizeSpecials();
 
   if (typeof applySavedPropNames === 'function') applySavedPropNames(); // ← aquí
+  document.body.classList.add('playing');   // <- esto debe estar
 
   BoardUI.attach({ tiles:TILES, state });
   BoardUI.renderBoard();
@@ -249,7 +250,6 @@ Estado.money = 0;
   log('Nueva partida creada.');
   updateTurnButtons();
   if (state.players[state.current]?.isBot) botAutoPlay?.();
-  document.body.classList.add('playing');   // <- esto debe estar
   renderPlayers(); // asegúrate de llamarlo después de setear el estado
 }
 document.addEventListener('DOMContentLoaded', ()=>{
