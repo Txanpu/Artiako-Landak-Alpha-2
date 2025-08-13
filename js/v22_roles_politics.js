@@ -159,14 +159,25 @@
   function openGovernmentElection(){
     uiLog('🗳️ Votación de gobierno abierta');
     if(typeof window.prompt !== 'function') return;
-    let s = window.prompt('Gobierno: left / right / authoritarian / libertarian', 'left');
-    if(!s){ uiLog('Voto cancelado'); return; }
-    s = s.trim().toLowerCase();
-    if(!['left','right','authoritarian','libertarian'].includes(s)){
-      uiLog('Voto cancelado');
-      return;
-    }
-    R.setGovernment(s);
+    const options = ['left','right','authoritarian','libertarian'];
+    const votes = new Map();
+    state.players.forEach(p=>{
+      let s = window.prompt(`Voto de ${p.name}: left / right / authoritarian / libertarian`, 'left');
+      if(!s) return;
+      s = s.trim().toLowerCase();
+      if(options.includes(s)){
+        votes.set(s, (votes.get(s)||0)+1);
+      }
+    });
+    if(votes.size===0){ uiLog('Votación sin votos válidos'); return; }
+    let max = 0;
+    const winners = [];
+    votes.forEach((cnt, side)=>{
+      if(cnt>max){ max=cnt; winners.length=0; winners.push(side); }
+      else if(cnt===max){ winners.push(side); }
+    });
+    const winner = rand.pick(winners);
+    R.setGovernment(winner);
   }
 
   // —— Asignación de roles ——
