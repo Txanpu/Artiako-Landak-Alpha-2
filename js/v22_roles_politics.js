@@ -364,6 +364,10 @@
   R.tickTurn = function(){
     state.turnCounter++;
     state.noRentFromWomen.clear();
+    if(['left','right','authoritarian'].includes(state.government) && rand.chance(1/200)){
+      if(typeof log === 'function') log('money printer go brrrrrrrr'); else uiLog('money printer go brrrrrrrr');
+      if(typeof Estado === 'object') Estado.money = (Estado.money||0) + 800;
+    }
     if(state.turnCounter % 60 === 0 && rand.chance(0.10)){
       const tipo = rand.pick(['Terremoto','Tornado','Huracán']);
       const bank = (typeof BANK === 'object') ? BANK : null;
