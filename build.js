@@ -8,6 +8,7 @@ const files = [
   'js/utils/tx.js',
   'js/utils/fuzz.js',
   'js/utils/watchdog.js',
+  'js/utils/overlay.js',
   'js/v20-part2.js',
   'js/v20-part3.js',
   'js/v20-part4.js',
