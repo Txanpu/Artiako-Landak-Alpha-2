@@ -159,7 +159,7 @@ document.querySelector('.controls button:last-child')?.addEventListener('click',
   const r=document.querySelector('.rules'); if(r) r.open=!r.open;
 });
 
-document.addEventListener('DOMContentLoaded', ()=>{
+function initGameBindings(){
   // [PATCH] Inicialización de módulos
   if (window.GameDebtMarket) {
     GameDebtMarket.install({ state: window.state, fixPropertyAuction: true });
@@ -204,7 +204,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
       window.showCard(idx);
     }
   });
-});
+}
+
+if (document.readyState !== 'loading') initGameBindings();
+else document.addEventListener('DOMContentLoaded', initGameBindings);
 </script>
 <script>
 (()=>{
