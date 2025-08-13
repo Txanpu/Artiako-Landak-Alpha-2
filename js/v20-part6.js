@@ -100,10 +100,8 @@ async function onLand(p, idx){
   if (window.UIX?.track.onLand) UIX.track.onLand(idx);
 
   // Si es una casilla de banca corrupta: menú rápido
-  try {
-    const st = Roles.exportState ? Roles.exportState() : null;
-    const cbt = st && st.corruptBankTiles || [];
-    if (Array.isArray(cbt) && cbt.indexOf(idx) !== -1) {
+  if (t.type === 'bank') {
+    try {
       const opt = await promptDialog(
         'Banca corrupta:\n'
         + '1) Préstamo corrupto\n'
@@ -165,8 +163,8 @@ async function onLand(p, idx){
           }
         }
       }
-    }
-  } catch(e){}
+    } catch(e){}
+  }
 
   switch(t.type){
     case 'start':
