@@ -229,6 +229,7 @@ function autoInit(){
   window.BoardUI.attach({ tiles, state });
   if (tiles.length){ window.BoardUI.renderBoard(); }
 }
+
 if (document.readyState !== 'loading') autoInit();
 else document.addEventListener('DOMContentLoaded', autoInit);
 'use strict';
@@ -607,8 +608,11 @@ const cardPrice= document.getElementById('cardPrice');
 const cardRent = document.getElementById('cardRent');
 const cardBuild= document.getElementById('cardBuild');
 const cardRoi  = document.getElementById('cardRoi');
+const cardPriceRow = cardPrice ? cardPrice.parentElement : null;
+const cardRentRow  = cardRent  ? cardRent.parentElement  : null;
+const cardBuildRow = cardBuild ? cardBuild.parentElement : null;
 if (cardRoi && cardRoi.parentElement) cardRoi.parentElement.style.display = 'none';
-if (cardBuild && cardBuild.parentElement) cardBuild.parentElement.style.display = 'none';
+if (cardBuildRow) cardBuildRow.style.display = 'none';
 
 // Permitir cerrar la carta clicando fuera del contenido
 if (overlay){
@@ -988,17 +992,21 @@ Estado.money = 0;
 
   state.players = [];
   for (let i=0;i<humans;i++){
+    let g = prompt(`¿Género de J${i+1}? (h/m)`, 'h') || 'h';
+    g = g.trim().toLowerCase();
+    const gender = g.startsWith('m') ? 'female' : 'male';
     state.players.push({ id: state.players.length, name:`J${i+1}`, money:startMoney, pos:0, alive:true,
-      jail:0, taxBase:0, doubleStreak:0 });
+      jail:0, taxBase:0, doubleStreak:0, gender });
   }
   for (let i=0;i<bots;i++){
+    const gender = Math.random() < 0.5 ? 'male' : 'female';
     state.players.push({ id: state.players.length, name:`Bot${i+1}`, money:startMoney, pos:0, alive:true,
-      jail:0, taxBase:0, doubleStreak:0, isBot:true });
+      jail:0, taxBase:0, doubleStreak:0, isBot:true, gender });
   }
 
   // v22: roles y casillas especiales
   if (window.Roles) {
-    Roles.assign(state.players.map(p => ({ id: p.id, name: p.name })));
+    Roles.assign(state.players.map(p => ({ id: p.id, name: p.name, gender: p.gender })));
 
     // Activa banca corrupta y registra casillas equidistantes
     Roles.setBankCorrupt(true);
@@ -1123,6 +1131,11 @@ function movePlayer(p, steps){
     if (window.Roles?.shouldBlockWelfare?.()) {
       log('Huelga general: sin ayudas este tick.');
       continue; // Salta el pago de esta vuelta
+    }
+
+    if (window.Roles?.shouldBlockSalary?.(p.id)) {
+      log('Techo de cristal');
+      continue;
     }
 
     const SALARIO = 200;
@@ -1397,12 +1410,13 @@ function endTurn() {
     } catch(e) { console.error('Error procesando pagos pendientes de Roles:', e); }
 
     renderPlayers();
-    log(`— Turno de ${state.players[state.current].name} —`);
+    const p = state.players[state.current];
+    log(`— Turno de ${p.name} —`);
+    try { window.Roles?.onTurnStart?.(p); } catch{}
     botAutoPlay();
 
     // [PATCH] Hooks de inicio de turno para módulos
     try {
-      const p = state.players[state.current];
       // GDM.onTurnStart está parcheado por GameRiskPlus para incluir su propia lógica (margin calls, mantenimiento)
       if (window.GameDebtMarket?.onTurnStart) {
         const maintFee = GameDebtMarket.onTurnStart(p.id) || 0;
@@ -1899,6 +1913,8 @@ async function onLand(p, idx){
             log(`${p.name} evita pagar alquiler.`);
           } else if (window.Roles?.shouldBlockRent?.()) {
             log('Huelga general: no se cobra alquiler.');
+          } else if (window.Roles?.shouldZeroRentForGender?.(payee.id, p.id)) {
+            log('YA SABRÁS POR QUÉ');
           } else {
             let redirectToEstado = false;
             let reason = `Alquiler en ${t.name}`;
@@ -4216,11 +4232,25 @@ function groupTiles(t) {
   return TILES.map((x, i) => ({ x, i }))
     .filter(o => isNormalProp(o.x) && ((o.x.familia ?? o.x.color) === key));
 }
-function ownsFullGroup(p,t){ const g=groupTiles(t); return g.length && g.every(o=>o.x.owner===p.id); }
+function ownsFullGroup(p,t){
+  const g=groupTiles(t);
+  if(!g.length) return false;
+  const gov = window.Roles?.getGovernment?.();
+  if(gov==='libertarian'){
+    const owned = g.filter(o=>o.x.owner===p.id).length;
+    return owned>=2;
+  }
+  return g.every(o=>o.x.owner===p.id);
+}
 function anyMortgaged(g){ return g.some(o=>o.x.mortgaged); }
 function levelOf(x){ return x.hotel ? 5 : x.houses||0; } // 0..5 (5=hotel)
 function canBuildEven(t,p){
   const g = groupTiles(t);
+  const gov = window.Roles?.getGovernment?.();
+  if(gov==='libertarian'){
+    const ownsAll = g.every(o=>o.x.owner===p.id);
+    if(ownsAll) return !anyMortgaged(g);
+  }
   const min = Math.min(...g.map(o=>levelOf(o.x)));
   return levelOf(t)===min && !anyMortgaged(g);
 }
@@ -5963,6 +5993,10 @@ if (typeof window.transfer === 'function'){
     securiAdvance: 150,
     securiTicks: 3,
     bankMaxTicks: 30,
+    govLeft:{tax:0.25, welfare:0.30, interest:0.10},
+    govRight:{tax:-0.20, welfare:-0.30, interest:0},
+    govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05},
+    govLibertarian:{tax:-1, welfare:0, interest:-0.05},
     ui: { banner: true }
   };
 
@@ -5978,12 +6012,13 @@ if (typeof window.transfer === 'function'){
     florentinoUsesLeft: new Map(), // playerId -> remaining
     bankCorrupt: false,
     turnCounter: 0,
-    government: null, // 'left'|'right'|null
+    government: null, // 'left'|'right'|'authoritarian'|'libertarian'|null
     governmentTurnsLeft: 0,
     loans: [],
     securitizations: new Map(),
     powerOffTicks: 0,
     strikeTicks: 0,
+    noRentFromWomen: new Set(),
     estadoAuctionBlocked: false,
     embargoes: new Map(),
     fbiDieEditsLeft: new Map(),
@@ -6039,12 +6074,19 @@ if (typeof window.transfer === 'function'){
 
   // —— Asignación de roles ——
   R.assign = function(players){
-    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id)}));
+    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'male'}));
     state.assignments.clear();
     state.fbiGuesses.clear();
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
 
+    const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI, ROLE.OKUPA];
+    const nRoles = Math.min(rolesPool.length, Math.round(state.players.length * (cfg.roleProbability||0)));
+    const shuffled = [...state.players];
+    shuffled.sort(()=>Math.random()-0.5);
+    for(let i=0;i<nRoles;i++){
+      state.assignments.set(shuffled[i].id, rolesPool[i]);
+    }
 
     ensureFlorentinoUses();
     saveState();
@@ -6254,6 +6296,7 @@ if (typeof window.transfer === 'function'){
   // —— Gobierno: ciclos y multiplicadores ——
   R.tickTurn = function(){
     state.turnCounter++;
+    state.noRentFromWomen.clear();
     // Vencimientos de préstamos corruptos
     (state.loans||[]).forEach(l=>{
       if(!l.overdue && state.turnCounter>l.dueTurn){
@@ -6272,6 +6315,25 @@ if (typeof window.transfer === 'function'){
       state.governmentTurnsLeft--;
       if(state.governmentTurnsLeft===0){ state.government=null; uiLog('🏛️ Fin del ciclo de gobierno'); }
     }
+    if(state.government==='authoritarian' && rand.chance(0.25)){
+      try{
+        const tiles = (window.TILES||[]).map((t,i)=>({t,i}))
+          .filter(o=> o.t.type==='prop' && o.t.owner!=null && o.t.owner!=='E'
+                   && !o.t.mortgaged && !o.t.hotel && (o.t.houses||0)===0);
+        const candidates = tiles.filter(o=>{
+          const g = typeof groupTiles==='function' ? groupTiles(o.t) : [];
+          return g.every(p=> (p.x.houses||0)===0 && !p.x.hotel);
+        });
+        if(candidates.length){
+          const pick = rand.pick(candidates);
+          const prevOwner = pick.t.owner;
+          pick.t.owner = 'E';
+          try{ recomputeProps?.(); BoardUI?.refreshTiles?.(); }catch{}
+          const name = state.players[prevOwner]?.name || prevOwner;
+          uiLog(`🏚️ Gobierno autoritario expropia ${pick.t.name} a ${name}`);
+        }
+      }catch(e){}
+    }
     if(state.turnCounter % cfg.govPeriod === 0){
       uiLog('🗳️ Votación de gobierno abierta');
     }
@@ -6279,27 +6341,36 @@ if (typeof window.transfer === 'function'){
   };
 
   R.setGovernment = function(side){
-    if(side!=="left" && side!=="right"){ return false; }
+    if(!['left','right','authoritarian','libertarian'].includes(side)){ return false; }
     state.government = side;
     state.governmentTurnsLeft = cfg.govDuration;
     saveState(); uiUpdate();
-    uiLog(`🏛️ Gobierno ${side==='left'?'de izquierdas':'de derechas'} (${cfg.govDuration} turnos)`);
+    const names = {left:'de izquierdas', right:'de derechas', authoritarian:'autoritario', libertarian:'libertario'};
+    uiLog(`🏛️ Gobierno ${names[side]} (${cfg.govDuration} turnos)`);
     return true;
   };
+
+  R.getGovernment = function(){ return state.government; };
 
   R.getTaxMultiplier = function(){
     if(state.government==='left') return 1 + (cfg.govLeft.tax||0);
     if(state.government==='right') return 1 + (cfg.govRight.tax||0);
+    if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.tax||0);
+    if(state.government==='libertarian') return 1 + (cfg.govLibertarian.tax||0);
     return 1;
   };
   R.getWelfareMultiplier = function(){
     if(state.government==='left') return 1 + (cfg.govLeft.welfare||0);
     if(state.government==='right') return 1 + (cfg.govRight.welfare||0);
+    if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.welfare||0);
+    if(state.government==='libertarian') return 1 + (cfg.govLibertarian.welfare||0);
     return 1;
   };
   R.getInterestMultiplier = function(){
     if(state.government==='left') return 1 + (cfg.govLeft.interest||0);
     if(state.government==='right') return 1 + (cfg.govRight.interest||0);
+    if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.interest||0);
+    if(state.government==='libertarian') return 1 + (cfg.govLibertarian.interest||0);
     return 1;
   };
 
@@ -6350,9 +6421,11 @@ if (typeof window.transfer === 'function'){
       state.bankCorrupt = !!plain.bankCorrupt;
       state.turnCounter = plain.turnCounter||0;
       state.government = plain.government||null;
-      state.governmentTurnsLeft = plain.governmentTurnsLeft||0;$1state.pendingPayments = plain.pendingPayments||[];
+      state.governmentTurnsLeft = plain.governmentTurnsLeft||0;
+      state.pendingPayments = plain.pendingPayments||[];
       state.securitizations = new Map(plain.securitizations||[]);
       state.pendingMoves = plain.pendingMoves||[];
+      state.noRentFromWomen = new Set(plain.noRentFromWomen||[]);
     }catch(e){ /* noop */ }
   }
 
@@ -6374,7 +6447,8 @@ if (typeof window.transfer === 'function'){
       fentanyl: { tiles: Array.from(state.fentanyl.tiles||[]), chance: state.fentanyl.chance, fee: state.fentanyl.fee },
       statuses: Array.from(state.statuses||new Map()),
       pendingPayments: state.pendingPayments||[],
-      pendingMoves: state.pendingMoves||[]
+      pendingMoves: state.pendingMoves||[],
+      noRentFromWomen: Array.from(state.noRentFromWomen||[])
     };
   };
   R.importState = function(obj){
@@ -6391,9 +6465,11 @@ if (typeof window.transfer === 'function'){
       state.bankCorrupt = !!obj.bankCorrupt;
       state.turnCounter = obj.turnCounter||0;
       state.government = obj.government||null;
-      state.governmentTurnsLeft = obj.governmentTurnsLeft||0;$1state.pendingPayments = obj.pendingPayments||[];
+      state.governmentTurnsLeft = obj.governmentTurnsLeft||0;
+      state.pendingPayments = obj.pendingPayments||[];
       state.securitizations = new Map(obj.securitizations||[]);
       state.pendingMoves = obj.pendingMoves||[];
+      state.noRentFromWomen = new Set(obj.noRentFromWomen||[]);
       saveState(); uiUpdate();
       return true;
     }catch(e){ return false; }
@@ -6614,6 +6690,33 @@ if (typeof window.transfer === 'function'){
   R.card_STRIKE = function(){ state.strikeTicks = 1; saveState(); return {banner:'Huelga general: 1 tick sin alquileres ni ayudas'}; };
   R.shouldBlockRent = function(){ return (state.strikeTicks||0) > 0; };
   R.shouldBlockWelfare = function(){ return (state.strikeTicks||0) > 0; };
+
+  R.onTurnStart = function(player){
+    state.noRentFromWomen.clear();
+    if(!player) return;
+    if(state.government==='left' && player.gender==='male'){
+      if(rand.chance(0.03)){
+        if(rand.chance(0.5)){
+          setTimeout(()=>{ try{ window.sendToJail?.(player); }catch{} },0);
+        } else {
+          state.noRentFromWomen.add(player.id);
+        }
+        if(typeof window!=='undefined' && typeof window.log==='function') window.log('YA SABRÁS POR QUÉ'); else uiLog('YA SABRÁS POR QUÉ');
+      }
+    }
+  };
+
+  R.shouldZeroRentForGender = function(ownerId, payerId){
+    if(!ownerId || !payerId) return false;
+    const payer = playerById(payerId);
+    return state.noRentFromWomen.has(ownerId) && payer?.gender==='female';
+  };
+
+  R.shouldBlockSalary = function(player){
+    const p = playerById(player);
+    if(!p) return false;
+    return (state.government==='right' || state.government==='authoritarian') && p.gender==='female';
+  };
 
   // Inspección de Hacienda: multa 60 y +10% impuestos 2 ticks (solo jugador)
   R.card_AUDIT = function({playerId}){
