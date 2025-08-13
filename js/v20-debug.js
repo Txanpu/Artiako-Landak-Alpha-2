@@ -87,7 +87,10 @@
   rolesActions.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-top:8px';
   const btnEstadoBid = el('button', { textContent:'Bloquear Estado' });
   btnEstadoBid.style.cssText='padding:4px 8px;border:1px solid #ddd;background:#fee;border-radius:8px;cursor:pointer;color:#111';
+  const btnBankCorrupt = el('button', { textContent:'Activar banca corrupta' });
+  btnBankCorrupt.style.cssText='padding:4px 8px;border:1px solid #ddd;background:#ffe;border-radius:8px;cursor:pointer;color:#111';
   rolesActions.appendChild(btnEstadoBid);
+  rolesActions.appendChild(btnBankCorrupt);
   secRoles.appendChild(rolesBox);
   secRoles.appendChild(rolesActions);
 
@@ -108,6 +111,7 @@
       if (!window.Roles){
         rolesBox.textContent = 'Roles no cargado.';
         btnEstadoBid.disabled = true;
+        btnBankCorrupt.disabled = true;
         return;
       }
       const list = (Roles.listAssignments && Roles.listAssignments()) ||
@@ -130,6 +134,11 @@
         const blocked = !!Roles.isEstadoAuctionBlocked();
         btnEstadoBid.textContent = blocked ? 'Permitir Estado' : 'Bloquear Estado';
         btnEstadoBid.disabled = false;
+      }
+      if (Roles.isBankCorrupt){
+        const corrupt = !!Roles.isBankCorrupt();
+        btnBankCorrupt.textContent = corrupt ? 'Desactivar banca corrupta' : 'Activar banca corrupta';
+        btnBankCorrupt.disabled = false;
       }
     } catch(e){
       rolesBox.textContent = '(error al renderizar roles)';
@@ -182,6 +191,15 @@
     try {
       if (window.Roles?.setEstadoAuctionBlocked && window.Roles?.isEstadoAuctionBlocked){
         Roles.setEstadoAuctionBlocked(!Roles.isEstadoAuctionBlocked());
+        renderRoles();
+      }
+    } catch{}
+  };
+
+  btnBankCorrupt.onclick = () => {
+    try {
+      if (window.Roles?.setBankCorrupt && window.Roles?.isBankCorrupt){
+        Roles.setBankCorrupt(!Roles.isBankCorrupt());
         renderRoles();
       }
     } catch{}
