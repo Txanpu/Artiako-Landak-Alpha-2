@@ -28,13 +28,13 @@
   function repairState(state, TILES){
     state.players.forEach(p=>{
       if (!isFinite(p.money)) p.money = 0;
-      p.pos = clamp(p.pos|0, 0, TILES.length-1);
+      p.pos = clamp(Math.trunc(p.pos || 0), 0, TILES.length-1);
       p.alive = !!p.alive;
-      if (p.jail!=null) p.jail = clamp(p.jail|0, 0, 10);
+      if (p.jail!=null) p.jail = clamp(Math.trunc(p.jail || 0), 0, 10);
     });
     TILES.forEach(t=>{
       if (t.owner!=null && (t.owner<0 || t.owner>=state.players.length)) t.owner=null;
-      if (t.houses!=null) t.houses = clamp(t.houses|0, 0, 5);
+      if (t.houses!=null) t.houses = clamp(Math.trunc(t.houses || 0), 0, 5);
       if (t.mortgaged!=null) t.mortgaged = !!t.mortgaged;
     });
     recomputeDerived(state, TILES);
@@ -54,7 +54,7 @@
       Object.entries(families).forEach(([fam,info])=>{
         if (info.ownedBy.get(pi) === info.count) p.monopolies.push(fam);
       });
-      p.netWorth = (p.money|0) + TILES.reduce((s,t)=> s + (t.owner===pi ? (t.basePrice||0) + (t.houses||0)*(t.housePrice||0) : 0), 0);
+      p.netWorth = Math.trunc(p.money || 0) + TILES.reduce((s,t)=> s + (t.owner===pi ? (t.basePrice||0) + (t.houses||0)*(t.housePrice||0) : 0), 0);
     });
   }
 
