@@ -427,18 +427,35 @@ function showCard(tileIndex, {canAuction=false}={}) {
   const t = TILES[tileIndex];
   const st = window.state;
   if (st) st.pendingTile = tileIndex;
+  // Título por defecto
+  if (cardBand) {
+    cardBand.textContent = t?.name || '';
+    cardBand.onclick = null;
+  }
 
+  // Ocultar secciones específicas inicialmente
+  if (cardPriceRow) cardPriceRow.style.display = 'none';
+  if (cardRentRow)  cardRentRow.style.display  = 'none';
+  if (cardBuildRow) cardBuildRow.style.display = 'none';
+  if (startAuctionBtn) startAuctionBtn.style.display = 'none';
+
+  rentsBox.innerHTML = '';
+  bankWarn.className = 'muted';
+  bankWarn.textContent = FUNNY[t.type] || FUNNY.default;
 
   if (t.type === 'prop') {
-    cardBand.onclick = ()=>{
-      const nuevo = prompt('Nuevo nombre de la propiedad:', t.name||'');
-      if (nuevo && nuevo.trim()){
-        t.name = nuevo.trim();
-        savePropName(tileIndex, t.name);
-        cardBand.textContent = t.name;
-        BoardUI.refreshTile(tileIndex);
-      }
-    };
+    if (cardBand) {
+      cardBand.textContent = t.name;
+      cardBand.onclick = ()=>{
+        const nuevo = prompt('Nuevo nombre de la propiedad:', t.name||'');
+        if (nuevo && nuevo.trim()){
+          t.name = nuevo.trim();
+          savePropName(tileIndex, t.name);
+          cardBand.textContent = t.name;
+          BoardUI.refreshTile(tileIndex);
+        }
+      };
+    }
 
     // vehículos y utilities: ocultar “Renta base”, pero mostrar tabla
     const isVehicleOrUtil = ['rail','bus','ferry','air','utility'].includes(t.subtype);
@@ -459,11 +476,7 @@ function showCard(tileIndex, {canAuction=false}={}) {
       if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
     }
 
-
-    const msg = FUNNY[t.type] || FUNNY.default;
-    bankWarn.className = 'muted';
-    bankWarn.textContent = msg;
-    rentsBox.innerHTML = '';
+    if (startAuctionBtn) startAuctionBtn.style.display = canAuction ? '' : 'none';
   }
   overlay.style.display = 'flex';
 }
