@@ -650,7 +650,9 @@ function showCard(tileIndex, {canAuction=false}={}) {
     cardName.oninput = cardName.onkeydown = cardName.onblur = null;
   }
 
-  const t = TILES[tileIndex]; state.pendingTile = tileIndex;
+  const t = TILES[tileIndex];
+  const st = window.state;
+  if (st) st.pendingTile = tileIndex;
   const noBuildings = (t.subtype && !['utility','rail','ferry','air','bus'].includes(t.subtype)) || ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
 
   cardBand.style.background = t.type==='prop' ? COLORS[t.color] : '#374151';
@@ -693,7 +695,7 @@ if (!isVehicleOrUtil && !isNoBuildings){
     if (t.subtype === 'fiore') {
       bankWarn.className = '';
       bankWarn.innerHTML = `Fiore: <b>${t.workers||0}</b> zenbat langile?`;
-      const me = state.players[state.current];
+      const me = st?.players?.[st.current];
       if (me && t.owner === me.id) {
         const btn = document.createElement('button');
         btn.textContent = 'Kontratatu (0–5)';
@@ -732,7 +734,7 @@ if (typeof window.renderRentsTable !== 'function'){
 }
 
 window.showCard = showCard;
-if (cancelAuctionBtn) cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; state.pendingTile=null; };
+if (cancelAuctionBtn) cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; if (window.state) window.state.pendingTile=null; };
 if (startAuctionBtn && !startAuctionBtn.__wired) {
   startAuctionBtn.__wired = true;
   startAuctionBtn.onclick = ()=>{
@@ -1107,12 +1109,27 @@ function nextAlive(from){
   return from;
 }
 
+function botEndTurnWhenIdle(){
+  const p = state.players[state.current];
+  if (!p?.isBot) return;
+  // Esperar a que no haya subastas ni acciones pendientes
+  if (!state.rolled) { setTimeout(botEndTurnWhenIdle, 500); return; }
+  if (state.auction && state.auction.open) { setTimeout(botEndTurnWhenIdle, 500); return; }
+  if (state.pendingTile != null) { setTimeout(botEndTurnWhenIdle, 500); return; }
+  const overlay = document.getElementById('overlay');
+  if (overlay && overlay.style.display !== 'none') { setTimeout(botEndTurnWhenIdle, 500); return; }
+  const auctionBox = document.getElementById('auction');
+  if (auctionBox && auctionBox.style.display !== 'none') { setTimeout(botEndTurnWhenIdle, 500); return; }
+  endTurn();
+}
+
 function botAutoPlay(){
   const p = state.players[state.current];
   if (!p?.isBot) return;
   setTimeout(()=>{
     if (!state.rolled) roll();
-    setTimeout(()=>{ if (state.rolled) endTurn(); }, 900);
+    // Revisa periódicamente si puede finalizar el turno
+    setTimeout(botEndTurnWhenIdle, 600);
   }, 600);
 }
 
@@ -6023,16 +6040,6 @@ if (typeof window.transfer === 'function'){
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
 
-    // Número de roles especiales a asignar según probabilidad
-    const total = state.players.length;
-    const n = Math.floor(total * (cfg.roleProbability || 0));
-    const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
-    const rolesToAssign = rolesPool.slice(0, n);
-    const shuffled = state.players.slice().sort(()=> Math.random() - 0.5);
-    rolesToAssign.forEach((role, idx)=>{
-      const p = shuffled[idx];
-      if (p) state.assignments.set(p.id, role);
-    });
 
     ensureFlorentinoUses();
     saveState();
