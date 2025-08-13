@@ -1,60 +1,114 @@
 (() => {
-  const socket = typeof io !== 'undefined' ? io() : null;
-  let roomKey;
+  let pc;
+  let dataChannel;
   let playerId;
 
-  function joinGame(key) {
-    if (!socket) return;
-    roomKey = key;
+  function createPeer() {
+    pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+    pc.ondatachannel = (event) => {
+      dataChannel = event.channel;
+      setupDataChannel();
+    };
+  }
+
+  function setupDataChannel() {
+    if (!dataChannel) return;
+    dataChannel.onmessage = (e) => {
+      let msg;
+      try {
+        msg = JSON.parse(e.data);
+      } catch {
+        return;
+      }
+      switch (msg.type) {
+        case 'turn':
+          console.log('Turno de', msg.playerId);
+          break;
+        case 'action':
+          console.log('Acción recibida', msg);
+          break;
+        case 'turnEnded':
+          console.log('Turno finalizado de', msg.playerId);
+          break;
+        case 'chat':
+          if (typeof log === 'function') {
+            log(`${msg.playerId}: ${msg.message}`);
+          } else {
+            console.log('Chat', msg.playerId, msg.message);
+          }
+          break;
+      }
+    };
+  }
+
+  function waitIceCompletion() {
+    return new Promise((resolve) => {
+      if (pc.iceGatheringState === 'complete') {
+        resolve();
+      } else {
+        pc.addEventListener('icegatheringstatechange', function checkState() {
+          if (pc.iceGatheringState === 'complete') {
+            pc.removeEventListener('icegatheringstatechange', checkState);
+            resolve();
+          }
+        });
+      }
+    });
+  }
+
+  async function shareGame() {
     if (!playerId) {
       playerId = Math.random().toString(36).slice(2, 8);
     }
-    socket.emit('joinGame', { roomId: roomKey, playerId });
+    createPeer();
+    dataChannel = pc.createDataChannel('game');
+    setupDataChannel();
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitIceCompletion();
+    const offerStr = btoa(JSON.stringify(pc.localDescription));
+    window.prompt('Comparte esta oferta con tu amigo:', offerStr);
+    const answerStr = window.prompt('Pega la respuesta del otro jugador:');
+    if (answerStr) {
+      const answer = JSON.parse(atob(answerStr));
+      await pc.setRemoteDescription(answer);
+    }
   }
 
-  function shareGame() {
-    if (!socket) return;
-    if (!roomKey) {
-      roomKey = Math.random().toString(36).slice(2, 8);
+  async function joinGame() {
+    if (!playerId) {
+      playerId = Math.random().toString(36).slice(2, 8);
     }
-    joinGame(roomKey);
-    window.prompt('Comparte esta llave con tus amigos:', roomKey);
+    const offerStr = window.prompt('Pega la oferta del anfitrión:');
+    if (!offerStr) return;
+    createPeer();
+    await pc.setRemoteDescription(JSON.parse(atob(offerStr)));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitIceCompletion();
+    const answerStr = btoa(JSON.stringify(pc.localDescription));
+    window.prompt('Envía esta respuesta al anfitrión:', answerStr);
+  }
+
+  function sendMessage(msg) {
+    if (dataChannel?.readyState === 'open') {
+      dataChannel.send(JSON.stringify(msg));
+    }
   }
 
   function sendAction(action, secret = false) {
-    if (!socket) return;
-    socket.emit('playerAction', { action, secret });
+    sendMessage({ type: 'action', action, secret, playerId });
   }
 
   function endTurn() {
-    if (!socket) return;
-    socket.emit('endTurn');
+    sendMessage({ type: 'turnEnded', playerId });
   }
 
   function sendChat(message) {
-    if (!socket) return;
-    socket.emit('chatMessage', message);
+    sendMessage({ type: 'chat', playerId, message });
   }
-
-  socket?.on('turn', (playerId) => {
-    console.log('Turno de', playerId);
-  });
-
-  socket?.on('actionResult', (data) => {
-    console.log('Acción recibida', data);
-  });
-
-  socket?.on('turnEnded', (playerId) => {
-    console.log('Turno finalizado de', playerId);
-  });
-
-  socket?.on('chatMessage', ({ playerId: from, message }) => {
-    if (typeof log === 'function') {
-      log(`${from}: ${message}`);
-    } else {
-      console.log('Chat', from, message);
-    }
-  });
 
   const onlineBtn = document.getElementById('startOnline');
   const chatInput = document.getElementById('chatInput');
@@ -68,16 +122,11 @@
   }
 
   onlineBtn?.addEventListener('click', () => {
-    if (!socket) {
-      alert('Online no disponible. Revisa tu conexión.');
-      return;
-    }
-    const share = window.confirm('¿Quieres compartir la partida?\nAceptar para compartir, cancelar para unirse');
-    if (share) {
+    const host = window.confirm('¿Quieres crear la partida?\nAceptar para crear, cancelar para unirse');
+    if (host) {
       shareGame();
     } else {
-      const key = window.prompt('Ingresa la llave de la partida:');
-      if (key) joinGame(key);
+      joinGame();
     }
   });
 
@@ -91,3 +140,4 @@
 
   window.GameOnline = { joinGame, sendAction, endTurn, shareGame, sendChat };
 })();
+
