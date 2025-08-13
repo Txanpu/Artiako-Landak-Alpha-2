@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Monopoly Rápido – Estado IA + Impuestos + Préstamos + Dados x2</title>
+  <style>
+    :root{--bg:#0d1117;--panel:#161b22;--tile:#0f172a;--border:#30363d;--txt:#e6edf3}
+    body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif;display:grid;grid-template-columns:minmax(520px,1fr) 380px;gap:12px;padding:12px;min-height:100vh}
+    .boardWrap{position:relative;background:var(--panel);border-radius:16px;padding:10px;display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;width:100%;max-width:900px;margin:auto}
+    .board{position:relative;width:100%;height:100%;background:radial-gradient(ellipse at center, rgba(148,163,184,.08), transparent 60%);border-radius:12px;border:1px solid var(--border);display:grid;gap:6px}
+    .centerMark{position:absolute;inset:auto 10% 10% 10%;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;font-size:clamp(16px,3vw,28px);color:#94a3b8;opacity:.25;pointer-events:none;border:2px dashed #334155;border-radius:14px;padding:16px}
+    .tile{background:linear-gradient(180deg,#111827,#0b1220);border:2px solid #475569;border-radius:10px;display:flex;flex-direction:column;padding:6px;position:relative;transition:transform .12s}
+    .tile:hover{transform:translateY(-2px)}
+    .tile .band{height:8px;border-radius:6px;margin-bottom:6px;box-shadow:inset 0 -1px 0 rgba(0,0,0,.35)}
+    .tile .name{font-size:.82rem;line-height:1.1;font-weight:800}
+    .tile .price{font-size:.74rem;opacity:.9}
+    .chips{position:absolute;left:6px;bottom:6px;display:flex;gap:4px}
+    .chip{width:22px;height:22px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:900;color:#fff;filter:drop-shadow(0 1px 4px rgba(255,255,255,.25))}
+    .chip.p0{background:#ef4444}.chip.p1{background:#22c55e}.chip.p2{background:#3b82f6}.chip.p3{background:#f59e0b}.chip.p4{background:#a855f7}.chip.p5{background:#14b8a6}
+    .panel{background:var(--panel);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .players{display:flex;gap:6px;flex-wrap:wrap}
+    .badge{padding:6px 10px;border-radius:999px;border:1px solid var(--border);font-size:.92rem}
+    .badge.active{outline:2px solid #22c55e}
+    button{background:#21262d;border:1px solid #30363d;color:var(--txt);padding:10px;border-radius:10px;font-weight:800;cursor:pointer}
+    button.primary{background:#22c55e;border-color:#15803d;color:#052e16}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .log{background:#0d1117;border:1px solid #30363d;border-radius:12px;padding:8px;height:240px;overflow:auto;font-family:ui-monospace,monospace;font-size:.9rem}
+    .auction{border:1px dashed #f59e0b;padding:8px;border-radius:10px}
+    .hint{font-size:.85rem;opacity:.85}
+
+    /* Modal carta */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:20}
+    .card{width:320px;background:#111827;border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.5);overflow:hidden}
+    .card .top{height:54px}
+    .card .body{padding:12px}
+    .card .title{font-size:1.15rem;font-weight:900;margin-bottom:6px}
+    .muted{opacity:.85}
+
+    /* Setup bar */
+    .setup{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+    .setup input{width:90px;background:#0b1220;border:1px solid #30363d;border-radius:8px;padding:6px;color:var(--txt)}
+    .setup label{font-size:.9rem;opacity:.9}
+
+    /* ====== DADOS (visuales) ====== */
+    .diceWrap{display:flex;gap:12px;align-items:center;min-height:88px}
+    .die{width:70px;height:70px;border-radius:12px;background:#fafafa;border:3px solid #111;display:grid;grid-template-rows:repeat(3,1fr);grid-template-columns:repeat(3,1fr);padding:8px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+    .pip{width:12px;height:12px;background:#111;border-radius:50%;align-self:center;justify-self:center}
+    .diceMeta{font-size:.95rem;opacity:.9}
+    .shaker{animation:shake .35s ease}
+    @keyframes shake{
+      0%{transform:translate(0,0) rotate(0deg)}
+      25%{transform:translate(-3px,2px) rotate(-6deg)}
+      50%{transform:translate(3px,-2px) rotate(6deg)}
+      75%{transform:translate(-2px,3px) rotate(-4deg)}
+      100%{transform:translate(0,0) rotate(0deg)}
+    }
+  </style>
+</head>
+<body>
+  <div class="boardWrap">
+    <div class="board" id="board"></div>
+    <div class="centerMark">Monopoly Rápido</div>
+  </div>
+
+  <div class="panel">
+    <h2>Monopoly Rápido</h2>
+
+    <div class="setup">
+      <label>Jugadores:
+        <input id="numPlayers" type="number" min="2" max="6" value="3">
+      </label>
+      <label>Dinero inicial:
+        <input id="startMoney" type="number" min="100" step="50" value="500">
+      </label>
+      <button id="newGame" class="primary">Nueva partida</button>
+    </div>
+
+    <!-- Contenedor de dados visibles -->
+    <div id="dice" class="diceWrap" aria-live="polite" aria-label="Resultado de los dados"></div>
+
+    <div class="players" id="players"></div>
+    <div class="row">
+      <button id="roll" class="primary">Tirar dados</button>
+      <button id="endTurn">Terminar turno</button>
+      <button id="loan">Prestar dinero</button>
+      <button id="build">Construir</button>
+      <button id="sell">Vender casa</button>
+    </div>
+
+    <div id="auction" class="auction" style="display:none"></div>
+    <div class="hint">Todo va por subasta. Impuesto: 3% de tus <i>ganancias</i> desde tu último impuesto. Construir paga al Estado. Si el Estado elimina a alguien, todos pierden.</div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <!-- Modal carta propiedad -->
+  <div class="overlay" id="overlay">
+    <div class="card" id="propCard">
+      <div class="top" id="cardBand"></div>
+      <div class="body">
+        <div class="title" id="cardName"></div>
+        <div class="row" style="justify-content:space-between"><span class="muted">Precio</span><strong id="cardPrice"></strong></div>
+        <div class="row" style="justify-content:space-between"><span class="muted">Alquiler base</span><strong id="cardRent"></strong></div>
+        <div class="row" style="justify-content:space-between"><span class="muted">Rendimiento</span><strong id="cardRoi"></strong></div>
+        <div class="row" style="margin-top:10px">
+          <button id="startAuction" class="primary">Iniciar subasta</button>
+          <button id="cancelAuction">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ===== Datos ===== */
+const COLORS={brown:'#78350f',cyan:'#06b6d4',pink:'#db2777',orange:'#f97316',red:'#ef4444',yellow:'#eab308',green:'#22c55e',blue:'#3b82f6'};
+function prop(name,color,price){return{type:'prop',name,color,price,baseRent:Math.round(price*0.3),houseCost:Math.round(price*0.5),houseRent:Math.round(price*0.25),owner:null,houses:0,hotel:false}};
+const TILES=[
+  {type:'start',name:'SALIDA'},
+  prop('C/ Pozas','brown',60), {type:'tax',name:'Impuesto 3%'}, prop('C/ Zabala','brown',70),
+  prop('Av. Libertad','cyan',80), {type:'tax',name:'Impuesto 3%'}, prop('P.º Francia','cyan',90),
+  prop('C/ Gardoki','pink',100), prop('C/ Arbieto','pink',110),
+  prop('C/ Navarra','orange',120), prop('C/ Hurtado','orange',130),
+  {type:'tax',name:'Impuesto 3%'},
+  prop('C/ Ledesma','red',140), prop('C/ Diputación','red',150),
+  prop('Gran Vía','yellow',160), prop('Plaza Moyúa','yellow',170),
+  prop('Parque Doña Casilda','green',180), {type:'tax',name:'Impuesto 3%'}, prop('Museo Guggenheim','blue',220)
+];
+const COLORS_GROUPS={'brown':2,'cyan':2,'pink':2,'orange':2,'red':2,'yellow':2,'green':1,'blue':1};
+// === Inserta CÁRCEL en la mitad del recorrido ===
+let JAIL_INDEX = Math.floor(TILES.length/2);
+TILES.splice(JAIL_INDEX,0,{type:'jail',name:'CÁRCEL'});
+
+
+/* ===== Estado (IA) ===== */
+const Estado={id:'E',name:'Estado',money:500,alive:true,props:[],taxBase:0};
+
+/* ===== Estado de partida ===== */
+const state={players:[],current:0,rolled:false,auction:null,pendingTile:null,loans:[]};
+
+function log(m){const el=document.getElementById('log');el.innerHTML+=m+'<br>';el.scrollTop=el.scrollHeight;}
+function credit(p,amt,{taxable=true}={}){p.money+=amt; if(p.taxBase==null)p.taxBase=0; if(taxable) p.taxBase+=Math.max(0,amt);} 
+function debit(p,amt){p.money-=amt; if(p!==Estado && p.money<0) checkBankrupt(p);} 
+
+/* ===== Setup ===== */
+const newBtn=document.getElementById('newGame');
+newBtn.onclick=()=>{const n=parseInt(document.getElementById('numPlayers').value,10)||3; const startMoney=parseInt(document.getElementById('startMoney').value,10)||500; newGame(n,startMoney);};
+function newGame(n=3,startMoney=500){
+  state.players=Array.from({length:Math.min(Math.max(n,2),6)}).map((_,i)=>(
+    {id:i,name:`J${i+1}`,money:startMoney,pos:0,alive:true,props:[],taxBase:0,inJail:false,jailTurns:0,doublesStreak:0}
+  ));
+  Estado.money=startMoney*2; Estado.props=[]; Estado.taxBase=0;
+  state.current=0; state.rolled=false; state.auction=null; state.loans=[];
+  renderAll(); document.getElementById('log').innerHTML='';
+  clearDice();
+  log(`Partida nueva · Jugadores: ${state.players.length} · Saldo inicial $${startMoney}`);
+}
+
+/* ===== Tablero cuadrado (perímetro) ===== */
+const SIZE=6; // 6x6 visual
+function perimeterCoords(N){const coords=[];for(let c=1;c<=N;c++) coords.push([N,c]);for(let r=N-1;r>=1;r--) coords.push([r,N]);for(let c=N-1;c>=1;c--) coords.push([1,c]);for(let r=2;r<=N-1;r++) coords.push([r,1]);return coords;}
+const PERIM=perimeterCoords(SIZE);
+
+function renderBoard(){
+  const el=document.getElementById('board');
+  el.style.gridTemplateColumns=`repeat(${SIZE},1fr)`;
+  el.style.gridTemplateRows=`repeat(${SIZE},1fr)`;
+  el.innerHTML='';
+  for(let r=1;r<=SIZE;r++){
+    for(let c=1;c<=SIZE;c++){
+      const cell=document.createElement('div');
+      cell.style.gridRowStart=r; cell.style.gridColumnStart=c; cell.style.borderRadius='12px';
+      cell.style.background='transparent';
+      el.appendChild(cell);
+    }
+  }
+  for(let i=0;i<TILES.length && i<PERIM.length;i++){
+    const [r,c]=PERIM[i]; const t=TILES[i];
+    const d=document.createElement('div'); d.className='tile'; d.style.gridRowStart=r; d.style.gridColumnStart=c;
+    if(t.type==='prop'){
+      const band=document.createElement('div'); band.className='band'; band.style.background=COLORS[t.color]; d.appendChild(band);
+    }
+    const nm=document.createElement('div'); nm.className='name'; nm.textContent=t.name; d.appendChild(nm);
+    if(t.type==='prop'){
+      const pr=document.createElement('div'); pr.className='price'; pr.textContent=`${t.price} / R${t.baseRent}`; d.appendChild(pr);
+      const b=document.createElement('div'); b.className='price'; b.textContent='🏠'.repeat(t.houses)+(t.hotel?' 🏨':''); d.appendChild(b);
+    } else if (t.type==='tax'){
+      const pr=document.createElement('div'); pr.className='price'; pr.textContent='3% ganancias'; d.appendChild(pr);
+    } else if (t.type==='jail'){
+      const pr=document.createElement('div'); pr.className='price'; pr.textContent='3 turnos salvo dobles'; d.appendChild(pr);
+    }
+    const here=state.players.filter(p=>p.alive && p.pos===i);
+    if(here.length){ const chips=document.createElement('div'); chips.className='chips'; here.forEach(p=>{const cDiv=document.createElement('div'); cDiv.className=`chip p${p.id}`; cDiv.textContent=p.id+1; chips.appendChild(cDiv);}); d.appendChild(chips); }
+    el.appendChild(d);
+  }
+}
+function renderPlayers(){
+  const el=document.getElementById('players'); el.innerHTML='';
+  state.players.forEach((p,i)=>{const b=document.createElement('div'); b.className='badge'; if(i===state.current)b.classList.add('active'); let jail=p.inJail?` 🔒${p.jailTurns}`:''; b.textContent=`${p.name} $${p.money}${jail}`; el.appendChild(b);});
+  const e=document.createElement('div'); e.className='badge'; e.textContent=`Estado $${Estado.money}`; el.appendChild(e);
+}
+function renderAll(){renderBoard();renderPlayers();}
+
+/* ===== Movimiento y casillas ===== */
+function sendToJail(p){
+  p.inJail=true; p.jailTurns=3; p.doublesStreak=0;
+  p.pos=JAIL_INDEX;
+  log(`${p.name} va a la CÁRCEL (3 turnos salvo dobles).`);
+  renderAll();
+}
+/* ===== Movimiento y casillas ===== */
+function move(p,steps){p.pos=(p.pos+steps)%TILES.length; land(p);} 
+function land(p){
+  const t=TILES[p.pos];
+  if(t.type==='prop'){
+    if(t.owner===null){ showCard(p.pos); }
+    else if(t.owner==='E'){
+      const rent=getRent(t); debit(p,rent); credit(Estado,rent,{taxable:false}); log(`${p.name} paga ${rent} al ESTADO por ${t.name}`); if(!p.alive){ everyoneLoses(); }
+    } else if(t.owner!==p.id){
+      const owner=state.players[t.owner]; const rent=getRent(t); debit(p,rent); credit(owner,rent,{taxable:true}); log(`${p.name} paga ${rent} a J${owner.id+1} por ${t.name}`);
+    }
+  } else if (t.type==='tax'){
+    const tax=Math.floor((p.taxBase||0)*0.03);
+    if(tax>0){ debit(p,tax); credit(Estado,tax,{taxable:false}); log(`${p.name} paga impuesto 3% = ${tax}. Base reiniciada.`); if(!p.alive){ everyoneLoses(); } }
+    p.taxBase=0;
+  } else if (t.type==='jail'){
+    sendToJail(p);
+  } else if (t.type==='start'){
+    log(`${p.name} cae en SALIDA.`);
+  }
+  renderAll();
+}
+function getRent(tile){let rent=tile.baseRent + tile.houses*tile.houseRent; if(tile.hotel) rent += tile.houseRent*2; return rent;}
+
+/* ===== Construcción ===== */
+function ownsColorCount(player,color){return player.props.filter(i=>TILES[i].color===color).length;}
+function canBuild(player){const groupsOk=Object.keys(COLORS_GROUPS).filter(c=>ownsColorCount(player,c)>=Math.min(COLORS_GROUPS[c],2)); return player.props.filter(i=>groupsOk.includes(TILES[i].color));}
+function build(){
+  const p=state.players[state.current]; const options=canBuild(p);
+  if(options.length===0){alert('No puedes construir: necesitas controlar el color.');return;}
+  const names=options.map((i,idx)=>{const t=TILES[i];return `${idx+1}. ${t.name} (casa $${t.houseCost}) [🏠${t.houses}${t.hotel?' + 🏨':''}]`}).join('\n');
+  const pick=Number(prompt('Construir en:\n'+names+'\nNúmero:'))-1; if(isNaN(pick)||!options[pick]) return;
+  const i=options[pick]; const t=TILES[i];
+  if(t.hotel){alert('Ya tiene hotel.');return;}
+  if(t.houses<4){
+    if(p.money<t.houseCost){alert('No te llega.');return;}
+    debit(p,t.houseCost); credit(Estado,t.houseCost,{taxable:false}); log(`${p.name} construye casa en ${t.name} (-${t.houseCost})`); if(!p.alive){everyoneLoses();}
+    t.houses++;
+  } else {
+    const extra=Math.round(t.houseCost*2); if(p.money<extra){alert('No te llega para hotel.');return;}
+    debit(p,extra); credit(Estado,extra,{taxable:false}); log(`${p.name} construye HOTEL en ${t.name} (-${extra})`); if(!p.alive){everyoneLoses();}
+    t.houses=0; t.hotel=true;
+  }
+  renderAll();
+}
+function sellHouse(){
+  const p=state.players[state.current]; const options=p.props.filter(i=>TILES[i].houses>0||TILES[i].hotel);
+  if(options.length===0){alert('No tienes casas/hoteles para vender.');return;}
+  const names=options.map((i,idx)=>{const t=TILES[i];return `${idx+1}. ${t.name} [🏠${t.houses}${t.hotel?' + 🏨':''}]`}).join('\n');
+  const pick=Number(prompt('Vender de:\n'+names+'\nNúmero:'))-1; if(isNaN(pick)||!options[pick]) return;
+  const i=options[pick]; const t=TILES[i];
+  if(t.hotel){ t.hotel=false; const back=Math.round((t.houseCost*2)*0.6); credit(p,back,{taxable:false}); debit(Estado,back); log(`${p.name} vende HOTEL en ${t.name} (+${back})`); }
+  else { t.houses--; const back=Math.round(t.houseCost*0.6); credit(p,back,{taxable:false}); debit(Estado,back); log(`${p.name} vende casa en ${t.name} (+${back})`); }
+  renderAll();
+}
+
+/* ===== Subasta (todo se puja) ===== */
+function startAuction(i){state.auction={tile:i,bid:0,bidder:null,passed:new Set()}; renderAuction();}
+function renderAuction(){
+  const box=document.getElementById('auction'); if(!state.auction){box.style.display='none';return;}
+  const t=TILES[state.auction.tile]; box.style.display='block';
+  box.innerHTML=`<strong>Subasta:</strong> ${t.name} (${t.price})<br>Puja: <b>${state.auction.bid}</b> ${state.auction.bidder!=null?`por ${state.auction.bidder==='E'?'Estado':('J'+(state.auction.bidder+1))}`:''}<br>`;
+  const bidders=[...state.players.filter(p=>p.alive).map(p=>p.id),'E'];
+  bidders.forEach(pid=>{
+    const cash=(pid==='E'?Estado.money:state.players[pid].money);
+    const can=cash>=state.auction.bid+10;
+    const bidBtn=document.createElement('button'); bidBtn.textContent=`Pujar +10 (${pid==='E'?'Estado':'J'+(pid+1)})`; bidBtn.disabled=!can; bidBtn.onclick=()=>bid(pid);
+    const passBtn=document.createElement('button'); passBtn.textContent=`Pasar (${pid==='E'?'Estado':'J'+(pid+1)})`; passBtn.onclick=()=>pass(pid);
+    box.appendChild(bidBtn); box.appendChild(passBtn);
+  });
+}
+function bid(pid){ const a=state.auction; const cash=(pid==='E'?Estado.money:state.players[pid].money); if(cash<a.bid+10) return; a.bid+=10; a.bidder=(pid==='E'?'E':Number(pid)); renderAuction(); maybeEstadoAutoBid(); }
+function pass(pid){
+  const a=state.auction; a.passed.add(pid);
+  const total=state.players.filter(p=>p.alive).length+1; // + Estado
+  if(a.passed.size>=total){
+    if(a.bidder!=null){
+      const winner=(a.bidder==='E')?Estado:state.players[a.bidder];
+      debit(winner,a.bid);
+      const ti=a.tile; TILES[ti].owner=(a.bidder==='E'?'E':winner.id);
+      if(!winner.props) winner.props=[]; winner.props.push(ti);
+      log(`${winner.name} gana ${TILES[ti].name} por ${a.bid}`);
+    }
+    state.auction=null; renderAuction(); renderAll();
+  }
+}
+function maybeEstadoAutoBid(){ const a=state.auction; if(!a) return; const t=TILES[a.tile]; const target=Math.floor(t.price*1.2); if(a.bid<target && Estado.money>=a.bid+10){ setTimeout(()=>bid('E'),300); } }
+
+/* ===== Carta previa a subasta ===== */
+const overlay=document.getElementById('overlay'); const cardBand=document.getElementById('cardBand'); const cardName=document.getElementById('cardName'); const cardPrice=document.getElementById('cardPrice'); const cardRent=document.getElementById('cardRent'); const cardRoi=document.getElementById('cardRoi'); const startAuctionBtn=document.getElementById('startAuction'); const cancelAuctionBtn=document.getElementById('cancelAuction');
+function showCard(tileIndex){ const t=TILES[tileIndex]; state.pendingTile=tileIndex; cardBand.style.background = t.type==='prop'?COLORS[t.color]:'#374151'; cardName.textContent=t.name; cardPrice.textContent=`$${t.price}`; const rent=t.baseRent; cardRent.textContent=`$${rent}`; const roi=Math.round((rent/t.price)*1000)/10; cardRoi.textContent=`${roi}% por caída`; overlay.style.display='flex'; }
+startAuctionBtn.onclick=()=>{ overlay.style.display='none'; if(state.pendingTile!=null){ startAuction(state.pendingTile); state.pendingTile=null; } };
+cancelAuctionBtn.onclick=()=>{ overlay.style.display='none'; state.pendingTile=null; log('Subasta cancelada.'); };
+overlay.addEventListener('click',e=>{ if(e.target===overlay){ overlay.style.display='none'; state.pendingTile=null; }});
+
+/* ===== Préstamos con interés (embargo si no paga) ===== */
+function applyLoansAtTurnEnd(){
+  const remaining=[];
+  for(const loan of state.loans){
+    loan.turns--;
+    if(loan.turns<=0){
+      const borrower=(loan.to==='E')?Estado:state.players[loan.to];
+      const lender=(loan.from==='E')?Estado:state.players[loan.from];
+      if(borrower.money>=loan.returnAmount){
+        debit(borrower,loan.returnAmount); credit(lender,loan.returnAmount,{taxable:false}); log(`${getName(borrower)} devuelve ${loan.returnAmount} a ${getName(lender)}`);
+      } else {
+        const list=(borrower.props||[]).slice();
+        list.forEach(i=>{const t=TILES[i]; t.owner=(loan.from==='E'?'E':lender.id); if(!lender.props) lender.props.push(i); else lender.props.push(i);});
+        borrower.props=[]; log(`IMPAGO: todas las propiedades de ${getName(borrower)} pasan a ${getName(lender)}.`);
+      }
+    } else remaining.push(loan);
+  }
+  state.loans=remaining;
+}
+function requestLoan(){
+  const from=state.players[state.current];
+  const toId=prompt('Prestar a jugador (número) o E para Estado:'); if(toId===null) return;
+  const to=(toId==='E')?'E':Number(toId)-1; const target=(to==='E')?Estado:state.players[to];
+  const amt=Number(prompt('Cantidad prestada:')); if(!(amt>0)) return;
+  const ret=Number(prompt('Cantidad a devolver (incluye interés):')); if(!(ret>0)) return;
+  const turns=Number(prompt('Turnos hasta devolución:')); if(!(turns>0)) return;
+  if(!target||from.money<amt) return;
+  debit(from,amt); credit(target,amt,{taxable:false});
+  state.loans.push({from:from.id,to:to,principal:amt,returnAmount:ret,turns});
+  const rate=Math.round(((ret-amt)/amt)*1000)/10;
+  log(`${from.name} presta ${amt} a ${getName(target)} → devolverá ${ret} en ${turns} turnos (${rate}% interés)`);
+  renderAll();
+}
+function getName(p){return p===Estado||p==='E'?'Estado':p.name;}
+
+/* ===== Bancarrota y derrota colectiva ===== */
+function checkBankrupt(p){ if(p.money>=0||!p.alive) return; p.alive=false; (p.props||[]).forEach(i=>{const t=TILES[i]; t.owner=null; t.houses=0; t.hotel=false;}); p.props=[]; log(`${p.name} entra en QUIEBRA.`); }
+function everyoneLoses(){ alert('El ESTADO ha eliminado a un jugador. Todos pierden.'); location.reload(); }
+
+/* ===== IA del Estado (turno pasivo) ===== */
+function estadoAct(){
+  const free=TILES.map((t,i)=>({t,i})).filter(x=>x.t.type==='prop'&&x.t.owner===null).sort((a,b)=>a.t.price-b.t.price);
+  if(free.length && Math.random()<0.5){ const pick=free[0]; if(Estado.money>=pick.t.price){ debit(Estado,pick.t.price); pick.t.owner='E'; Estado.props.push(pick.i); log(`Estado compra ${pick.t.name} por ${pick.t.price}.`); }}
+  const needy=state.players.filter(p=>p.alive&&p.money<100&&p.props.length);
+  if(needy.length && Math.random()<0.4){ const p=needy[Math.floor(Math.random()*needy.length)]; const pi=p.props[0]; const t=TILES[pi]; const offer=Math.floor(t.price*1.2); if(Estado.money>=offer){ if(confirm(`Estado ofrece ${offer} por ${t.name} a ${p.name}. ¿Aceptar?`)){ debit(Estado,offer); credit(p,offer,{taxable:true}); t.owner='E'; Estado.props.push(pi); p.props=p.props.filter(x=>x!==pi); log(`Estado compra ${t.name} a ${p.name} por ${offer}.`); } } }
+}
+
+/* ====== DADOS: render y tirada doble ====== */
+const diceEl=document.getElementById('dice');
+
+function clearDice(){
+  diceEl.innerHTML = `<div class="diceMeta">Tira para ver los dados.</div>`;
+}
+
+function createDie(n){
+  const die=document.createElement('div');
+  die.className='die shaker';
+  const pos={
+    1:[[2,2]],
+    2:[[1,1],[3,3]],
+    3:[[1,1],[2,2],[3,3]],
+    4:[[1,1],[1,3],[3,1],[3,3]],
+    5:[[1,1],[1,3],[2,2],[3,1],[3,3]],
+    6:[[1,1],[1,2],[1,3],[3,1],[3,2],[3,3]]
+  }[n];
+  for(let r=1;r<=3;r++){
+    for(let c=1;c<=3;c++){
+      const dot=document.createElement('div');
+      dot.className='pip';
+      dot.style.visibility='hidden';
+      dot.style.gridRow=r;
+      dot.style.gridColumn=c;
+      die.appendChild(dot);
+    }
+  }
+  // Activar pips
+  const dots=die.querySelectorAll('.pip');
+  pos.forEach(([r,c])=>{
+    const idx=(r-1)*3+(c-1);
+    dots[idx].style.visibility='visible';
+  });
+  // quitar clase shaker tras animación
+  setTimeout(()=>die.classList.remove('shaker'),400);
+  return die;
+}
+
+function renderDice(d1,d2){
+  diceEl.innerHTML='';
+  const left=createDie(d1);
+  const right=createDie(d2);
+  diceEl.appendChild(left);
+  diceEl.appendChild(right);
+  const meta=document.createElement('div');
+  meta.className='diceMeta';
+  meta.textContent=`Resultado: ${d1} + ${d2} = ${d1+d2}`;
+  diceEl.appendChild(meta);
+}
+
+/* ===== UI ===== */
+document.getElementById('roll').onclick=()=>{
+  if(state.rolled) return;
+  const p=state.players[state.current];
+
+  // Tirar dos dados
+  const d1 = 1 + Math.floor(Math.random() * 6);
+  const d2 = 1 + Math.floor(Math.random() * 6);
+  const total = d1 + d2;
+
+  renderDice(d1,d2);
+  log(`🎲 ${p.name} saca [${d1}] y [${d2}] → total ${total}`);
+
+  move(p, total);
+  state.rolled = true;
+};
+document.getElementById('endTurn').onclick=()=>{ applyLoansAtTurnEnd(); estadoAct(); state.rolled=false; const n=state.players.length; let i=state.current; for(let step=1; step<=n; step++){ const j=(i+step)%n; if(state.players[j].alive){ state.current=j; break; } } renderAll(); };
+document.getElementById('loan').onclick=requestLoan;
+document.getElementById('build').onclick=build;
+document.getElementById('sell').onclick=sellHouse;
+
+/* ===== Carta → subasta ===== */
+startAuctionBtn.onclick=()=>{ overlay.style.display='none'; if(state.pendingTile!=null){ startAuction(state.pendingTile); state.pendingTile=null; } };
+cancelAuctionBtn.onclick=()=>{ overlay.style.display='none'; state.pendingTile=null; log('Subasta cancelada.'); };
+
+/* ===== Arranque por defecto ===== */
+newGame(3,500);
+clearDice();
+</script>
+</body>
+</html>
