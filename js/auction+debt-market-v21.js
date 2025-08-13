@@ -331,19 +331,30 @@
     },
 
     _basicOverlay(text) {
-      let el = document.getElementById('dm-overlay');
-      if (!el) {
-        el = document.createElement('div'); el.id = 'dm-overlay';
-        Object.assign(el.style, { position: 'fixed', inset: '0', background: 'rgba(0,0,0,.6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, fontFamily: 'system-ui, sans-serif', fontSize: '20px' });
-        el.addEventListener('click', () => this._basicOverlayClose());
-        document.body.appendChild(el);
+      const overlay = (global.utils && global.utils.overlay) || null;
+      if (overlay) {
+        if (this._basicOverlayUnmount) this._basicOverlayUnmount();
+        this._basicOverlayUnmount = overlay(text || '...', { id: 'dm-overlay', closeOnClick: true });
+      } else {
+        let el = document.getElementById('dm-overlay');
+        if (!el) {
+          el = document.createElement('div'); el.id = 'dm-overlay';
+          Object.assign(el.style, { position: 'fixed', inset: '0', background: 'rgba(0,0,0,.6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, fontFamily: 'system-ui, sans-serif', fontSize: '20px' });
+          el.addEventListener('click', () => this._basicOverlayClose());
+          document.body.appendChild(el);
+        }
+        el.textContent = text || '...';
+        el.style.display = 'flex';
       }
-      el.textContent = text || '...';
-      el.style.display = 'flex';
     },
 
     _basicOverlayClose() {
-      const el = document.getElementById('dm-overlay'); if (el) el.style.display = 'none';
+      if (this._basicOverlayUnmount) {
+        this._basicOverlayUnmount();
+        this._basicOverlayUnmount = null;
+      } else {
+        const el = document.getElementById('dm-overlay'); if (el) el.style.display = 'none';
+      }
     }
   };
 
