@@ -717,11 +717,17 @@ if (!isVehicleOrUtil && !isNoBuildings){
   overlay.style.display = 'flex';
 }
 
-if (typeof renderRentsTable !== 'function'){
-  function renderRentsTable(model){
-    const rows = model.map(r=>{ const label = ('label' in r) ? r.label : (r.houses===5 ? 'Hotel' : r.houses); const rent  = (typeof r.rent === 'number') ? `$${Math.max(0, Math.round(r.rent||0))}` : r.rent; return `<tr><td>${label}</td><td style="text-align:right">${rent}</td></tr>`; }).join('');
+if (typeof window.renderRentsTable !== 'function'){
+  window.renderRentsTable = function renderRentsTable(model){
+    const rows = model
+      .map(r => {
+        const label = ('label' in r) ? r.label : (r.houses === 5 ? 'Hotel' : r.houses);
+        const rent  = (typeof r.rent === 'number') ? `$${Math.max(0, Math.round(r.rent || 0))}` : r.rent;
+        return `<tr><td>${label}</td><td style="text-align:right">${rent}</td></tr>`;
+      })
+      .join('');
     return `<table><thead><tr><th>Nº</th><th>Alquiler</th></tr></thead><tbody>${rows}</tbody></table>`;
-  }
+  };
 }
 
 window.showCard = showCard;
@@ -1040,7 +1046,6 @@ Estado.money = 0;
   if (typeof window.randomizeSpecials === 'function') window.randomizeSpecials();
 
   if (typeof applySavedPropNames === 'function') applySavedPropNames(); // ← aquí
-
   document.body.classList.add('playing');   // <- esto debe estar
 
   BoardUI.attach({ tiles:TILES, state });
@@ -1616,9 +1621,13 @@ async function onLand(p, idx){
     const cbt = st && st.corruptBankTiles || [];
     if (Array.isArray(cbt) && cbt.indexOf(idx) !== -1) {
       const opt = await promptDialog(
-        'Banca corrupta:\n1) Préstamo corrupto\n2) Securitizar alquileres (' +
-        (Roles && RolesConfig ? (RolesConfig.securiTicks||3) : 3) + ' ticks, anticipo ' +
-        (Roles && RolesConfig ? (RolesConfig.securiAdvance||150) : 150) + ')\n(Enter = nada)',
+        'Banca corrupta:\n'
+        + '1) Préstamo corrupto\n'
+        + '2) Securitizar alquileres ('
+        + (Roles && RolesConfig ? (RolesConfig.securiTicks||3) : 3) + ' ticks, anticipo '
+        + (Roles && RolesConfig ? (RolesConfig.securiAdvance||150) : 150)
+        + ')\n3) Mercado deuda (GameDebtMarket)\n'
+        + '4) Titulización de préstamo\n(Enter = nada)',
         ''
       );
       if (opt === '1') {
@@ -1639,6 +1648,37 @@ async function onLand(p, idx){
           // anticipo al jugador y a partir de ahora sus alquileres van al Estado por S.ticks
           transfer(Estado, getPlayerById(p.id), S.advance, { taxable:false, reason:'Securitización corrupta' });
           log('Securitización: cobras ' + S.advance + ' ahora; durante ' + S.ticks + ' ticks tus alquileres van al Estado.');
+        }
+      } else if (opt === '3') {
+        const principal = Number(await promptDialog('Principal préstamo deuda:', '300'))||0;
+        const rate = Number(await promptDialog('Tipo (%):', '20'))||0;
+        const term = Number(await promptDialog('Plazo (turnos):', '12'))||0;
+        const L = GameDebtMarket.mkLoan({
+          borrowerId: p.id,
+          lenderId: 'E',
+          principal,
+          ratePct: rate,
+          termTurns: term
+        });
+        GameDebtMarket.addLoan(L);
+        transfer(Estado, getPlayerById(p.id), principal, { taxable:false, reason:'Préstamo mercado deuda' });
+        log('Mercado deuda: préstamo ' + L.id + ' creado.');
+      } else if (opt === '4') {
+        const loanId = await promptDialog('ID préstamo a titulizar:', '');
+        if (loanId) {
+          try {
+            const shares = GameSecuritization.splitLoan(loanId, [
+              { ownerId: p.id, bips: 5000 },
+              { ownerId: 'E', bips: 5000 }
+            ]);
+            if (shares) {
+              log('Titulización OK: ' + shares.join(','));
+            } else {
+              alert('No se pudo titulizar');
+            }
+          } catch (e) {
+            alert('Error titulizando: ' + e.message);
+          }
         }
       }
     }
