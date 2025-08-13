@@ -811,13 +811,14 @@ async function offerTransportHop(p, idx, t){
     (t.subtype==='bus' && (x.subtype==='bus'||(window.BUS_COUNTS_WITH_METRO&&x.subtype==='rail'))) ||
     (t.subtype===x.subtype)
   );
-  const owns = TILES.map((x,i)=>({x,i})).filter(o=> same(o.x) && o.x.owner===p.id && o.i!==idx);
+  const owns = TILES.map((x,i)=>({x,i}))
+    .filter(o=> same(o.x) && [p.id,'E'].includes(o.x.owner) && o.i!==idx);
   if (!owns.length) return;
 
   const niceNames = { rail: 'metro', bus: 'Bizkaibus', ferry: 'ferry', air: 'aéreo' };
   const nice = niceNames[t.subtype] || t.subtype;
   const list = owns.map((o,k)=>`${k+1}. ${o.x.name}`).join('\n');
-  const sel = await promptDialog(`Moverte gratis a otro transporte (${nice}) tuyo este turno:\n${list}\nElige número (o cancela)`);
+  const sel = await promptDialog(`Moverte gratis a otro transporte (${nice}) tuyo o del Estado este turno:\n${list}\nElige número (o cancela)`);
   const n = parseInt(sel,10);
   if (!Number.isFinite(n) || n<1 || n>owns.length) return;
 
