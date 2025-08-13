@@ -31,6 +31,10 @@ Artiako Landak es un juego de tablero que combina economía, subastas y roles op
 - **L**: cargar partida
 - **S**: guardar partida
 
+## Juego en línea
+- Pulsa **"Compartir partida"** para generar una llave y compartirla con tus amigos.
+- Tus amigos pueden usar **"Unirse online"** e introducir la llave para unirse como jugadores.
+
 ## Desarrollo
 - `js/utils/overlay.js` permite alternar la visibilidad del overlay mediante teclado.
   El parámetro opcional `toggleKey` (por defecto `F2`) define la tecla usada.
