@@ -994,14 +994,17 @@ Estado.money = 0;
 
   state.players = [];
   for (let i=0;i<humans;i++){
-    let g = prompt(`¿Género de J${i+1}? (h/m)`, 'h') || 'h';
+    let g = prompt(`¿Género de J${i+1}? (h/m/he)`, 'he') || 'he';
     g = g.trim().toLowerCase();
-    const gender = g.startsWith('m') ? 'female' : 'male';
+    let gender;
+    if (g.startsWith('m')) gender = 'female';
+    else if (g.startsWith('he')) gender = 'helicoptero';
+    else gender = 'male';
     state.players.push({ id: state.players.length, name:`J${i+1}`, money:startMoney, pos:0, alive:true,
       jail:0, taxBase:0, doubleStreak:0, gender });
   }
   for (let i=0;i<bots;i++){
-    const gender = Math.random() < 0.5 ? 'male' : 'female';
+    const gender = 'helicoptero';
     state.players.push({ id: state.players.length, name:`Bot${i+1}`, money:startMoney, pos:0, alive:true,
       jail:0, taxBase:0, doubleStreak:0, isBot:true, gender });
   }
@@ -6115,7 +6118,7 @@ if (typeof window.transfer === 'function'){
 
   // —— Asignación de roles ——
   R.assign = function(players){
-    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'male'}));
+    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero'}));
     state.assignments.clear();
     state.fbiGuesses.clear();
     state.taxPot = 0;

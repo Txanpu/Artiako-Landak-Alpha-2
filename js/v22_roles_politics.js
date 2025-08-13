@@ -141,7 +141,7 @@
 
   // —— Asignación de roles ——
   R.assign = function(players){
-    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'male'}));
+    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero'}));
     state.assignments.clear();
     state.fbiGuesses.clear();
     state.taxPot = 0;
