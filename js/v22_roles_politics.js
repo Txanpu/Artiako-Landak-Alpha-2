@@ -770,6 +770,12 @@
   R.card_STRIKE = function(){ state.strikeTicks = 1; saveState(); return {banner:'Huelga general: 1 tick sin alquileres ni ayudas'}; };
   R.shouldBlockRent = function(){ return (state.strikeTicks||0) > 0; };
   R.shouldBlockWelfare = function(){ return (state.strikeTicks||0) > 0; };
+  R.shouldBlockGame = function(gameType){
+    if(state.government==='left'){
+      return gameType==='greyhounds' || gameType==='blackjack' || gameType==='fiore';
+    }
+    return false;
+  };
 
   R.onTurnStart = function(player){
     state.noRentFromWomen.clear();

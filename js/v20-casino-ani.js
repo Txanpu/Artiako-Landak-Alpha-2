@@ -87,6 +87,10 @@
   // === Blackjack con animación
   window.playBlackjack = async function(player, owner, tile){
     if (!owner || owner.alive === false){ log('El dueño no puede actuar.'); return; }
+    if (window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('blackjack')) {
+      alert('El gobierno de izquierdas ha prohibido el blackjack');
+      return;
+    }
     if (window.Roles && Roles.isPowerOff && Roles.isPowerOff()) {
       alert('Apagón nacional: casino cerrado por 2 ticks');
       return;

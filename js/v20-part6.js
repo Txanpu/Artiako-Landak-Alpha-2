@@ -239,6 +239,10 @@ async function onLand(p, idx){
       break;
 
     case 'prop': {
+      if (t.subtype==='fiore' && window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('fiore')){
+        log('Fiore cerrado por el gobierno.');
+        break;
+      }
       if (t.owner === null){
         // [PATCH] Nueva gestión de subastas con Debt Market
         if (window.GameDebtMarket && window.GameDebtMarket.onLandProperty) {
