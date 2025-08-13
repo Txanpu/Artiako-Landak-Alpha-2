@@ -54,14 +54,6 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('chatMessage', { playerId, message });
   });
 
-  // intercambio de señalización para WebRTC
-  socket.on('signal', ({ roomId, data }) => {
-    const targetRoom = roomId || socket.data.roomId;
-    if (!targetRoom) return;
-    // reenviar datos de señalización al resto de jugadores
-    socket.to(targetRoom).emit('signal', { playerId: socket.data.playerId, data });
-  });
-
   // finalizar turno
   socket.on('endTurn', () => {
     const { playerId, roomId } = socket.data;

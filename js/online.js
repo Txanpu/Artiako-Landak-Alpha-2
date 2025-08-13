@@ -1,19 +1,12 @@
 (() => {
-  const socket = typeof io !== 'undefined' ? io() : null;
-  let roomKey;
-  let playerId;
   let pc;
   let dataChannel;
+  let playerId;
 
   function createPeer() {
     pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket?.emit('signal', { roomId: roomKey, data: { candidate: event.candidate } });
-      }
-    };
     pc.ondatachannel = (event) => {
       dataChannel = event.channel;
       setupDataChannel();
@@ -50,47 +43,54 @@
     };
   }
 
-  async function joinGame(key) {
-    if (!socket) return;
-    roomKey = key;
+  function waitIceCompletion() {
+    return new Promise((resolve) => {
+      if (pc.iceGatheringState === 'complete') {
+        resolve();
+      } else {
+        pc.addEventListener('icegatheringstatechange', function checkState() {
+          if (pc.iceGatheringState === 'complete') {
+            pc.removeEventListener('icegatheringstatechange', checkState);
+            resolve();
+          }
+        });
+      }
+    });
+  }
+
+  async function shareGame() {
     if (!playerId) {
       playerId = Math.random().toString(36).slice(2, 8);
     }
     createPeer();
-    socket.emit('joinGame', { roomId: roomKey, playerId });
-  }
-
-  async function shareGame() {
-    if (!socket) return;
-    if (!roomKey) {
-      roomKey = Math.random().toString(36).slice(2, 8);
-    }
-    await joinGame(roomKey);
     dataChannel = pc.createDataChannel('game');
     setupDataChannel();
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    socket.emit('signal', { roomId: roomKey, data: { sdp: pc.localDescription } });
-    window.prompt('Comparte esta llave con tus amigos:', roomKey);
+    await waitIceCompletion();
+    const offerStr = btoa(JSON.stringify(pc.localDescription));
+    window.prompt('Comparte esta oferta con tu amigo:', offerStr);
+    const answerStr = window.prompt('Pega la respuesta del otro jugador:');
+    if (answerStr) {
+      const answer = JSON.parse(atob(answerStr));
+      await pc.setRemoteDescription(answer);
+    }
   }
 
-  socket?.on('signal', async ({ data }) => {
-    if (!pc) createPeer();
-    if (data.sdp) {
-      await pc.setRemoteDescription(data.sdp);
-      if (data.sdp.type === 'offer') {
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socket.emit('signal', { roomId: roomKey, data: { sdp: pc.localDescription } });
-      }
-    } else if (data.candidate) {
-      try {
-        await pc.addIceCandidate(data.candidate);
-      } catch (err) {
-        console.error('Error adding ICE candidate', err);
-      }
+  async function joinGame() {
+    if (!playerId) {
+      playerId = Math.random().toString(36).slice(2, 8);
     }
-  });
+    const offerStr = window.prompt('Pega la oferta del anfitrión:');
+    if (!offerStr) return;
+    createPeer();
+    await pc.setRemoteDescription(JSON.parse(atob(offerStr)));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitIceCompletion();
+    const answerStr = btoa(JSON.stringify(pc.localDescription));
+    window.prompt('Envía esta respuesta al anfitrión:', answerStr);
+  }
 
   function sendMessage(msg) {
     if (dataChannel?.readyState === 'open') {
@@ -122,16 +122,11 @@
   }
 
   onlineBtn?.addEventListener('click', () => {
-    if (!socket) {
-      alert('Online no disponible. Revisa tu conexión.');
-      return;
-    }
-    const share = window.confirm('¿Quieres compartir la partida?\nAceptar para compartir, cancelar para unirse');
-    if (share) {
+    const host = window.confirm('¿Quieres crear la partida?\nAceptar para crear, cancelar para unirse');
+    if (host) {
       shareGame();
     } else {
-      const key = window.prompt('Ingresa la llave de la partida:');
-      if (key) joinGame(key);
+      joinGame();
     }
   });
 
