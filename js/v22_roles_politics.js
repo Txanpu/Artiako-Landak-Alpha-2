@@ -47,6 +47,11 @@
 (function(){
   'use strict';
 
+  const utils = globalThis.utils || (globalThis.utils = {});
+  if (typeof utils.makeRNG !== 'function' && typeof require === 'function') {
+    try { Object.assign(utils, require('./utils/rng.js')); } catch {}
+  }
+
   const R = {};
   const ROLE = {
     PROXENETA: 'proxeneta',
@@ -100,7 +105,17 @@
   };
 
   // Utilidades
-  const rand = {
+  let rng = null;
+  if (typeof cfg.rngSeed !== 'undefined' && utils.makeRNG) {
+    const seed = typeof cfg.rngSeed === 'string' ? utils.seedFromString(cfg.rngSeed) : cfg.rngSeed;
+    rng = utils.makeRNG(seed);
+  }
+  const rand = rng ? {
+    pick: arr => rng.pick(arr),
+    int: (min,max) => rng.int(min,max),
+    real: (min,max) => rng.next()*(max-min)+min,
+    chance: p => rng.next() < p
+  } : {
     pick(a){ return a[Math.floor(Math.random()*a.length)] },
     int(min, max){ return Math.floor(Math.random()*(max-min+1))+min },
     real(min, max){ return Math.random()*(max-min)+min },
