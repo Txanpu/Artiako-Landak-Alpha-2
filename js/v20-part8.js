@@ -685,6 +685,14 @@
 
   // Paso 3: orquestador
   async function startGreyhoundEvent(triggeredByPlayer){
+    if (window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('greyhounds')) {
+      alert('El gobierno de izquierdas ha prohibido las apuestas de galgos');
+      return;
+    }
+    if (window.Roles && Roles.isPowerOff && Roles.isPowerOff()) {
+      alert('Apagón nacional: carreras de galgos canceladas');
+      return;
+    }
     const pot = { value: 0 };
     _headline('¡Carrera de galgos en SALIDA!');
     _log('🏁 Evento: Carrera de Galgos');

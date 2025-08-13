@@ -1844,6 +1844,10 @@ async function onLand(p, idx){
       break;
 
     case 'prop': {
+      if (t.subtype==='fiore' && window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('fiore')){
+        log('Fiore cerrado por el gobierno.');
+        break;
+      }
       if (t.owner === null){
         // [PATCH] Nueva gestión de subastas con Debt Market
         if (window.GameDebtMarket && window.GameDebtMarket.onLandProperty) {
@@ -4065,6 +4069,10 @@ function animateTransportHop(player, fromIdx, toIdx, done){
   // === Blackjack con animación
   window.playBlackjack = async function(player, owner, tile){
     if (!owner || owner.alive === false){ log('El dueño no puede actuar.'); return; }
+    if (window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('blackjack')) {
+      alert('El gobierno de izquierdas ha prohibido el blackjack');
+      return;
+    }
     if (window.Roles && Roles.isPowerOff && Roles.isPowerOff()) {
       alert('Apagón nacional: casino cerrado por 2 ticks');
       return;
@@ -5927,6 +5935,14 @@ if (typeof window.transfer === 'function'){
 
   // Paso 3: orquestador
   async function startGreyhoundEvent(triggeredByPlayer){
+    if (window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('greyhounds')) {
+      alert('El gobierno de izquierdas ha prohibido las apuestas de galgos');
+      return;
+    }
+    if (window.Roles && Roles.isPowerOff && Roles.isPowerOff()) {
+      alert('Apagón nacional: carreras de galgos canceladas');
+      return;
+    }
     const pot = { value: 0 };
     _headline('¡Carrera de galgos en SALIDA!');
     _log('🏁 Evento: Carrera de Galgos');
@@ -6341,6 +6357,19 @@ if (typeof window.transfer === 'function'){
   R.tickTurn = function(){
     state.turnCounter++;
     state.noRentFromWomen.clear();
+    if(state.turnCounter % 60 === 0 && rand.chance(0.10)){
+      const tipo = rand.pick(['Terremoto','Tornado','Huracán']);
+      const bank = (typeof BANK === 'object') ? BANK : null;
+      (window.TILES||[]).forEach(t=>{
+        if(t && t.type==='prop'){
+          if(t.hotel){ t.hotel = false; if(bank) bank.hotelsAvail = (bank.hotelsAvail|0) + 1; }
+          if(t.houses>0){ if(bank) bank.housesAvail = (bank.housesAvail|0) + t.houses; t.houses = 0; }
+        }
+      });
+      try{ BoardUI?.refreshTiles?.(); }catch{}
+      const msg = `🌪️ ${tipo}: todas las casas y hoteles destruidos`;
+      if(typeof log === 'function') log(msg); else uiLog(msg);
+    }
     // Vencimientos de préstamos corruptos
     (state.loans||[]).forEach(l=>{
       if(!l.overdue && state.turnCounter>l.dueTurn){
@@ -6734,6 +6763,12 @@ if (typeof window.transfer === 'function'){
   R.card_STRIKE = function(){ state.strikeTicks = 1; saveState(); return {banner:'Huelga general: 1 tick sin alquileres ni ayudas'}; };
   R.shouldBlockRent = function(){ return (state.strikeTicks||0) > 0; };
   R.shouldBlockWelfare = function(){ return (state.strikeTicks||0) > 0; };
+  R.shouldBlockGame = function(gameType){
+    if(state.government==='left'){
+      return gameType==='greyhounds' || gameType==='blackjack' || gameType==='fiore';
+    }
+    return false;
+  };
 
   R.onTurnStart = function(player){
     state.noRentFromWomen.clear();
