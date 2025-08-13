@@ -2245,6 +2245,26 @@ function awardAuction(){
     price    = bestV;
   }
 
+  // Impugnación por un tercero antes de adjudicar
+  try {
+    const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+    if (who) {
+      const byId = Number(who) - 1;
+      const base = Math.max(1, t.price || 1);
+      const imbalance = Math.max(0, Math.min(1, (base - price) / base));
+      const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+      if (res.annulled) {
+        alert('⚖️ Juez IA anula la adjudicación.');
+        $('#auction').style.display = 'none';
+        state.auction = null;
+        const endTurnBtn = document.getElementById('endTurn');
+        if (endTurnBtn) endTurnBtn.disabled = false;
+        updateTurnButtons();
+        return;
+      }
+    }
+  } catch {}
+
   // Ganó Estado
   if (winnerId==='E'){
     if ((Estado.money||0) < price){
@@ -2594,6 +2614,23 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       a.open = false;
 
       if (a.bestPlayer && a.bestBid > 0) {
+        // Impugnación por un tercero antes de adjudicar
+        try {
+          const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+          if (who) {
+            const byId = Number(who) - 1;
+            const base = Math.max(1, a.price || 1);
+            const imbalance = Math.max(0, Math.min(1, (base - a.bestBid) / base));
+            const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+            if (res.annulled) {
+              alert('⚖️ Juez IA anula la adjudicación.');
+              state.auction = null;
+              this._closeAuctionOverlay();
+              return;
+            }
+          }
+        } catch {}
+
         if (a.kind === 'tile') {
           this._assignTileTo(a.assetId, a.bestPlayer, a.bestBid);
         } else if (a.kind === 'loan') {
@@ -6002,14 +6039,7 @@ if (typeof window.transfer === 'function'){
     state.fbiGuesses.clear();
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
-    // asignar roles especiales de forma única
-    const specialRoles = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
-    const totalRoles = Math.min(specialRoles.length, Math.floor(state.players.length * cfg.roleProbability));
-    const shuffledPlayers = [...state.players].sort(()=>Math.random()-0.5);
-    const shuffledRoles = [...specialRoles].sort(()=>Math.random()-0.5).slice(0, totalRoles);
-    for(let i=0;i<totalRoles;i++){
-      setRole(shuffledPlayers[i].id, shuffledRoles[i]);
-    }
+
 
     ensureFlorentinoUses();
     saveState();
