@@ -30,3 +30,7 @@ Artiako Landak es un juego de tablero que combina economía, subastas y roles op
 - **A**: iniciar subasta
 - **L**: cargar partida
 - **S**: guardar partida
+
+## Desarrollo
+- `js/utils/overlay.js` permite alternar la visibilidad del overlay mediante teclado.
+  El parámetro opcional `toggleKey` (por defecto `F2`) define la tecla usada.
