@@ -1,5 +1,20 @@
 (() => {
-  const socket = io();
+  if (typeof window.io === 'undefined') {
+    console.warn('Socket.IO no disponible; modo online deshabilitado');
+    const joinBtn = document.getElementById('joinOnline');
+    const shareBtn = document.getElementById('shareGame');
+    joinBtn?.setAttribute('disabled', 'true');
+    shareBtn?.setAttribute('disabled', 'true');
+    window.GameOnline = {
+      joinGame: () => alert('Modo online no disponible'),
+      sendAction: () => {},
+      endTurn: () => {},
+      shareGame: () => alert('Modo online no disponible')
+    };
+    return;
+  }
+
+  const socket = window.io();
   let playerKey = null;
 
   function joinGame(playerId) {
