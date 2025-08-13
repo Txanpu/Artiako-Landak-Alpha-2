@@ -709,7 +709,7 @@ if (!isVehicleOrUtil && !isNoBuildings){
     if (cardPriceRow) cardPriceRow.style.display = 'none';
     if (cardRentRow)  cardRentRow.style.display  = 'none';
     if (startBtn) startBtn.style.display = 'none';
-    const msg = FUNNY[t.type] || '';
+    const msg = FUNNY[t.type] || FUNNY.default;
     bankWarn.className = 'muted';
     bankWarn.textContent = msg;
     rentsBox.innerHTML = '';
@@ -745,12 +745,13 @@ if (startAuctionBtn && !startAuctionBtn.__wired) {
 }
 
 const FUNNY = {
-  start:    'Salida, como tu madre',
+  start:    'Salida: como tu madre...',
   tax:      'Putillas y coca',
   jail:     'Buen sitio pa hacer Networking?',
   gotojail: 'A la cárcel, a la cárcel, a la cárcel, a la cárcel, a la cárcel…',
   park:     'Buen sitio pa fumar porros… o mirar palomas.',
-  slots: 'GANA GANA GANA!!!'
+  slots:    'GANA GANA GANA!!!',
+  default:  'Sin info, como tu madre...'
 };
 
 window.dispatchEvent(new Event('game-core-ready'));
@@ -7027,6 +7028,9 @@ R.eventsList = [
 
   // Keyboard toggle
   document.addEventListener('keydown', (ev)=>{
+    if (ev.repeat) return;
+    const tag = ev.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ev.target.isContentEditable) return;
     if ((ev.key==='d' || ev.key==='D') && !ev.altKey && !ev.metaKey && !ev.ctrlKey){
       toggleBtn.click(); ev.preventDefault();
     }
