@@ -999,7 +999,7 @@ function renderDice(d1, d2, meta=''){
 function newGame(){
 Estado.money = 0;
   let humans = Math.max(0, Math.min(6, parseInt($('#numHumans').value||'2',10)));
-  let bots   = Math.max(0, Math.min(6, parseInt($('#numBots').value||'1',10)));
+  let bots   = Math.max(0, Math.min(6, parseInt($('#numBots').value||'0',10)));
   let total  = humans + bots;
   if (total < 2){ bots = Math.max(0, 2 - humans); total = humans + bots; }
   if (total > 6){ bots = Math.max(0, 6 - humans); total = humans + bots; }
