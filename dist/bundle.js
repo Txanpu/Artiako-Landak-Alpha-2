@@ -6318,8 +6318,7 @@ if (typeof window.transfer === 'function'){
     const id = (playerId&&playerId.id)||playerId;
     let c = choice;
     if(!c && typeof window!=='undefined'){
-      c = window.confirm('¿ITV sin pasar? A: irte al monte (pierdes turno). B: ayudar (cárcel para ti y el de la izquierda).
-Aceptar=A, Cancelar=B') ? 'A' : 'B';
+      c = window.confirm('¿ITV sin pasar? A: irte al monte (pierdes turno). B: ayudar (cárcel para ti y el de la izquierda).\nAceptar=A, Cancelar=B') ? 'A' : 'B';
     }
     if(c==='A'){
       queueSkip(id, 1);
