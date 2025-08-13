@@ -255,5 +255,9 @@ function autoInit(){
   if (tiles.length){ window.BoardUI.renderBoard(); }
 }
 
-if (document.readyState !== 'loading') autoInit();
-else document.addEventListener('DOMContentLoaded', autoInit);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', autoInit);
+} else {
+  // Ensure other modules (like TILES) finish initializing before rendering
+  setTimeout(autoInit, 0);
+}
