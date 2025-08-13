@@ -34,12 +34,13 @@ body{
 @media (max-width:900px){
   body{ grid-template-columns:1fr; }
   .boardWrap{ max-width:100%; }
-  .panel{ position:static; }
+  .panel{ position:static; width:auto; height:auto; top:auto; right:auto; overflow:visible; }
 }
 
 /* ======= PANEL FIJO (del 200.html) ======= */
 .panel{
-  position: sticky; top: 12px; align-self: start; height: fit-content;
+  position: fixed; top: 12px; right: 12px; width:380px;
+  height: calc(100vh - 24px); overflow-y:auto;
   background: var(--panel); border:1px solid var(--border); border-radius:16px;
   padding:12px; display:flex; flex-direction:column; gap:10px;
 }
