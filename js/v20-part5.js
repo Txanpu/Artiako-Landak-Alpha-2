@@ -17,6 +17,15 @@ function nextAlive(from){
   return from;
 }
 
+function botAutoPlay(){
+  const p = state.players[state.current];
+  if (!p?.isBot) return;
+  setTimeout(()=>{
+    if (!state.rolled) roll();
+    setTimeout(()=>{ if (state.rolled) endTurn(); }, 900);
+  }, 600);
+}
+
 function movePlayer(p, steps){
   if(!p.alive) return;
   const total = TILES.length;
@@ -276,6 +285,7 @@ function endTurn() {
 
     renderPlayers();
     log(`— Turno de ${state.players[state.current].name} —`);
+    botAutoPlay();
 
     // [PATCH] Hooks de inicio de turno para módulos
     try {
