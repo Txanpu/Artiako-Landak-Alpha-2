@@ -63,13 +63,15 @@
     'box-shadow:0 12px 28px rgba(0,0,0,.25)'].join(';');
 
   const tabs = el('div', { className:'tabs' });
-  const tabState = el('button', { textContent:'State' });
-  const tabLog   = el('button', { textContent:'Log' });
-  const tabRoles = el('button', { textContent:'Roles' });
-  [tabState, tabLog, tabRoles].forEach(b => b.style.cssText='margin-right:6px;padding:4px 8px;border:1px solid #ddd;background:#f8fafc;border-radius:8px;cursor:pointer;color:#111');
-  const secState = el('div');
-  const secLog   = el('div'); secLog.style.display = 'none';
-  const secRoles = el('div'); secRoles.style.display = 'none';
+  const tabState  = el('button', { textContent:'State' });
+  const tabLog    = el('button', { textContent:'Log' });
+  const tabRoles  = el('button', { textContent:'Roles' });
+  const tabEvents = el('button', { textContent:'Events' });
+  [tabState, tabLog, tabRoles, tabEvents].forEach(b => b.style.cssText='margin-right:6px;padding:4px 8px;border:1px solid #ddd;background:#f8fafc;border-radius:8px;cursor:pointer;color:#111');
+  const secState  = el('div');
+  const secLog    = el('div'); secLog.style.display = 'none';
+  const secRoles  = el('div'); secRoles.style.display = 'none';
+  const secEvents = el('div'); secEvents.style.display = 'none';
 
   const grid = el('div'); grid.style.cssText='display:grid;grid-template-columns:110px 1fr;gap:4px 8px;margin-top:6px';
   function row(k,v){ const a=el('div',{textContent:k,style:'color:#555'}), b=el('div',{textContent:v||''}); grid.append(a,b); }
@@ -80,7 +82,7 @@
 
   // Roles tab content
   const rolesBox = el('div');
-  rolesBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:120px;white-space:pre-wrap';
+  rolesBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:120px';
   const rolesActions = el('div');
   rolesActions.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-top:8px';
   const btnEstadoBid = el('button', { textContent:'Bloquear Estado' });
@@ -88,6 +90,11 @@
   rolesActions.appendChild(btnEstadoBid);
   secRoles.appendChild(rolesBox);
   secRoles.appendChild(rolesActions);
+
+  // Events tab content
+  const eventsBox = el('div');
+  eventsBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:120px';
+  secEvents.appendChild(eventsBox);
 
   function _roleNice(r){
     if (r==='proxeneta') return 'Proxeneta';
@@ -105,8 +112,19 @@
       }
       const list = (Roles.listAssignments && Roles.listAssignments()) ||
                    ((window.state?.players)||[]).map(p=>({id:p.id, name:p.name, role:'?'}));
-      const lines = list.map(r => `${r.name||r.id} — ${_roleNice(r.role)}`).join('\n') || 'Sin jugadores';
-      rolesBox.textContent = lines;
+      rolesBox.innerHTML = '';
+      const allRoles = window.Roles?.ROLES ? Object.values(window.Roles.ROLES) : ['civil','proxeneta','florentino','fbi'];
+      list.forEach(r=>{
+        const row = el('div');
+        row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:4px';
+        row.appendChild(el('span',{textContent:r.name||r.id}));
+        const sel = el('select');
+        allRoles.forEach(opt=> sel.appendChild(el('option',{value:opt,textContent:_roleNice(opt),selected:r.role===opt})));
+        sel.onchange=()=>{ try{ Roles.setRole?.(r.id, sel.value); renderRoles(); }catch{} };
+        row.appendChild(sel);
+        rolesBox.appendChild(row);
+      });
+      if(list.length===0) rolesBox.textContent='Sin jugadores';
 
       if (Roles.isEstadoAuctionBlocked){
         const blocked = !!Roles.isEstadoAuctionBlocked();
@@ -115,6 +133,48 @@
       }
     } catch(e){
       rolesBox.textContent = '(error al renderizar roles)';
+    }
+  }
+
+  function teleportTo(subtype){
+    try{
+      const T = window.TILES || [];
+      const idx = T.findIndex(t=>t.subtype===subtype);
+      const p = window.state?.players?.[window.state?.current];
+      if(idx>=0 && p){
+        p.pos = idx;
+        window.renderPlayers?.();
+        window.BoardUI?.refreshTiles?.();
+        const tile = T[idx];
+        window.onLand?.(p, tile);
+      }
+    }catch{}
+  }
+
+  function renderEvents(){
+    try{
+      eventsBox.innerHTML = '';
+      if(window.Roles){
+        const label = el('div',{textContent:'Evento:'});
+        const sel = el('select');
+        (Roles.eventsList||[]).forEach(ev=> sel.appendChild(el('option',{value:ev,textContent:ev})));
+        const btn = el('button',{textContent:'Lanzar'});
+        btn.style.cssText='margin-left:6px';
+        btn.onclick=()=>{ try{ Roles.triggerEvent?.(sel.value,{playerId: window.state?.players?.[window.state?.current]?.id}); }catch{} };
+        eventsBox.append(label, sel, btn);
+      } else {
+        eventsBox.appendChild(el('div',{textContent:'Roles/events no cargados.'}));
+      }
+      const label2 = el('div',{textContent:'Ir a casilla:'});
+      label2.style.marginTop = '8px';
+      const sel2 = el('select');
+      ['casino_bj','casino_roulette','fiore','bus','rail','ferry','air'].forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
+      const btn2 = el('button',{textContent:'Ir'});
+      btn2.style.cssText='margin-left:6px';
+      btn2.onclick=()=>{ teleportTo(sel2.value); };
+      eventsBox.append(label2, sel2, btn2);
+    }catch{
+      eventsBox.textContent = '(error eventos)';
     }
   }
 
@@ -130,11 +190,12 @@
   secState.appendChild(grid); secState.appendChild(actions);
   secLog.appendChild(logBox);
 
-  tabs.append(tabState, tabLog, tabRoles);
+  tabs.append(tabState, tabLog, tabRoles, tabEvents);
   card.appendChild(tabs);
   card.appendChild(secState);
   card.appendChild(secLog);
   card.appendChild(secRoles);
+  card.appendChild(secEvents);
   panel.appendChild(toggleBtn);
   panel.appendChild(card);
   document.addEventListener('DOMContentLoaded', () => document.body.appendChild(panel));
@@ -144,29 +205,46 @@
       secState.style.display='none';
       secLog.style.display='block';
       secRoles.style.display='none';
+      secEvents.style.display='none';
       tabLog.style.background='#fff';
       tabState.style.background='#f8fafc';
       tabRoles.style.background='#f8fafc';
+      tabEvents.style.background='#f8fafc';
     } else if (which==='roles'){
       secState.style.display='none';
       secLog.style.display='none';
       secRoles.style.display='block';
+      secEvents.style.display='none';
       tabRoles.style.background='#fff';
       tabState.style.background='#f8fafc';
       tabLog.style.background='#f8fafc';
+      tabEvents.style.background='#f8fafc';
       renderRoles();
+    } else if (which==='events') {
+      secState.style.display='none';
+      secLog.style.display='none';
+      secRoles.style.display='none';
+      secEvents.style.display='block';
+      tabEvents.style.background='#fff';
+      tabState.style.background='#f8fafc';
+      tabLog.style.background='#f8fafc';
+      tabRoles.style.background='#f8fafc';
+      renderEvents();
     } else {
       secState.style.display='block';
       secLog.style.display='none';
       secRoles.style.display='none';
+      secEvents.style.display='none';
       tabState.style.background='#fff';
       tabLog.style.background='#f8fafc';
       tabRoles.style.background='#f8fafc';
+      tabEvents.style.background='#f8fafc';
     }
   }
   tabState.onclick = () => selectTab('state');
   tabLog.onclick   = () => selectTab('log');
   tabRoles.onclick = () => selectTab('roles');
+  tabEvents.onclick = () => selectTab('events');
 
   toggleBtn.onclick = () => {
     DBG.enabled = !DBG.enabled;
@@ -471,6 +549,7 @@
     if (DBG.enabled){
       render();
       if (secRoles.style.display === 'block') renderRoles();
+      if (secEvents.style.display === 'block') renderEvents();
     }
   }, 500);
 

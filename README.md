@@ -75,11 +75,3 @@ Opcional: introducir herramientas modernas (bundlers, tests) si se busca manteni
 
 Con esta visión, un nuevo integrante puede orientarse rápidamente en el código y decidir qué parte estudiar o extender según sus intereses.
 
-Ejecución de pruebas
---------------------
-Se han añadido tests básicos empleando el *test runner* integrado en Node.js. Para ejecutarlos, asegúrate de tener Node >= 18 y después ejecuta:
-
-```
-npm test
-```
-

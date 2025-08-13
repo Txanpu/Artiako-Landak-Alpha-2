@@ -824,6 +824,14 @@ Aceptar=A, Cancelar=B') ? 'A' : 'B';
   R.setEstadoAuctionBlocked = function(flag){ state.estadoAuctionBlocked = !!flag; saveState(); uiUpdate(); };
   R.isEstadoAuctionBlocked = function(){ return !!state.estadoAuctionBlocked; };
   R.listAssignments = function(){ return (state.players||[]).map(p=>({ id:p.id, name:p.name, role: roleOf(p.id) })); };
+  R.setRole = function(playerId, role){
+    var id = (playerId&&playerId.id)||playerId;
+    setRole(id, normalizeRoleGuess(role));
+    ensureFlorentinoUses();
+    saveState();
+    uiUpdate();
+  };
+  R.ROLES = Object.assign({}, ROLE);
 
   // === Eventos/CARTAS unificados ===
 // Llamas con el nombre que uses en tu mazo o en tus triggers de casilla.

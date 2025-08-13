@@ -1,3 +1,5 @@
+'use strict';
+
 /* v13 – Parte 2/7: motor de UI (tablero + casillas visibles tipo v11) */
 
 const V13_COLORS = {
