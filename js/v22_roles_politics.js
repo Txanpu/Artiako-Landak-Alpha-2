@@ -50,6 +50,7 @@
     PROXENETA: 'proxeneta',
     FLORENTINO: 'florentino',
     FBI: 'fbi',
+    OKUPA: 'okupa',
     CIVIL: 'civil'
   };
 
@@ -110,6 +111,7 @@
     if(s==='proxeneta') return ROLE.PROXENETA;
     if(s==='florentino' || s==='florentino perez' || s==='florentino pérez') return ROLE.FLORENTINO;
     if(s==='fbi') return ROLE.FBI;
+    if(s==='okupa') return ROLE.OKUPA;
     if(s==='civil' || s==='ninguno' || s==='ningún' || s==='ningun' || s==='none' || s==='no role' || s==='sin rol' || s==='ningun rol' || s==='ningún rol') return ROLE.CIVIL;
     return x;
   }
@@ -140,16 +142,7 @@
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
 
-    const roleP = Math.max(0, Math.min(1, cfg.roleProbability ?? 0.20));
-    const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
-    const playersShuffled = [...state.players].sort(() => Math.random() - 0.5);
-    const rolesShuffled = [...rolesPool].sort(() => Math.random() - 0.5);
-    const count = Math.min(rolesPool.length, Math.round(playersShuffled.length * roleP));
 
-    playersShuffled.forEach(p => setRole(p.id, ROLE.CIVIL));
-    for(let i = 0; i < count; i++){
-      setRole(playersShuffled[i].id, rolesShuffled[i]);
-    }
 
     ensureFlorentinoUses();
     saveState();
@@ -572,6 +565,29 @@
         saveState(); uiUpdate();
       }
     }
+    // 3) Okupa: posibilidad de quedarse con la propiedad
+    try {
+      if(roleOf(id)===ROLE.OKUPA){
+        const t = window.TILES && window.TILES[tileId];
+        if(t && t.type==='prop' && t.owner!=null && t.owner!==id){
+          const ownerPl = (t.owner==='E') ? null : state.players[t.owner];
+          const mono = ownerPl && typeof ownsFullGroup==='function' && ownsFullGroup(ownerPl, t);
+          if(!mono && rand.chance(0.05)){
+            t.owner = id;
+            recomputeProps?.();
+            BoardUI?.refreshTiles?.();
+            uiLog(`🏚️ ${id} ocupa ${t.name}`);
+          }
+        }
+      }
+    } catch(e){}
+  };
+
+  // Okupa: 10% de probabilidad de no pagar alquiler
+  R.shouldSkipRent = function(player){
+    const id = (player&&player.id)||player;
+    if(roleOf(id)!==ROLE.OKUPA) return false;
+    return rand.chance(0.10);
   };
 
   R.clearStatus = function(playerId, key){
