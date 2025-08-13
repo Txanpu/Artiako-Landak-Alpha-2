@@ -81,6 +81,8 @@
   const logBox = el('div'); logBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:140px;white-space:pre-wrap';
 
   // Roles tab content
+  const rolesStatus = el('div');
+  rolesStatus.style.cssText='margin-top:8px;font-size:12px;color:#111';
   const rolesBox = el('div');
   rolesBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:120px';
   const rolesActions = el('div');
@@ -91,6 +93,7 @@
   btnBankCorrupt.style.cssText='padding:4px 8px;border:1px solid #ddd;background:#ffe;border-radius:8px;cursor:pointer;color:#111';
   rolesActions.appendChild(btnEstadoBid);
   rolesActions.appendChild(btnBankCorrupt);
+  secRoles.appendChild(rolesStatus);
   secRoles.appendChild(rolesBox);
   secRoles.appendChild(rolesActions);
 
@@ -108,6 +111,15 @@
 
   function renderRoles(){
     try{
+      const st = window.state || {};
+      const gov = st.government ? (st.government==='left'?'Izquierda':'Derecha') : '—';
+      const turns = st.government ? (st.governmentTurnsLeft||0) : 0;
+      const taxPot = st.taxPot || 0;
+      const loans = (st.loans||[]).length;
+      const blocked = window.Roles?.isEstadoAuctionBlocked ? !!Roles.isEstadoAuctionBlocked() : !!st.estadoAuctionBlocked;
+      const corrupt = window.Roles?.isBankCorrupt ? !!Roles.isBankCorrupt() : !!st.bankCorrupt;
+      rolesStatus.textContent = `Gobierno: ${gov} (${turns}) · Banca corrupta: ${corrupt?'ON':'OFF'} · Bote impuestos: ${taxPot} · Préstamos: ${loans} · Estado puja: ${blocked?'OFF':'ON'}`;
+
       if (!window.Roles){
         rolesBox.textContent = 'Roles no cargado.';
         btnEstadoBid.disabled = true;
