@@ -113,6 +113,23 @@
       a.open = false;
 
       if (a.bestPlayer && a.bestBid > 0) {
+        // Impugnación por un tercero antes de adjudicar
+        try {
+          const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+          if (who) {
+            const byId = Number(who) - 1;
+            const base = Math.max(1, a.price || 1);
+            const imbalance = Math.max(0, Math.min(1, (base - a.bestBid) / base));
+            const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+            if (res.annulled) {
+              alert('⚖️ Juez IA anula la adjudicación.');
+              state.auction = null;
+              this._closeAuctionOverlay();
+              return;
+            }
+          }
+        } catch {}
+
         if (a.kind === 'tile') {
           this._assignTileTo(a.assetId, a.bestPlayer, a.bestBid);
         } else if (a.kind === 'loan') {
@@ -331,30 +348,19 @@
     },
 
     _basicOverlay(text) {
-      const overlay = (global.utils && global.utils.overlay) || null;
-      if (overlay) {
-        if (this._basicOverlayUnmount) this._basicOverlayUnmount();
-        this._basicOverlayUnmount = overlay(text || '...', { id: 'dm-overlay', closeOnClick: true });
-      } else {
-        let el = document.getElementById('dm-overlay');
-        if (!el) {
-          el = document.createElement('div'); el.id = 'dm-overlay';
-          Object.assign(el.style, { position: 'fixed', inset: '0', background: 'rgba(0,0,0,.6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, fontFamily: 'system-ui, sans-serif', fontSize: '20px' });
-          el.addEventListener('click', () => this._basicOverlayClose());
-          document.body.appendChild(el);
-        }
-        el.textContent = text || '...';
-        el.style.display = 'flex';
+      let el = document.getElementById('dm-overlay');
+      if (!el) {
+        el = document.createElement('div'); el.id = 'dm-overlay';
+        Object.assign(el.style, { position: 'fixed', inset: '0', background: 'rgba(0,0,0,.6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, fontFamily: 'system-ui, sans-serif', fontSize: '20px' });
+        el.addEventListener('click', () => this._basicOverlayClose());
+        document.body.appendChild(el);
       }
+      el.textContent = text || '...';
+      el.style.display = 'flex';
     },
 
     _basicOverlayClose() {
-      if (this._basicOverlayUnmount) {
-        this._basicOverlayUnmount();
-        this._basicOverlayUnmount = null;
-      } else {
-        const el = document.getElementById('dm-overlay'); if (el) el.style.display = 'none';
-      }
+      const el = document.getElementById('dm-overlay'); if (el) el.style.display = 'none';
     }
   };
 

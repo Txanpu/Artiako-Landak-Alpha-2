@@ -1,212 +1,4 @@
-(function(global){
-  const assert = (cond, msg='Assert failed') => { if (!cond) throw new Error(msg); };
-
-  const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
-
-  let _lock = false;
-  async function nonReentrant(fn){
-    if (_lock) throw new Error('Reentrancy');
-    _lock = true;
-    try { return await fn(); } finally { _lock = false; }
-  }
-
-  const toCents = (n) => (n==null?0:Math.round(Number(n)*100));
-  const fromCents = (c) => Math.trunc(c || 0) / 100;
-  const money = {
-    add:(a,b)=>a+b,
-    sub:(a,b)=>a-b,
-    mul:(a,k)=>Math.round(a*k),
-    div:(a,k)=>Math.round(a/k)
-  };
-
-  function makeLogger(cap=500){
-    const buf = new Array(cap); let i=0, full=false;
-    return {
-      log:(...xs)=>{ buf[i]=[Date.now(), ...xs]; i=(i+1)%cap; if(i===0) full=true; },
-      dump:()=> full ? buf.slice(i).concat(buf.slice(0,i)) : buf.slice(0,i),
-      clear:()=>{ i=0; full=false; }
-    };
-  }
-
-  const api = { assert, clamp, nonReentrant, toCents, fromCents, money, makeLogger };
-  global.utils = Object.assign(global.utils || {}, api);
-  if (typeof module !== 'undefined') module.exports = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-(function(global){
-  function seedFromString(s){
-    let h=1779033703^s.length;
-    for(let i=0;i<s.length;i++){ h=Math.imul(h^s.charCodeAt(i),3432918353); h=h<<13|h>>>19; }
-    return h>>>0;
-  }
-  function mulberry32(a){ return function(){ let t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-  function makeRNG(seed){ const r = mulberry32(seed>>>0); return {
-    next:()=>r(), int:(min,max)=>Math.floor(r()*(max-min+1))+min, pick:(arr)=>arr[Math.floor(r()*arr.length)]
-  };}
-  const rollDice = (rng)=> [rng.int(1,6), rng.int(1,6)];
-
-  const api = { seedFromString, mulberry32, makeRNG, rollDice };
-  global.utils = Object.assign(global.utils || {}, api);
-  if (typeof module !== 'undefined') module.exports = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-(function(global){
-  const { assert, clamp } = global.utils || {};
-
-  function validateState(state, TILES){
-    const errs = [];
-    try {
-      if (!Array.isArray(state.players)) errs.push('players no es array');
-      state.players?.forEach((p,idx)=>{
-        if (typeof p.money!=='number') errs.push(`p${idx}.money inválido`);
-        if (p.pos<0 || p.pos>=TILES.length) errs.push(`p${idx}.pos fuera de rango`);
-      });
-      TILES.forEach((t,i)=>{
-        if (t.owner!=null && (t.owner<0 || t.owner>=state.players.length))
-          errs.push(`tile${i}.owner inválido`);
-        if (t.houses!=null && (t.houses<0 || t.houses>5)) errs.push(`tile${i}.houses inválido`);
-      });
-      const owners = new Map();
-      TILES.forEach((t,i)=>{
-        if (t.owner!=null){
-          const k = `${t.owner}:${t.family||t.color||'na'}:${i}`;
-          if (owners.has(k)) errs.push(`tile duplicada ${i}`); else owners.set(k,true);
-        }
-      });
-    } catch(e){ errs.push('Excepción en validate: '+e.message); }
-    return errs;
-  }
-
-  function repairState(state, TILES){
-    state.players.forEach(p=>{
-      if (!isFinite(p.money)) p.money = 0;
-      p.pos = clamp(Math.trunc(p.pos || 0), 0, TILES.length-1);
-      p.alive = !!p.alive;
-      if (p.jail!=null) p.jail = clamp(Math.trunc(p.jail || 0), 0, 10);
-    });
-    TILES.forEach(t=>{
-      if (t.owner!=null && (t.owner<0 || t.owner>=state.players.length)) t.owner=null;
-      if (t.houses!=null) t.houses = clamp(Math.trunc(t.houses || 0), 0, 5);
-      if (t.mortgaged!=null) t.mortgaged = !!t.mortgaged;
-    });
-    recomputeDerived(state, TILES);
-    return state;
-  }
-
-  function recomputeDerived(state, TILES){
-    const families = {};
-    TILES.forEach((t,i)=>{
-      const fam = t.family || t.color || 'na';
-      families[fam] ??= { count:0, ownedBy: new Map() };
-      families[fam].count++;
-      if (t.owner!=null) families[fam].ownedBy.set(t.owner, (families[fam].ownedBy.get(t.owner)||0)+1);
-    });
-    state.players.forEach((p,pi)=>{
-      p.monopolies = [];
-      Object.entries(families).forEach(([fam,info])=>{
-        if (info.ownedBy.get(pi) === info.count) p.monopolies.push(fam);
-      });
-      p.netWorth = Math.trunc(p.money || 0) + TILES.reduce((s,t)=> s + (t.owner===pi ? (t.basePrice||0) + (t.houses||0)*(t.housePrice||0) : 0), 0);
-    });
-  }
-
-  const api = { validateState, repairState, recomputeDerived };
-  global.utils = Object.assign(global.utils || {}, api);
-  if (typeof module !== 'undefined') module.exports = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-(function(global){
-  function makeHistory(max=30){
-    const stack=[]; let idx=-1;
-    return {
-      snapshot(state){
-        const snap = structuredClone(state);
-        stack.splice(idx+1);
-        stack.push(snap);
-        if (stack.length>max) { stack.shift(); } else { idx++; }
-      },
-      canUndo(){ return idx>0; },
-      canRedo(){ return idx < stack.length-1; },
-      undo(){ if (idx>0) return structuredClone(stack[--idx]); },
-      redo(){ if (idx<stack.length-1) return structuredClone(stack[++idx]); },
-      peek(){ return structuredClone(stack[idx]); }
-    };
-  }
-
-  function withTransaction(history, state, fn){
-    history.snapshot(state);
-    try {
-      fn();
-      return { ok:true };
-    } catch(e){
-      const prev = history.undo();
-      Object.assign(state, prev);
-      return { ok:false, error:e };
-    }
-  }
-
-  const api = { makeHistory, withTransaction };
-  global.utils = Object.assign(global.utils || {}, api);
-  if (typeof module !== 'undefined') module.exports = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-(function(global){
-  const { makeRNG } = global.utils || {};
-  const { validateState } = global.utils || {};
-
-  function runFuzz({ state, TILES, turns=200, seed=12345, actPerTurn=3, actions }){
-    const rng = makeRNG ? makeRNG(seed) : null; const errors=[];
-    for (let t=0; t<turns; t++){
-      for (let k=0;k<actPerTurn;k++){
-        const a = rng ? rng.pick(actions) : actions[Math.floor(Math.random()*actions.length)];
-        try { a(state, TILES, rng); } catch(e){ errors.push({turn:t, action:a.name||'anon', error:e.message}); }
-        const errs = validateState ? validateState(state, TILES) : [];
-        if (errs.length) errors.push({turn:t, action:a.name||'anon', errs});
-      }
-    }
-    return errors;
-  }
-  const sampleActions = [
-    function moveRand(s,T,rng){ const p = s.players[rng.int(0,s.players.length-1)]; p.pos = (p.pos + rng.int(1,6)) % T.length; },
-    function payRent(s,T,rng){ const p = s.players[rng.int(0,s.players.length-1)]; p.money -= rng.int(10,200); }
-  ];
-
-  const api = { runFuzz, sampleActions };
-  global.utils = Object.assign(global.utils || {}, api);
-  if (typeof module !== 'undefined') module.exports = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-(function(global){
-  function makeWatchdog(ms=3000){
-    let timer=null;
-    return {
-      arm(tag='op'){
-        clearTimeout(timer);
-        timer = setTimeout(()=>{ console.error('Watchdog timeout:', tag); throw new Error('Timeout '+tag); }, ms);
-      },
-      disarm(){ clearTimeout(timer); timer=null; }
-    };
-  }
-
-  const api = { makeWatchdog };
-  global.utils = Object.assign(global.utils || {}, api);
-  if (typeof module !== 'undefined') module.exports = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-(function(global){
-
-  global.utils = Object.assign(global.utils || {}, api);
-  if (typeof module !== 'undefined') module.exports = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
 'use strict';
-
-const utils = globalThis.utils || (globalThis.utils = {});
-if (typeof utils.assert !== 'function' && typeof require === 'function') {
-  try { Object.assign(utils, require('./utils/core.js')); } catch {}
-}
 
 /* v13 – Parte 2/7: motor de UI (tablero + casillas visibles tipo v11) */
 
@@ -216,12 +8,7 @@ const V13_COLORS = {
   bank:'#b91c1c', event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
   start:'#10b981', tax:'#f59e0b', park:'#22c55e', gotojail:'#ef4444', jail:'#111827'
 };
-function colorFor(tile){
-  utils.assert(tile == null || typeof tile === 'object', 'tile debe ser objeto');
-  if(!tile) return '#475569';
-  const k=(tile.color||tile.subtype||tile.type||'').toLowerCase();
-  return V13_COLORS[k]||'#475569';
-}
+function colorFor(tile){ if(!tile) return '#475569'; const k=(tile.color||tile.subtype||tile.type||'').toLowerCase(); return V13_COLORS[k]||'#475569'; }
 
 const V13 = { tiles:[], state:null, els:[], boardEl:null };
 
@@ -233,13 +20,7 @@ const MIN_TILE = 48;   // tamaño mínimo de casilla en px
 
 /* ==== Creación de casilla (estructura v11) ==== */
 function createTileElement(tile, index){
-  const el = document.createElement('div');
-  el.className = 'tile';
-  // Allow keyboard focus and announce as a button
-  el.tabIndex = 0;
-  el.setAttribute('role', 'button');
-  // Guarda el índice para poder identificar la casilla desde el DOM
-  el.dataset.idx = index;
+  const el = document.createElement('div'); el.className='tile';
   const band=document.createElement('div'); band.className='band'; band.style.background=colorFor(tile);
   const head=document.createElement('div'); head.className='head';
   const name=document.createElement('div'); name.className='name'; name.textContent=tile?.name||''; head.appendChild(name);
@@ -250,21 +31,12 @@ function createTileElement(tile, index){
   const right=document.createElement('div'); right.className='right';
   meta.appendChild(left); meta.appendChild(right);
 
-  // Enable activating the tile with Enter/Space
-  el.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' || ev.key === ' ') {
-      ev.preventDefault();
-      el.click();
+  el.addEventListener('click', ()=>{
+    const current = V13.tiles[index];
+    if (current && typeof window.showCard === 'function'){
+      // Permitir iniciar subasta desde el click, si la propiedad está libre.
+      window.showCard(index); // por defecto canAuction=false
     }
-  });
-
-  el.addEventListener('click', () => {
-    const idx = Number(el.dataset.idx);
-    const current = V13.tiles[idx];
-    if (!current || typeof window.showCard !== 'function') return;
-    // Permitir iniciar subasta desde el click, si la propiedad está libre.
-    const canAuction = current.type === 'prop' && current.owner === null;
-    window.showCard(idx, { canAuction });
   });
 
   el.appendChild(band); el.appendChild(head); el.appendChild(idTag); el.appendChild(badges); el.appendChild(meta);
@@ -455,22 +227,11 @@ function autoInit(){
   const tiles = window.TILES || [];
   const state = window.state || null;
   window.BoardUI.attach({ tiles, state });
-  if (tiles.length){
-    window.BoardUI.renderBoard();
-  } else {
-    setTimeout(autoInit, 100);
-  }
+  if (tiles.length){ window.BoardUI.renderBoard(); }
 }
 
-if (typeof window !== 'undefined' && typeof document !== 'undefined' && window.document === document) {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', autoInit);
-  } else {
-    // Ensure other modules (like TILES) finish initializing before rendering
-    setTimeout(autoInit, 0);
-  }
-}
-
+if (document.readyState !== 'loading') autoInit();
+else document.addEventListener('DOMContentLoaded', autoInit);
 'use strict';
 
 const COLORS = {
@@ -1067,18 +828,10 @@ function transfer(from, to, amount, {taxable=false, reason=''}={}) {
 
   // Debitar
   if (from === Estado) {
-    const available = Math.max(0, Math.round(Estado.money || 0));
-    if (available < amount) {
-      log?.(`💸 Estado sin fondos: intenta pagar ${fmtMoney(amount)}${reason ? ' — ' + reason : ''}.`);
-      amount = available; // pagar solo lo disponible (0 si nada)
-    }
-    Estado.money = Math.max(0, available - amount);
+    Estado.money = Math.max(0, Math.round((Estado.money||0) - amount));
   } else if (from) {
     giveMoney(from, -amount, {taxable, reason});
   }
-
-  // Si no hay importe tras ajustar, salir
-  if (amount <= 0) { renderPlayers?.(); return; }
 
   // Acreditar
   if (to === Estado) {
@@ -2577,6 +2330,26 @@ function awardAuction(){
     price    = bestV;
   }
 
+  // Impugnación por un tercero antes de adjudicar
+  try {
+    const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+    if (who) {
+      const byId = Number(who) - 1;
+      const base = Math.max(1, t.price || 1);
+      const imbalance = Math.max(0, Math.min(1, (base - price) / base));
+      const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+      if (res.annulled) {
+        alert('⚖️ Juez IA anula la adjudicación.');
+        $('#auction').style.display = 'none';
+        state.auction = null;
+        const endTurnBtn = document.getElementById('endTurn');
+        if (endTurnBtn) endTurnBtn.disabled = false;
+        updateTurnButtons();
+        return;
+      }
+    }
+  } catch {}
+
   // Ganó Estado
   if (winnerId==='E'){
     if ((Estado.money||0) < price){
@@ -2927,6 +2700,23 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       a.open = false;
 
       if (a.bestPlayer && a.bestBid > 0) {
+        // Impugnación por un tercero antes de adjudicar
+        try {
+          const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+          if (who) {
+            const byId = Number(who) - 1;
+            const base = Math.max(1, a.price || 1);
+            const imbalance = Math.max(0, Math.min(1, (base - a.bestBid) / base));
+            const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+            if (res.annulled) {
+              alert('⚖️ Juez IA anula la adjudicación.');
+              state.auction = null;
+              this._closeAuctionOverlay();
+              return;
+            }
+          }
+        } catch {}
+
         if (a.kind === 'tile') {
           this._assignTileTo(a.assetId, a.bestPlayer, a.bestBid);
         } else if (a.kind === 'loan') {
@@ -3145,30 +2935,19 @@ function animateTransportHop(player, fromIdx, toIdx, done){
     },
 
     _basicOverlay(text) {
-      const overlay = (global.utils && global.utils.overlay) || null;
-      if (overlay) {
-        if (this._basicOverlayUnmount) this._basicOverlayUnmount();
-        this._basicOverlayUnmount = overlay(text || '...', { id: 'dm-overlay', closeOnClick: true });
-      } else {
-        let el = document.getElementById('dm-overlay');
-        if (!el) {
-          el = document.createElement('div'); el.id = 'dm-overlay';
-          Object.assign(el.style, { position: 'fixed', inset: '0', background: 'rgba(0,0,0,.6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, fontFamily: 'system-ui, sans-serif', fontSize: '20px' });
-          el.addEventListener('click', () => this._basicOverlayClose());
-          document.body.appendChild(el);
-        }
-        el.textContent = text || '...';
-        el.style.display = 'flex';
+      let el = document.getElementById('dm-overlay');
+      if (!el) {
+        el = document.createElement('div'); el.id = 'dm-overlay';
+        Object.assign(el.style, { position: 'fixed', inset: '0', background: 'rgba(0,0,0,.6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, fontFamily: 'system-ui, sans-serif', fontSize: '20px' });
+        el.addEventListener('click', () => this._basicOverlayClose());
+        document.body.appendChild(el);
       }
+      el.textContent = text || '...';
+      el.style.display = 'flex';
     },
 
     _basicOverlayClose() {
-      if (this._basicOverlayUnmount) {
-        this._basicOverlayUnmount();
-        this._basicOverlayUnmount = null;
-      } else {
-        const el = document.getElementById('dm-overlay'); if (el) el.style.display = 'none';
-      }
+      const el = document.getElementById('dm-overlay'); if (el) el.style.display = 'none';
     }
   };
 
@@ -5061,21 +4840,15 @@ async function trade(){
         }
       }
 
-      // Impugnación por jugadores no implicados en el trato
-      const challengers = state.players.filter(p => p && p.alive && p.id !== me.id && p.id !== other.id);
-      if (challengers.length > 0) {
-        const ids = challengers.map(p => p.id + 1).join(',');
-        const who = prompt(`Impugnación de (${ids})… (ID de jugador) o vacío para seguir`, '');
-        if (who) {
-          const byId = Number(who) - 1;
-          if (challengers.some(p => p.id === byId)) {
-            // desbalance (0..1) según ganancia neta
-            const denom = Math.max(1, Math.abs(myGain) + Math.abs(otGain));
-            const imbalance = Math.min(1, Math.abs(myGain - otGain) / denom);
-            const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled:false };
-            if (res.annulled) { alert('⚖️ Juez IA anula el trato.'); return; }
-          }
-        }
+      // Impugnación por un tercero antes de ejecutar el trato
+      const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+      if (who) {
+        const byId = Number(who)-1;
+        // desbalance (0..1) según ganancia neta
+        const denom   = Math.max(1, Math.abs(myGain)+Math.abs(otGain));
+        const imbalance = Math.min(1, Math.abs(myGain-otGain)/denom);
+        const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled:false };
+        if (res.annulled) { alert('⚖️ Juez IA anula el trato.'); return; }
       }
 
   if (give>0 && me.money<give){ alert('No tienes suficiente dinero.'); return; }
@@ -7571,9 +7344,9 @@ R.eventsList = [
       if(idx>=0 && p){
         p.pos = idx;
         window.renderPlayers?.();
-        // ejecuta efectos como si hubiera caído en la casilla
-        Promise.resolve(window.onLand?.(p, idx));
         window.BoardUI?.refreshTiles?.();
+        const tile = T[idx];
+        window.onLand?.(p, tile);
       }
     }catch{}
   }
@@ -7595,12 +7368,7 @@ R.eventsList = [
       const label2 = el('div',{textContent:'Ir a casilla:'});
       label2.style.marginTop = '8px';
       const sel2 = el('select');
-      try{
-        const rare = Array.from(new Set(
-          (window.TILES||[]).map(t=> t.subtype || (t.type!=='prop' ? t.type : null))
-        )).filter(Boolean).sort();
-        rare.forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
-      }catch{}
+      ['casino_bj','casino_roulette','fiore','bus','rail','ferry','air','bank'].forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
       const btn2 = el('button',{textContent:'Ir'});
       btn2.style.cssText='margin-left:6px';
       btn2.onclick=()=>{ teleportTo(sel2.value); };

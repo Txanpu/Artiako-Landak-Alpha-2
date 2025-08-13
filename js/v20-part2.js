@@ -1,10 +1,5 @@
 'use strict';
 
-const utils = globalThis.utils || (globalThis.utils = {});
-if (typeof utils.assert !== 'function' && typeof require === 'function') {
-  try { Object.assign(utils, require('./utils/core.js')); } catch {}
-}
-
 /* v13 – Parte 2/7: motor de UI (tablero + casillas visibles tipo v11) */
 
 const V13_COLORS = {
@@ -13,12 +8,7 @@ const V13_COLORS = {
   bank:'#b91c1c', event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
   start:'#10b981', tax:'#f59e0b', park:'#22c55e', gotojail:'#ef4444', jail:'#111827'
 };
-function colorFor(tile){
-  utils.assert(tile == null || typeof tile === 'object', 'tile debe ser objeto');
-  if(!tile) return '#475569';
-  const k=(tile.color||tile.subtype||tile.type||'').toLowerCase();
-  return V13_COLORS[k]||'#475569';
-}
+function colorFor(tile){ if(!tile) return '#475569'; const k=(tile.color||tile.subtype||tile.type||'').toLowerCase(); return V13_COLORS[k]||'#475569'; }
 
 const V13 = { tiles:[], state:null, els:[], boardEl:null };
 
@@ -30,13 +20,7 @@ const MIN_TILE = 48;   // tamaño mínimo de casilla en px
 
 /* ==== Creación de casilla (estructura v11) ==== */
 function createTileElement(tile, index){
-  const el = document.createElement('div');
-  el.className = 'tile';
-  // Allow keyboard focus and announce as a button
-  el.tabIndex = 0;
-  el.setAttribute('role', 'button');
-  // Guarda el índice para poder identificar la casilla desde el DOM
-  el.dataset.idx = index;
+  const el = document.createElement('div'); el.className='tile';
   const band=document.createElement('div'); band.className='band'; band.style.background=colorFor(tile);
   const head=document.createElement('div'); head.className='head';
   const name=document.createElement('div'); name.className='name'; name.textContent=tile?.name||''; head.appendChild(name);
@@ -47,21 +31,12 @@ function createTileElement(tile, index){
   const right=document.createElement('div'); right.className='right';
   meta.appendChild(left); meta.appendChild(right);
 
-  // Enable activating the tile with Enter/Space
-  el.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' || ev.key === ' ') {
-      ev.preventDefault();
-      el.click();
+  el.addEventListener('click', ()=>{
+    const current = V13.tiles[index];
+    if (current && typeof window.showCard === 'function'){
+      // Permitir iniciar subasta desde el click, si la propiedad está libre.
+      window.showCard(index); // por defecto canAuction=false
     }
-  });
-
-  el.addEventListener('click', () => {
-    const idx = Number(el.dataset.idx);
-    const current = V13.tiles[idx];
-    if (!current || typeof window.showCard !== 'function') return;
-    // Permitir iniciar subasta desde el click, si la propiedad está libre.
-    const canAuction = current.type === 'prop' && current.owner === null;
-    window.showCard(idx, { canAuction });
   });
 
   el.appendChild(band); el.appendChild(head); el.appendChild(idTag); el.appendChild(badges); el.appendChild(meta);
@@ -252,18 +227,8 @@ function autoInit(){
   const tiles = window.TILES || [];
   const state = window.state || null;
   window.BoardUI.attach({ tiles, state });
-  if (tiles.length){
-    window.BoardUI.renderBoard();
-  } else {
-    setTimeout(autoInit, 100);
-  }
+  if (tiles.length){ window.BoardUI.renderBoard(); }
 }
 
-if (typeof window !== 'undefined' && typeof document !== 'undefined' && window.document === document) {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', autoInit);
-  } else {
-    // Ensure other modules (like TILES) finish initializing before rendering
-    setTimeout(autoInit, 0);
-  }
-}
+if (document.readyState !== 'loading') autoInit();
+else document.addEventListener('DOMContentLoaded', autoInit);

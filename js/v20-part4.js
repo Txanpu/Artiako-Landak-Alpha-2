@@ -23,18 +23,10 @@ function transfer(from, to, amount, {taxable=false, reason=''}={}) {
 
   // Debitar
   if (from === Estado) {
-    const available = Math.max(0, Math.round(Estado.money || 0));
-    if (available < amount) {
-      log?.(`💸 Estado sin fondos: intenta pagar ${fmtMoney(amount)}${reason ? ' — ' + reason : ''}.`);
-      amount = available; // pagar solo lo disponible (0 si nada)
-    }
-    Estado.money = Math.max(0, available - amount);
+    Estado.money = Math.max(0, Math.round((Estado.money||0) - amount));
   } else if (from) {
     giveMoney(from, -amount, {taxable, reason});
   }
-
-  // Si no hay importe tras ajustar, salir
-  if (amount <= 0) { renderPlayers?.(); return; }
 
   // Acreditar
   if (to === Estado) {

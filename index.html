@@ -19,15 +19,7 @@
 
     <div class="panelHeader">
     <h2 style="margin:0">Artiako Landak</h2>
-    <button id="openSetup" class="primary" type="button">Nueva partida local</button>
-    <div id="net-ui">
-      <input id="roomCode" placeholder="room (ej: arti42)">
-      <input id="wsUrl" placeholder="wss://tu-signal.example" value="ws://localhost:8080">
-      <button id="btnShare">Compartir</button>
-      <button id="btnJoin">Unirse</button>
-      <button id="btnLeave" style="display:none">Salir</button>
-      <span id="netStatus"></span>
-    </div>
+    <button id="openSetup" class="primary" type="button">Nueva partida</button>
   </div>
 
   <!-- diálogo con la configuración original (IDs intactos) -->
@@ -96,11 +88,6 @@
   <!-- subasta y log fijos dentro del panel -->
   <div id="auction" class="auction" style="display:none"></div>
   <div class="log" id="log"></div>
-  <div class="chat" id="chatBox">
-    <div id="chatMsgs"></div>
-    <input id="chatInput" type="text" placeholder="Escribe un mensaje" />
-    <button id="sendChat" type="button">Enviar</button>
-  </div>
 
   <details class="rules" id="rules" style="display:none;">
     <summary>Reglas</summary>
@@ -145,59 +132,6 @@
 </script>
 <!-- JS bundle -->
 <script src="dist/bundle.js"></script>
-<script src="js/net.js"></script>
-<script>
-  const btnShare = document.getElementById('btnShare');
-  const btnJoin = document.getElementById('btnJoin');
-  const btnLeave = document.getElementById('btnLeave');
-  const room = document.getElementById('roomCode');
-  const ws = document.getElementById('wsUrl');
-  const params = new URLSearchParams(location.search);
-  if(params.get('room')) room.value = params.get('room');
-  if(params.get('ws')) ws.value = params.get('ws');
-  btnShare?.addEventListener('click', async () => {
-    const r = room.value.trim(); const u = ws.value.trim();
-    await window.Net.host(r, u);
-    btnShare.disabled = btnJoin.disabled = true;
-    if (btnLeave) btnLeave.style.display = 'inline-block';
-    const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(r)}&ws=${encodeURIComponent(u)}`;
-    if (navigator.share) {
-      navigator.share({ url: link }).catch(()=>{});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(link).then(()=>alert('Enlace copiado')).catch(()=>prompt('Comparte este enlace', link));
-    } else {
-      prompt('Comparte este enlace', link);
-    }
-  });
-  btnJoin?.addEventListener('click', () => {
-    const r = room.value.trim(); const u = ws.value.trim();
-    window.Net.join(r, u);
-    btnShare.disabled = btnJoin.disabled = true;
-    if (btnLeave) btnLeave.style.display = 'inline-block';
-  });
-  btnLeave?.addEventListener('click', () => {
-    window.Net.disconnect();
-    btnShare.disabled = btnJoin.disabled = false;
-    btnLeave.style.display = 'none';
-  });
-</script>
-<script>
-  const chatInput = document.getElementById('chatInput');
-  const chatMsgs = document.getElementById('chatMsgs');
-  document.getElementById('sendChat')?.addEventListener('click', () => {
-    const msg = chatInput.value.trim();
-    if (!msg) return;
-    Net.sendChat(msg);
-    chatInput.value='';
-  });
-  Net.onChat = (msg, from)=> add(from, msg);
-  function add(from, msg){
-    if (!chatMsgs) return;
-    const line = document.createElement('div');
-    line.textContent = `${from}: ${msg}`;
-    chatMsgs.appendChild(line);
-  }
-</script>
 
 
 
@@ -213,6 +147,13 @@
   // cerramos el diálogo, la lógica de #newGame la lleva el v15
   startBtn?.addEventListener('click',()=>dlg.close());
 })();
+
+document.querySelectorAll('.tile').forEach(tile=>{
+  tile.addEventListener('click',()=>{ tile.classList.toggle('active'); });
+});
+document.querySelectorAll('.badge').forEach(badge=>{
+  badge.addEventListener('click',(e)=>{ e.stopPropagation(); badge.classList.toggle('active'); });
+});
 
 // legacy opcional del v15 (no hay .controls en este layout, se deja seguro)
 document.querySelector('.controls button.primary')?.addEventListener('click',()=>{ alert('El juego ha comenzado!'); });
@@ -258,9 +199,10 @@ function initGameBindings(){
   board?.addEventListener('click', (e) => {
     const tile = e.target.closest('.tile');
     if (!tile) return;
-    const idx = Number(tile.dataset.idx);
+    const tiles = Array.from(board.querySelectorAll('.tile'));
+    const idx = tiles.indexOf(tile);
     const ov = document.getElementById('overlay');
-    if (!Number.isNaN(idx) && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
+    if (idx > -1 && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
       window.showCard(idx);
     }
   });
