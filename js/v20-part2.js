@@ -248,11 +248,15 @@ window.BoardUI = {
 };
 
 /* ==== Auto-init ==== */
-function autoInit(){
+function autoInit(attempt=0){
   const tiles = window.TILES || [];
   const state = window.state || null;
   window.BoardUI.attach({ tiles, state });
-  if (tiles.length){ window.BoardUI.renderBoard(); }
+  if (tiles.length){
+    window.BoardUI.renderBoard();
+  } else if (attempt < 10){
+    setTimeout(() => autoInit(attempt + 1), 100);
+  }
 }
 
 if (document.readyState === 'loading') {
