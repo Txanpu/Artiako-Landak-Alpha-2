@@ -364,6 +364,19 @@
   R.tickTurn = function(){
     state.turnCounter++;
     state.noRentFromWomen.clear();
+    if(state.turnCounter % 60 === 0 && rand.chance(0.10)){
+      const tipo = rand.pick(['Terremoto','Tornado','Huracán']);
+      const bank = (typeof BANK === 'object') ? BANK : null;
+      (window.TILES||[]).forEach(t=>{
+        if(t && t.type==='prop'){
+          if(t.hotel){ t.hotel = false; if(bank) bank.hotelsAvail = (bank.hotelsAvail|0) + 1; }
+          if(t.houses>0){ if(bank) bank.housesAvail = (bank.housesAvail|0) + t.houses; t.houses = 0; }
+        }
+      });
+      try{ BoardUI?.refreshTiles?.(); }catch{}
+      const msg = `🌪️ ${tipo}: todas las casas y hoteles destruidos`;
+      if(typeof log === 'function') log(msg); else uiLog(msg);
+    }
     // Vencimientos de préstamos corruptos
     (state.loans||[]).forEach(l=>{
       if(!l.overdue && state.turnCounter>l.dueTurn){
