@@ -176,6 +176,8 @@ body.playing .setup { justify-content:flex-end; gap:8px; }
 @media only screen and (min-device-width:768px) and (max-device-width:1024px){
   html{ font-size:25%; }
   .panel{ position:sticky; top:12px; }
+  .players .badge{ font-size:6em; }
+  .players .badge .money{ font-size:1em; }
 }
 
 /* Hipotecada → borde dorado */
