@@ -27,9 +27,9 @@
       .bjRow{ position:relative; display:flex; align-items:center; gap:10px; padding:10px; border:1px solid #1f2937; border-radius:12px; background:#0a1222; }
       .bjRow.dealer{ background:linear-gradient(180deg,#0a1222,#101a2e) }
       .bjName{ min-width:120px; font-weight:700 }
-      .bjCards{ display:flex; gap:8px; flex-wrap:wrap }
-      .card{ width:46px; height:64px; border-radius:8px; background:#f8fafc; color:#0f172a; display:flex; align-items:center; justify-content:center; font-weight:800; border:2px solid #0f172a20; transform: translateY(-12px) scale(.92); opacity:0 }
-      .card.in{ transition: transform .35s ease, opacity .35s ease; transform: translateY(0) scale(1); opacity:1 }
+      .bjCards{ display:flex; gap:8px; flex-wrap:wrap; perspective:600px }
+      .card{ width:46px; height:64px; border-radius:8px; background:#f8fafc; color:#0f172a; display:flex; align-items:center; justify-content:center; font-weight:800; border:2px solid #0f172a20; transform: translateY(-12px) rotateY(90deg) scale(.92); opacity:0; transform-style:preserve-3d; backface-visibility:hidden }
+      .card.in{ transition: transform .35s ease, opacity .35s ease; transform: translateY(0) rotateY(0deg) scale(1); opacity:1 }
       .total{ margin-left:auto; font-weight:800 }
       .win{ outline:2px solid #22c55e; box-shadow:0 0 0 4px #22c55e25; }
       .lose{ outline:2px solid #ef4444; box-shadow:0 0 0 4px #ef444425; }
