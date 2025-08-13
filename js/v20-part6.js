@@ -451,16 +451,6 @@ function resolverCarta(carta, jugador, idx) {
 
 /* ===== Subastas ===== */
 function startAuctionFlow(tileIndex, opts = {}){
-  // [PATCH] Veto de subasta: si existe y el iniciador NO es el poseedor del veto, cancela una vez
-  try{
-    const holder = state.auctionVeto && state.auctionVeto.holderId;
-    if (holder != null && holder !== state.players[state.current]?.id){
-      log('🛑 Veto de subasta ejercido. Se cancela la subasta.');
-      state.auctionVeto = null;
-      return;
-    }
-  }catch{}
-
   const t = TILES[tileIndex];
   if (t.owner !== null || t.type!=='prop') return;
 

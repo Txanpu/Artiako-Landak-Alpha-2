@@ -1,4 +1,212 @@
+(function(global){
+  const assert = (cond, msg='Assert failed') => { if (!cond) throw new Error(msg); };
+
+  const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
+
+  let _lock = false;
+  async function nonReentrant(fn){
+    if (_lock) throw new Error('Reentrancy');
+    _lock = true;
+    try { return await fn(); } finally { _lock = false; }
+  }
+
+  const toCents = (n) => (n==null?0:Math.round(Number(n)*100));
+  const fromCents = (c) => Math.trunc(c || 0) / 100;
+  const money = {
+    add:(a,b)=>a+b,
+    sub:(a,b)=>a-b,
+    mul:(a,k)=>Math.round(a*k),
+    div:(a,k)=>Math.round(a/k)
+  };
+
+  function makeLogger(cap=500){
+    const buf = new Array(cap); let i=0, full=false;
+    return {
+      log:(...xs)=>{ buf[i]=[Date.now(), ...xs]; i=(i+1)%cap; if(i===0) full=true; },
+      dump:()=> full ? buf.slice(i).concat(buf.slice(0,i)) : buf.slice(0,i),
+      clear:()=>{ i=0; full=false; }
+    };
+  }
+
+  const api = { assert, clamp, nonReentrant, toCents, fromCents, money, makeLogger };
+  global.utils = Object.assign(global.utils || {}, api);
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+(function(global){
+  function seedFromString(s){
+    let h=1779033703^s.length;
+    for(let i=0;i<s.length;i++){ h=Math.imul(h^s.charCodeAt(i),3432918353); h=h<<13|h>>>19; }
+    return h>>>0;
+  }
+  function mulberry32(a){ return function(){ let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function makeRNG(seed){ const r = mulberry32(seed>>>0); return {
+    next:()=>r(), int:(min,max)=>Math.floor(r()*(max-min+1))+min, pick:(arr)=>arr[Math.floor(r()*arr.length)]
+  };}
+  const rollDice = (rng)=> [rng.int(1,6), rng.int(1,6)];
+
+  const api = { seedFromString, mulberry32, makeRNG, rollDice };
+  global.utils = Object.assign(global.utils || {}, api);
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+(function(global){
+  const { assert, clamp } = global.utils || {};
+
+  function validateState(state, TILES){
+    const errs = [];
+    try {
+      if (!Array.isArray(state.players)) errs.push('players no es array');
+      state.players?.forEach((p,idx)=>{
+        if (typeof p.money!=='number') errs.push(`p${idx}.money inválido`);
+        if (p.pos<0 || p.pos>=TILES.length) errs.push(`p${idx}.pos fuera de rango`);
+      });
+      TILES.forEach((t,i)=>{
+        if (t.owner!=null && (t.owner<0 || t.owner>=state.players.length))
+          errs.push(`tile${i}.owner inválido`);
+        if (t.houses!=null && (t.houses<0 || t.houses>5)) errs.push(`tile${i}.houses inválido`);
+      });
+      const owners = new Map();
+      TILES.forEach((t,i)=>{
+        if (t.owner!=null){
+          const k = `${t.owner}:${t.family||t.color||'na'}:${i}`;
+          if (owners.has(k)) errs.push(`tile duplicada ${i}`); else owners.set(k,true);
+        }
+      });
+    } catch(e){ errs.push('Excepción en validate: '+e.message); }
+    return errs;
+  }
+
+  function repairState(state, TILES){
+    state.players.forEach(p=>{
+      if (!isFinite(p.money)) p.money = 0;
+      p.pos = clamp(Math.trunc(p.pos || 0), 0, TILES.length-1);
+      p.alive = !!p.alive;
+      if (p.jail!=null) p.jail = clamp(Math.trunc(p.jail || 0), 0, 10);
+    });
+    TILES.forEach(t=>{
+      if (t.owner!=null && (t.owner<0 || t.owner>=state.players.length)) t.owner=null;
+      if (t.houses!=null) t.houses = clamp(Math.trunc(t.houses || 0), 0, 5);
+      if (t.mortgaged!=null) t.mortgaged = !!t.mortgaged;
+    });
+    recomputeDerived(state, TILES);
+    return state;
+  }
+
+  function recomputeDerived(state, TILES){
+    const families = {};
+    TILES.forEach((t,i)=>{
+      const fam = t.family || t.color || 'na';
+      families[fam] ??= { count:0, ownedBy: new Map() };
+      families[fam].count++;
+      if (t.owner!=null) families[fam].ownedBy.set(t.owner, (families[fam].ownedBy.get(t.owner)||0)+1);
+    });
+    state.players.forEach((p,pi)=>{
+      p.monopolies = [];
+      Object.entries(families).forEach(([fam,info])=>{
+        if (info.ownedBy.get(pi) === info.count) p.monopolies.push(fam);
+      });
+      p.netWorth = Math.trunc(p.money || 0) + TILES.reduce((s,t)=> s + (t.owner===pi ? (t.basePrice||0) + (t.houses||0)*(t.housePrice||0) : 0), 0);
+    });
+  }
+
+  const api = { validateState, repairState, recomputeDerived };
+  global.utils = Object.assign(global.utils || {}, api);
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+(function(global){
+  function makeHistory(max=30){
+    const stack=[]; let idx=-1;
+    return {
+      snapshot(state){
+        const snap = structuredClone(state);
+        stack.splice(idx+1);
+        stack.push(snap);
+        if (stack.length>max) { stack.shift(); } else { idx++; }
+      },
+      canUndo(){ return idx>0; },
+      canRedo(){ return idx < stack.length-1; },
+      undo(){ if (idx>0) return structuredClone(stack[--idx]); },
+      redo(){ if (idx<stack.length-1) return structuredClone(stack[++idx]); },
+      peek(){ return structuredClone(stack[idx]); }
+    };
+  }
+
+  function withTransaction(history, state, fn){
+    history.snapshot(state);
+    try {
+      fn();
+      return { ok:true };
+    } catch(e){
+      const prev = history.undo();
+      Object.assign(state, prev);
+      return { ok:false, error:e };
+    }
+  }
+
+  const api = { makeHistory, withTransaction };
+  global.utils = Object.assign(global.utils || {}, api);
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+(function(global){
+  const { makeRNG } = global.utils || {};
+  const { validateState } = global.utils || {};
+
+  function runFuzz({ state, TILES, turns=200, seed=12345, actPerTurn=3, actions }){
+    const rng = makeRNG ? makeRNG(seed) : null; const errors=[];
+    for (let t=0; t<turns; t++){
+      for (let k=0;k<actPerTurn;k++){
+        const a = rng ? rng.pick(actions) : actions[Math.floor(Math.random()*actions.length)];
+        try { a(state, TILES, rng); } catch(e){ errors.push({turn:t, action:a.name||'anon', error:e.message}); }
+        const errs = validateState ? validateState(state, TILES) : [];
+        if (errs.length) errors.push({turn:t, action:a.name||'anon', errs});
+      }
+    }
+    return errors;
+  }
+  const sampleActions = [
+    function moveRand(s,T,rng){ const p = s.players[rng.int(0,s.players.length-1)]; p.pos = (p.pos + rng.int(1,6)) % T.length; },
+    function payRent(s,T,rng){ const p = s.players[rng.int(0,s.players.length-1)]; p.money -= rng.int(10,200); }
+  ];
+
+  const api = { runFuzz, sampleActions };
+  global.utils = Object.assign(global.utils || {}, api);
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+(function(global){
+  function makeWatchdog(ms=3000){
+    let timer=null;
+    return {
+      arm(tag='op'){
+        clearTimeout(timer);
+        timer = setTimeout(()=>{ console.error('Watchdog timeout:', tag); throw new Error('Timeout '+tag); }, ms);
+      },
+      disarm(){ clearTimeout(timer); timer=null; }
+    };
+  }
+
+  const api = { makeWatchdog };
+  global.utils = Object.assign(global.utils || {}, api);
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+(function(global){
+
+  global.utils = Object.assign(global.utils || {}, api);
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
 'use strict';
+
+const utils = globalThis.utils || (globalThis.utils = {});
+if (typeof utils.assert !== 'function' && typeof require === 'function') {
+  try { Object.assign(utils, require('./utils/core.js')); } catch {}
+}
 
 /* v13 – Parte 2/7: motor de UI (tablero + casillas visibles tipo v11) */
 
@@ -8,7 +216,12 @@ const V13_COLORS = {
   bank:'#b91c1c', event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
   start:'#10b981', tax:'#f59e0b', park:'#22c55e', gotojail:'#ef4444', jail:'#111827'
 };
-function colorFor(tile){ if(!tile) return '#475569'; const k=(tile.color||tile.subtype||tile.type||'').toLowerCase(); return V13_COLORS[k]||'#475569'; }
+function colorFor(tile){
+  utils.assert(tile == null || typeof tile === 'object', 'tile debe ser objeto');
+  if(!tile) return '#475569';
+  const k=(tile.color||tile.subtype||tile.type||'').toLowerCase();
+  return V13_COLORS[k]||'#475569';
+}
 
 const V13 = { tiles:[], state:null, els:[], boardEl:null };
 
@@ -20,7 +233,13 @@ const MIN_TILE = 48;   // tamaño mínimo de casilla en px
 
 /* ==== Creación de casilla (estructura v11) ==== */
 function createTileElement(tile, index){
-  const el = document.createElement('div'); el.className='tile';
+  const el = document.createElement('div');
+  el.className = 'tile';
+  // Allow keyboard focus and announce as a button
+  el.tabIndex = 0;
+  el.setAttribute('role', 'button');
+  // Guarda el índice para poder identificar la casilla desde el DOM
+  el.dataset.idx = index;
   const band=document.createElement('div'); band.className='band'; band.style.background=colorFor(tile);
   const head=document.createElement('div'); head.className='head';
   const name=document.createElement('div'); name.className='name'; name.textContent=tile?.name||''; head.appendChild(name);
@@ -31,12 +250,21 @@ function createTileElement(tile, index){
   const right=document.createElement('div'); right.className='right';
   meta.appendChild(left); meta.appendChild(right);
 
-  el.addEventListener('click', ()=>{
-    const current = V13.tiles[index];
-    if (current && typeof window.showCard === 'function'){
-      // Permitir iniciar subasta desde el click, si la propiedad está libre.
-      window.showCard(index); // por defecto canAuction=false
+  // Enable activating the tile with Enter/Space
+  el.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      el.click();
     }
+  });
+
+  el.addEventListener('click', () => {
+    const idx = Number(el.dataset.idx);
+    const current = V13.tiles[idx];
+    if (!current || typeof window.showCard !== 'function') return;
+    // Permitir iniciar subasta desde el click, si la propiedad está libre.
+    const canAuction = current.type === 'prop' && current.owner === null;
+    window.showCard(idx, { canAuction });
   });
 
   el.appendChild(band); el.appendChild(head); el.appendChild(idTag); el.appendChild(badges); el.appendChild(meta);
@@ -227,11 +455,22 @@ function autoInit(){
   const tiles = window.TILES || [];
   const state = window.state || null;
   window.BoardUI.attach({ tiles, state });
-  if (tiles.length){ window.BoardUI.renderBoard(); }
+  if (tiles.length){
+    window.BoardUI.renderBoard();
+  } else {
+    setTimeout(autoInit, 100);
+  }
 }
 
-if (document.readyState !== 'loading') autoInit();
-else document.addEventListener('DOMContentLoaded', autoInit);
+if (typeof window !== 'undefined' && typeof document !== 'undefined' && window.document === document) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoInit);
+  } else {
+    // Ensure other modules (like TILES) finish initializing before rendering
+    setTimeout(autoInit, 0);
+  }
+}
+
 'use strict';
 
 const COLORS = {
@@ -661,18 +900,35 @@ function showCard(tileIndex, {canAuction=false}={}) {
   const t = TILES[tileIndex];
   const st = window.state;
   if (st) st.pendingTile = tileIndex;
+  // Título por defecto
+  if (cardBand) {
+    cardBand.textContent = t?.name || '';
+    cardBand.onclick = null;
+  }
 
+  // Ocultar secciones específicas inicialmente
+  if (cardPriceRow) cardPriceRow.style.display = 'none';
+  if (cardRentRow)  cardRentRow.style.display  = 'none';
+  if (cardBuildRow) cardBuildRow.style.display = 'none';
+  if (startAuctionBtn) startAuctionBtn.style.display = 'none';
+
+  rentsBox.innerHTML = '';
+  bankWarn.className = 'muted';
+  bankWarn.textContent = FUNNY[t.type] || FUNNY.default;
 
   if (t.type === 'prop') {
-    cardBand.onclick = ()=>{
-      const nuevo = prompt('Nuevo nombre de la propiedad:', t.name||'');
-      if (nuevo && nuevo.trim()){
-        t.name = nuevo.trim();
-        savePropName(tileIndex, t.name);
-        cardBand.textContent = t.name;
-        BoardUI.refreshTile(tileIndex);
-      }
-    };
+    if (cardBand) {
+      cardBand.textContent = t.name;
+      cardBand.onclick = ()=>{
+        const nuevo = prompt('Nuevo nombre de la propiedad:', t.name||'');
+        if (nuevo && nuevo.trim()){
+          t.name = nuevo.trim();
+          savePropName(tileIndex, t.name);
+          cardBand.textContent = t.name;
+          BoardUI.refreshTile(tileIndex);
+        }
+      };
+    }
 
     // vehículos y utilities: ocultar “Renta base”, pero mostrar tabla
     const isVehicleOrUtil = ['rail','bus','ferry','air','utility'].includes(t.subtype);
@@ -693,11 +949,7 @@ function showCard(tileIndex, {canAuction=false}={}) {
       if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
     }
 
-
-    const msg = FUNNY[t.type] || FUNNY.default;
-    bankWarn.className = 'muted';
-    bankWarn.textContent = msg;
-    rentsBox.innerHTML = '';
+    if (startAuctionBtn) startAuctionBtn.style.display = canAuction ? '' : 'none';
   }
   overlay.style.display = 'flex';
 }
@@ -815,10 +1067,18 @@ function transfer(from, to, amount, {taxable=false, reason=''}={}) {
 
   // Debitar
   if (from === Estado) {
-    Estado.money = Math.max(0, Math.round((Estado.money||0) - amount));
+    const available = Math.max(0, Math.round(Estado.money || 0));
+    if (available < amount) {
+      log?.(`💸 Estado sin fondos: intenta pagar ${fmtMoney(amount)}${reason ? ' — ' + reason : ''}.`);
+      amount = available; // pagar solo lo disponible (0 si nada)
+    }
+    Estado.money = Math.max(0, available - amount);
   } else if (from) {
     giveMoney(from, -amount, {taxable, reason});
   }
+
+  // Si no hay importe tras ajustar, salir
+  if (amount <= 0) { renderPlayers?.(); return; }
 
   // Acreditar
   if (to === Estado) {
@@ -1707,10 +1967,8 @@ async function onLand(p, idx){
   if (window.UIX?.track.onLand) UIX.track.onLand(idx);
 
   // Si es una casilla de banca corrupta: menú rápido
-  try {
-    const st = Roles.exportState ? Roles.exportState() : null;
-    const cbt = st && st.corruptBankTiles || [];
-    if (Array.isArray(cbt) && cbt.indexOf(idx) !== -1) {
+  if (t.type === 'bank') {
+    try {
       const opt = await promptDialog(
         'Banca corrupta:\n'
         + '1) Préstamo corrupto\n'
@@ -1772,8 +2030,8 @@ async function onLand(p, idx){
           }
         }
       }
-    }
-  } catch(e){}
+    } catch(e){}
+  }
 
   switch(t.type){
     case 'start':
@@ -2060,16 +2318,6 @@ function resolverCarta(carta, jugador, idx) {
 
 /* ===== Subastas ===== */
 function startAuctionFlow(tileIndex, opts = {}){
-  // [PATCH] Veto de subasta: si existe y el iniciador NO es el poseedor del veto, cancela una vez
-  try{
-    const holder = state.auctionVeto && state.auctionVeto.holderId;
-    if (holder != null && holder !== state.players[state.current]?.id){
-      log('🛑 Veto de subasta ejercido. Se cancela la subasta.');
-      state.auctionVeto = null;
-      return;
-    }
-  }catch{}
-
   const t = TILES[tileIndex];
   if (t.owner !== null || t.type!=='prop') return;
 
@@ -2318,26 +2566,6 @@ function awardAuction(){
     winnerId = (bestK === 'E') ? 'E' : parseInt(bestK,10);
     price    = bestV;
   }
-
-  // Impugnación por un tercero antes de adjudicar
-  try {
-    const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
-    if (who) {
-      const byId = Number(who) - 1;
-      const base = Math.max(1, t.price || 1);
-      const imbalance = Math.max(0, Math.min(1, (base - price) / base));
-      const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
-      if (res.annulled) {
-        alert('⚖️ Juez IA anula la adjudicación.');
-        $('#auction').style.display = 'none';
-        state.auction = null;
-        const endTurnBtn = document.getElementById('endTurn');
-        if (endTurnBtn) endTurnBtn.disabled = false;
-        updateTurnButtons();
-        return;
-      }
-    }
-  } catch {}
 
   // Ganó Estado
   if (winnerId==='E'){
@@ -2689,23 +2917,6 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       a.open = false;
 
       if (a.bestPlayer && a.bestBid > 0) {
-        // Impugnación por un tercero antes de adjudicar
-        try {
-          const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
-          if (who) {
-            const byId = Number(who) - 1;
-            const base = Math.max(1, a.price || 1);
-            const imbalance = Math.max(0, Math.min(1, (base - a.bestBid) / base));
-            const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
-            if (res.annulled) {
-              alert('⚖️ Juez IA anula la adjudicación.');
-              state.auction = null;
-              this._closeAuctionOverlay();
-              return;
-            }
-          }
-        } catch {}
-
         if (a.kind === 'tile') {
           this._assignTileTo(a.assetId, a.bestPlayer, a.bestBid);
         } else if (a.kind === 'loan') {
@@ -2924,19 +3135,30 @@ function animateTransportHop(player, fromIdx, toIdx, done){
     },
 
     _basicOverlay(text) {
-      let el = document.getElementById('dm-overlay');
-      if (!el) {
-        el = document.createElement('div'); el.id = 'dm-overlay';
-        Object.assign(el.style, { position: 'fixed', inset: '0', background: 'rgba(0,0,0,.6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, fontFamily: 'system-ui, sans-serif', fontSize: '20px' });
-        el.addEventListener('click', () => this._basicOverlayClose());
-        document.body.appendChild(el);
+      const overlay = (global.utils && global.utils.overlay) || null;
+      if (overlay) {
+        if (this._basicOverlayUnmount) this._basicOverlayUnmount();
+        this._basicOverlayUnmount = overlay(text || '...', { id: 'dm-overlay', closeOnClick: true });
+      } else {
+        let el = document.getElementById('dm-overlay');
+        if (!el) {
+          el = document.createElement('div'); el.id = 'dm-overlay';
+          Object.assign(el.style, { position: 'fixed', inset: '0', background: 'rgba(0,0,0,.6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, fontFamily: 'system-ui, sans-serif', fontSize: '20px' });
+          el.addEventListener('click', () => this._basicOverlayClose());
+          document.body.appendChild(el);
+        }
+        el.textContent = text || '...';
+        el.style.display = 'flex';
       }
-      el.textContent = text || '...';
-      el.style.display = 'flex';
     },
 
     _basicOverlayClose() {
-      const el = document.getElementById('dm-overlay'); if (el) el.style.display = 'none';
+      if (this._basicOverlayUnmount) {
+        this._basicOverlayUnmount();
+        this._basicOverlayUnmount = null;
+      } else {
+        const el = document.getElementById('dm-overlay'); if (el) el.style.display = 'none';
+      }
     }
   };
 
@@ -4829,15 +5051,21 @@ async function trade(){
         }
       }
 
-      // Impugnación por un tercero antes de ejecutar el trato
-      const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
-      if (who) {
-        const byId = Number(who)-1;
-        // desbalance (0..1) según ganancia neta
-        const denom   = Math.max(1, Math.abs(myGain)+Math.abs(otGain));
-        const imbalance = Math.min(1, Math.abs(myGain-otGain)/denom);
-        const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled:false };
-        if (res.annulled) { alert('⚖️ Juez IA anula el trato.'); return; }
+      // Impugnación por jugadores no implicados en el trato
+      const challengers = state.players.filter(p => p && p.alive && p.id !== me.id && p.id !== other.id);
+      if (challengers.length > 0) {
+        const ids = challengers.map(p => p.id + 1).join(',');
+        const who = prompt(`Impugnación de (${ids})… (ID de jugador) o vacío para seguir`, '');
+        if (who) {
+          const byId = Number(who) - 1;
+          if (challengers.some(p => p.id === byId)) {
+            // desbalance (0..1) según ganancia neta
+            const denom = Math.max(1, Math.abs(myGain) + Math.abs(otGain));
+            const imbalance = Math.min(1, Math.abs(myGain - otGain) / denom);
+            const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled:false };
+            if (res.annulled) { alert('⚖️ Juez IA anula el trato.'); return; }
+          }
+        }
       }
 
   if (give>0 && me.money<give){ alert('No tienes suficiente dinero.'); return; }
@@ -5311,7 +5539,6 @@ if (typeof window.transfer === 'function'){
   state.rentFilters      ||= [];    // [{name, mul, turns, match(tile)}]
   state.rentCap          ||= null;  // {amount, turns}
   state.garnish          ||= {};    // {pid:{count, turns}}
-  state.auctionVeto      ||= null;  // {holderId}
   state.blockMortgage    ||= {};    // {pid: turns}
   state.blockBuildTurns  ||= 0;     // int
   state.sellBonusByOwner ||= {};    // {pid: mul}
@@ -5379,24 +5606,6 @@ if (typeof window.transfer === 'function'){
         }
       }catch{}
       return _transfer2.apply(this, arguments);
-    };
-  }
-
-  // ====== Veto de subasta (wrapper) ======
-  if (!state.__eventsAuctionWrapped && typeof window.startAuctionFlow === 'function'){
-    state.__eventsAuctionWrapped = true;
-    const _startAuction = window.startAuctionFlow;
-    window.startAuctionFlow = function(){
-      try{
-        const current = (state.players||[])[state.current];
-        const holder = state.auctionVeto && state.auctionVeto.holderId;
-        if (holder != null && current && holder !== current.id){
-          log('🛑 Veto de subasta ejercido. Se cancela la subasta.');
-          state.auctionVeto = null;
-          return;
-        }
-      }catch{}
-      return _startAuction.apply(this, arguments);
     };
   }
 
@@ -5570,7 +5779,6 @@ if (typeof window.transfer === 'function'){
     'Recesión industria': 'Elige un color o familia: sus alquileres bajan un 25% durante 3 turnos.',
     'Gentrificación': 'Si tienes 3+ casas en todo un grupo: +10% alquiler y +10% al vender casas (3 turnos).',
     'Racionamiento de cemento': 'Se retiran hasta 5 casas del banco durante 3 turnos.',
-    'Veto de subasta': 'Obtienes un veto para cancelar la próxima subasta iniciada por otro jugador.',
     'Trueque obligado': 'Intercambia una propiedad sin edificios con otro jugador del mismo color (si hay pareja).',
     'Bloqueo de hipoteca': 'El rival elegido no puede hipotecar durante 1 turno.',
     'Blackjack de 50': 'Mini-juego: si terminas con 20–21, cobras 120; si no, pagas 50.',
@@ -5680,7 +5888,6 @@ if (typeof window.transfer === 'function'){
         state.cement = { taken: take, turns: 3 };
         headline(`Racionamiento de cemento: −${take} casas de stock durante 3 turnos.`);
     }},
-    { name: 'Veto de subasta', run(p){ state.auctionVeto = { holderId: p.id }; log(`🛡️ ${p.name} obtiene un veto a la próxima subasta de otro.`); } },
     { name: 'Trueque obligado', run(p){
         const other = pickPlayer(p.id); if (!other) return;
         const mine = tilesOf(p, t=>!t.houses && !t.hotel);
@@ -6047,6 +6254,8 @@ if (typeof window.transfer === 'function'){
  *      => {annulled:boolean, feeCharged:number, pNoAnnul:number}
  * 7) Gobierno:
  *    - Llama Roles.tickTurn() al cerrar cada turno.
+ *    - Roles.assign abre una votación inicial.
+ *    - Para iniciar votaciones manuales: Roles.openGovernmentElection()
  *    - Para fijar resultado de votación: Roles.setGovernment('left'|'right')
  *    - Multiplicadores disponibles: Roles.getTaxMultiplier(), Roles.getWelfareMultiplier(), Roles.getInterestMultiplier()
  * 8) Dados 0–9 (sin romper lo actual):
@@ -6067,6 +6276,11 @@ if (typeof window.transfer === 'function'){
 (function(){
   'use strict';
 
+  const utils = globalThis.utils || (globalThis.utils = {});
+  if (typeof utils.makeRNG !== 'function' && typeof require === 'function') {
+    try { Object.assign(utils, require('./utils/rng.js')); } catch {}
+  }
+
   const R = {};
   const ROLE = {
     PROXENETA: 'proxeneta',
@@ -6077,7 +6291,7 @@ if (typeof window.transfer === 'function'){
   };
 
   const defaultConfig = {
-    roleProbability: 0.20,
+    roleProbability: 0.50,
     dice0to9: false,
     securiAdvance: 150,
     securiTicks: 3,
@@ -6120,7 +6334,17 @@ if (typeof window.transfer === 'function'){
   };
 
   // Utilidades
-  const rand = {
+  let rng = null;
+  if (typeof cfg.rngSeed !== 'undefined' && utils.makeRNG) {
+    const seed = typeof cfg.rngSeed === 'string' ? utils.seedFromString(cfg.rngSeed) : cfg.rngSeed;
+    rng = utils.makeRNG(seed);
+  }
+  const rand = rng ? {
+    pick: arr => rng.pick(arr),
+    int: (min,max) => rng.int(min,max),
+    real: (min,max) => rng.next()*(max-min)+min,
+    chance: p => rng.next() < p
+  } : {
     pick(a){ return a[Math.floor(Math.random()*a.length)] },
     int(min, max){ return Math.floor(Math.random()*(max-min+1))+min },
     real(min, max){ return Math.random()*(max-min)+min },
@@ -6161,6 +6385,19 @@ if (typeof window.transfer === 'function'){
     });
   }
 
+  function openGovernmentElection(){
+    uiLog('🗳️ Votación de gobierno abierta');
+    if(typeof window.prompt !== 'function') return;
+    let s = window.prompt('Gobierno: left / right / authoritarian / libertarian', 'left');
+    if(!s){ uiLog('Voto cancelado'); return; }
+    s = s.trim().toLowerCase();
+    if(!['left','right','authoritarian','libertarian'].includes(s)){
+      uiLog('Voto cancelado');
+      return;
+    }
+    R.setGovernment(s);
+  }
+
   // —— Asignación de roles ——
   R.assign = function(players){
     state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero'}));
@@ -6169,10 +6406,22 @@ if (typeof window.transfer === 'function'){
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
 
+    state.turnCounter = 0;
+    state.government = null;
+    state.governmentTurnsLeft = 0;
+
     const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI, ROLE.OKUPA];
     const nRoles = Math.min(rolesPool.length, Math.round(state.players.length * (cfg.roleProbability||0)));
+    // Shuffle players and roles using Fisher-Yates to avoid bias
+    function shuffle(arr){
+      for(let i = arr.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
     const shuffled = [...state.players];
-    shuffled.sort(()=>Math.random()-0.5);
+    shuffle(shuffled);
+    shuffle(rolesPool);
     for(let i=0;i<nRoles;i++){
       state.assignments.set(shuffled[i].id, rolesPool[i]);
     }
@@ -6180,6 +6429,7 @@ if (typeof window.transfer === 'function'){
     ensureFlorentinoUses();
     saveState();
     uiUpdate();
+    openGovernmentElection();
   };
 
   R.get = function(player){ const id = (player&&player.id)||player; return roleOf(id); };
@@ -6441,7 +6691,7 @@ if (typeof window.transfer === 'function'){
       }catch(e){}
     }
     if(state.turnCounter % cfg.govPeriod === 0){
-      uiLog('🗳️ Votación de gobierno abierta');
+      openGovernmentElection();
     }
     saveState(); uiUpdate();
   };
@@ -6973,6 +7223,7 @@ if (typeof window.transfer === 'function'){
     uiUpdate();
   };
   R.ROLES = Object.assign({}, ROLE);
+  R.openGovernmentElection = openGovernmentElection;
 
   // === Eventos/CARTAS unificados ===
 // Llamas con el nombre que uses en tu mazo o en tus triggers de casilla.
@@ -7289,9 +7540,9 @@ R.eventsList = [
       if(idx>=0 && p){
         p.pos = idx;
         window.renderPlayers?.();
+        // ejecuta efectos como si hubiera caído en la casilla
+        Promise.resolve(window.onLand?.(p, idx));
         window.BoardUI?.refreshTiles?.();
-        const tile = T[idx];
-        window.onLand?.(p, tile);
       }
     }catch{}
   }
@@ -7313,7 +7564,12 @@ R.eventsList = [
       const label2 = el('div',{textContent:'Ir a casilla:'});
       label2.style.marginTop = '8px';
       const sel2 = el('select');
-      ['casino_bj','casino_roulette','fiore','bus','rail','ferry','air','bank'].forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
+      try{
+        const rare = Array.from(new Set(
+          (window.TILES||[]).map(t=> t.subtype || (t.type!=='prop' ? t.type : null))
+        )).filter(Boolean).sort();
+        rare.forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
+      }catch{}
       const btn2 = el('button',{textContent:'Ir'});
       btn2.style.cssText='margin-left:6px';
       btn2.onclick=()=>{ teleportTo(sel2.value); };

@@ -32,7 +32,6 @@
   state.rentFilters      ||= [];    // [{name, mul, turns, match(tile)}]
   state.rentCap          ||= null;  // {amount, turns}
   state.garnish          ||= {};    // {pid:{count, turns}}
-  state.auctionVeto      ||= null;  // {holderId}
   state.blockMortgage    ||= {};    // {pid: turns}
   state.blockBuildTurns  ||= 0;     // int
   state.sellBonusByOwner ||= {};    // {pid: mul}
@@ -100,24 +99,6 @@
         }
       }catch{}
       return _transfer2.apply(this, arguments);
-    };
-  }
-
-  // ====== Veto de subasta (wrapper) ======
-  if (!state.__eventsAuctionWrapped && typeof window.startAuctionFlow === 'function'){
-    state.__eventsAuctionWrapped = true;
-    const _startAuction = window.startAuctionFlow;
-    window.startAuctionFlow = function(){
-      try{
-        const current = (state.players||[])[state.current];
-        const holder = state.auctionVeto && state.auctionVeto.holderId;
-        if (holder != null && current && holder !== current.id){
-          log('🛑 Veto de subasta ejercido. Se cancela la subasta.');
-          state.auctionVeto = null;
-          return;
-        }
-      }catch{}
-      return _startAuction.apply(this, arguments);
     };
   }
 
@@ -291,7 +272,6 @@
     'Recesión industria': 'Elige un color o familia: sus alquileres bajan un 25% durante 3 turnos.',
     'Gentrificación': 'Si tienes 3+ casas en todo un grupo: +10% alquiler y +10% al vender casas (3 turnos).',
     'Racionamiento de cemento': 'Se retiran hasta 5 casas del banco durante 3 turnos.',
-    'Veto de subasta': 'Obtienes un veto para cancelar la próxima subasta iniciada por otro jugador.',
     'Trueque obligado': 'Intercambia una propiedad sin edificios con otro jugador del mismo color (si hay pareja).',
     'Bloqueo de hipoteca': 'El rival elegido no puede hipotecar durante 1 turno.',
     'Blackjack de 50': 'Mini-juego: si terminas con 20–21, cobras 120; si no, pagas 50.',
@@ -401,7 +381,6 @@
         state.cement = { taken: take, turns: 3 };
         headline(`Racionamiento de cemento: −${take} casas de stock durante 3 turnos.`);
     }},
-    { name: 'Veto de subasta', run(p){ state.auctionVeto = { holderId: p.id }; log(`🛡️ ${p.name} obtiene un veto a la próxima subasta de otro.`); } },
     { name: 'Trueque obligado', run(p){
         const other = pickPlayer(p.id); if (!other) return;
         const mine = tilesOf(p, t=>!t.houses && !t.hotel);
