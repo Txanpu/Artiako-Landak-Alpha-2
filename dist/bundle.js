@@ -1711,6 +1711,7 @@ function isEstadoCovered(tile){
   return false;
 }
 
+// Must be async so we can await user interactions when landing on tiles
 async function onLand(p, idx){
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
   const t = TILES[idx];
