@@ -66,6 +66,28 @@ function adjustRentForEvents(payer, tile, base){
   return Math.max(0, rent|0);
 }
 
+// Casillas cubiertas por el Estado cuando gobierna la izquierda
+const WELFARE_TILES = new Set([
+  'Eskolie',
+  'Baratze',
+  'Farmazixe',
+  'Medikue',
+  'Frontoie',
+  'Skateko Pistie',
+  'Txarlin Pistie',
+  'Artiako GYM-e',
+  'Ereñoko GYM-e',
+  'Frontoiko Bici estatikak',
+  'Farolak'
+]);
+
+function isEstadoCovered(tile){
+  if(!tile) return false;
+  if(WELFARE_TILES.has(tile.name)) return true;
+  if(['bus','rail','ferry','air'].includes(tile.subtype)) return true;
+  return false;
+}
+
 async function onLand(p, idx){
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
   const t = TILES[idx];
@@ -329,18 +351,34 @@ async function onLand(p, idx){
               }
             } catch (e) {}
 
-            const target = redirectToEstado ? Estado : payee;
-            const ivaMul = state.rentIVAMul || 1;
-            if (ivaMul > 1){
-              const base = Math.round(adjusted / ivaMul);
-              const iva  = Math.max(0, adjusted - base);
-              transfer(p, target, base, { taxable:false, deductible:true, reason: reason });
-              transfer(p, target, iva,  { taxable:false, deductible:true, reason: `IVA ${reason}` });
-              try { markIVAPaid(p, iva, ' (alquiler)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler)'); } catch{}
-            } else {
-              transfer(p, target, adjusted, { taxable:false, deductible:true, reason: reason });
-            }
-            ensureAlive(p);
+              const target = redirectToEstado ? Estado : payee;
+              const ivaMul = state.rentIVAMul || 1;
+              const govLeft = (()=>{ try{ return window.Roles?.exportState?.().government === 'left'; }catch{ return false; }})();
+              const stateCovers = govLeft && isEstadoCovered(t);
+
+              if (stateCovers) {
+                if (ivaMul > 1){
+                  const base = Math.round(adjusted / ivaMul);
+                  const iva  = Math.max(0, adjusted - base);
+                  transfer(Estado, target, base, { taxable:false, reason: reason });
+                  transfer(Estado, target, iva,  { taxable:false, reason: `IVA ${reason}` });
+                  try { markIVAPaid(Estado, iva, ' (alquiler estatal)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler estatal)'); } catch{}
+                } else {
+                  transfer(Estado, target, adjusted, { taxable:false, reason: reason });
+                }
+                log(`El Estado cubre el alquiler en ${t.name}.`);
+              } else {
+                if (ivaMul > 1){
+                  const base = Math.round(adjusted / ivaMul);
+                  const iva  = Math.max(0, adjusted - base);
+                  transfer(p, target, base, { taxable:false, deductible:true, reason: reason });
+                  transfer(p, target, iva,  { taxable:false, deductible:true, reason: `IVA ${reason}` });
+                  try { markIVAPaid(p, iva, ' (alquiler)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler)'); } catch{}
+                } else {
+                  transfer(p, target, adjusted, { taxable:false, deductible:true, reason: reason });
+                }
+                ensureAlive(p);
+              }
           }
         } else {
           log(`${p.name} no paga alquiler (sin dueño válido o alquiler 0).`);
