@@ -13,6 +13,7 @@
     onOp: (op, from)=>console.log('op', op, 'from', from),        // override en tu juego
     onCommit: (patch)=>console.log('commit', patch),              // override en clientes
     onPeersChanged: ()=>{},                                       // override si quieres UI
+    onChat: (msg, from)=>{},                                      // override para chat
     status(s){ const el=document.getElementById('netStatus'); if(el) el.textContent = s; console.log('[NET]', s); },
 
     // HOST
@@ -38,12 +39,42 @@
       if (dc?.readyState==='open') dc.send(JSON.stringify({ t:'op', op, from:this.id }));
     },
 
+    // Chat simple
+    sendChat(msg){
+      if (!msg) return;
+      if (this.role==='host'){
+        this._broadcastChat(msg, this.id);
+        this.onChat(msg, this.id);
+      } else if (this.role==='peer'){
+        const dc = this._hostDC();
+        if (dc?.readyState==='open') dc.send(JSON.stringify({ t:'chat', msg, from:this.id }));
+      }
+    },
+
     // Lado HOST: reenvía commit a todos
     broadcastCommit(patch){
       if (this.role!=='host') return;
       for (const {dc} of this.peers.values()){
         if (dc?.readyState==='open') dc.send(JSON.stringify({ t:'commit', patch }));
       }
+    },
+
+    _broadcastChat(msg, from){
+      for (const {dc} of this.peers.values()){
+        if (dc?.readyState==='open') dc.send(JSON.stringify({ t:'chat', msg, from }));
+      }
+    },
+
+    disconnect(){
+      this.ws?.close();
+      this.ws=null;
+      this.role=null;
+      this.room=null;
+      this.hostId=null;
+      for(const {pc} of this.peers.values()) pc.close();
+      this.peers.clear();
+      this.onPeersChanged();
+      this.status('Desconectado');
     },
 
     // Internos
@@ -132,8 +163,14 @@
         this.broadcastCommit(patch);
       } else if (msg.t==='commit' && this.role==='peer'){
         this.onCommit(msg.patch);
+      } else if (msg.t==='chat'){
+        if (this.role==='host'){
+          this.onChat(msg.msg, msg.from);
+          this._broadcastChat(msg.msg, msg.from);
+        } else {
+          this.onChat(msg.msg, msg.from);
+        }
       }
-      // Si quieres chat/log: usa msg.t==='chat'
     }
   };
 
