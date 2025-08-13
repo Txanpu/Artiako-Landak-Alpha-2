@@ -160,7 +160,7 @@
   function teleportTo(subtype){
     try{
       const T = window.TILES || [];
-      const idx = T.findIndex(t=>t.subtype===subtype);
+      const idx = T.findIndex(t=>t.subtype===subtype || t.type===subtype);
       const p = window.state?.players?.[window.state?.current];
       if(idx>=0 && p){
         p.pos = idx;
@@ -189,7 +189,7 @@
       const label2 = el('div',{textContent:'Ir a casilla:'});
       label2.style.marginTop = '8px';
       const sel2 = el('select');
-      ['casino_bj','casino_roulette','fiore','bus','rail','ferry','air'].forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
+      ['casino_bj','casino_roulette','fiore','bus','rail','ferry','air','bank'].forEach(st=> sel2.appendChild(el('option',{value:st,textContent:st})));
       const btn2 = el('button',{textContent:'Ir'});
       btn2.style.cssText='margin-left:6px';
       btn2.onclick=()=>{ teleportTo(sel2.value); };
