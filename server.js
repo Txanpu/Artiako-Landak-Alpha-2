@@ -47,6 +47,13 @@ io.on('connection', (socket) => {
     }
   });
 
+  // mensajes de chat
+  socket.on('chatMessage', (message) => {
+    const { playerId, roomId } = socket.data;
+    if (!roomId) return;
+    io.to(roomId).emit('chatMessage', { playerId, message });
+  });
+
   // finalizar turno
   socket.on('endTurn', () => {
     const { playerId, roomId } = socket.data;

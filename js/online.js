@@ -31,6 +31,11 @@
     socket.emit('endTurn');
   }
 
+  function sendChat(message) {
+    if (!socket) return;
+    socket.emit('chatMessage', message);
+  }
+
   socket?.on('turn', (playerId) => {
     console.log('Turno de', playerId);
   });
@@ -43,7 +48,24 @@
     console.log('Turno finalizado de', playerId);
   });
 
+  socket?.on('chatMessage', ({ playerId: from, message }) => {
+    if (typeof log === 'function') {
+      log(`${from}: ${message}`);
+    } else {
+      console.log('Chat', from, message);
+    }
+  });
+
   const onlineBtn = document.getElementById('startOnline');
+  const chatInput = document.getElementById('chatInput');
+  const sendChatBtn = document.getElementById('sendChat');
+
+  function handleSendChat() {
+    const msg = chatInput?.value.trim();
+    if (!msg) return;
+    sendChat(msg);
+    chatInput.value = '';
+  }
 
   onlineBtn?.addEventListener('click', () => {
     if (!socket) {
@@ -59,5 +81,13 @@
     }
   });
 
-  window.GameOnline = { joinGame, sendAction, endTurn, shareGame };
+  sendChatBtn?.addEventListener('click', handleSendChat);
+  chatInput?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSendChat();
+    }
+  });
+
+  window.GameOnline = { joinGame, sendAction, endTurn, shareGame, sendChat };
 })();
