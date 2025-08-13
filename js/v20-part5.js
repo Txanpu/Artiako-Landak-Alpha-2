@@ -88,64 +88,78 @@ function roll(){
     return;
   }
   if (state.rolled){ log('Ya has tirado este turno.'); return; }
-  if (p.jail > 0){
-    // Elegir: pagar o intentar dobles
-    let choice = prompt(`Estás en la cárcel (${p.jail} turno(s)). Escribe "pagar" para salir por $50 o "tirar" para intentar dobles.`, 'tirar');
-    choice = (choice||'').trim().toLowerCase();
+    if (p.jail > 0){
+      // Elegir: pagar o intentar dobles
+      let choice = prompt(`Estás en la cárcel (${p.jail} turno(s)). Escribe "pagar" para salir por $50 o "tirar" para intentar dobles.`, 'tirar');
+      choice = (choice||'').trim().toLowerCase();
 
-    let paid = false;
-    if (choice.startsWith('p')) {
-      if (p.money < 50) {
-        alert('No te llega para pagar 50. Debes intentar dobles.');
+      let paid = false;
+      if (choice.startsWith('p')) {
+        if (p.money < 50) {
+          alert('No te llega para pagar 50. Debes intentar dobles.');
+        } else {
+          transfer(p, Estado, 50, {taxable:false, reason:'Fianza cárcel'});
+          ensureAlive(p);
+          p.jail = 0; // libre
+          paid = true;
+        }
+      }
+
+      // Tirada (si pagó, sale y tira normal; si no, intenta dobles)
+      let d1, d2;
+      if (Roles?.rollDie0to9) {
+        d1 = Roles.rollDie0to9();
+        d2 = Roles.rollDie0to9();
       } else {
-        transfer(p, Estado, 50, {taxable:false, reason:'Fianza cárcel'});
-        ensureAlive(p);
-        p.jail = 0; // libre
-        paid = true;
+        d1 = Math.floor(Math.random()*10);
+        d2 = Math.floor(Math.random()*10);
+      }
+      const sum = d1 + d2;
+      state.lastRoll = sum;
+      renderDice(d1, d2, `Total: ${sum}${d1===d2?' — Dobles':''}`);
+
+      // Regla 6 y 9: ir al FIORE más cercano
+      if ((d1===6 && d2===9) || (d1===9 && d2===6)) {
+        p.jail = 0;
+        const total = TILES.length;
+        let i = (p.pos + 1) % total;
+        while (!(TILES[i]?.type==='prop' && TILES[i]?.subtype==='fiore')) {
+          i = (i + 1) % total;
+          if (i === p.pos) break;
+        }
+        log('➡️  Regla 6 y 9: vas al FIORE más cercano.');
+        p.pos = i; BoardUI?.refreshTiles?.(); onLand(p, i);
+        state.rolled = true; updateTurnButtons(); return;
+      }
+
+      if (paid || d1===d2){
+        if (!paid && d1===d2) log(`${p.name} saca dobles y sale de la cárcel.`);
+        p.jail = 0;
+        movePlayer(p, sum);
+        state.rolled = true; updateTurnButtons(); return;
+      } else {
+        // Fallo intentando dobles
+        p.jail--;
+        if (p.jail === 0){
+          log(`${p.name} falla el 3º intento. Paga $50 y sale.`);
+          transfer(p, Estado, 50, {taxable:false, reason:'Fianza tras 3 intentos'});
+          ensureAlive(p);
+          movePlayer(p, sum);           // te mueves con la tirada del 3º intento
+          state.rolled = true; updateTurnButtons(); return;
+        }
+        log(`${p.name} no saca dobles. Le quedan ${p.jail} turno(s) en la cárcel.`);
+        state.rolled = true; renderPlayers(); updateTurnButtons(); return;
       }
     }
 
-    // Tirada (si pagó, sale y tira normal; si no, intenta dobles)
     let d1, d2;
-    if (window.RolesConfig?.dice0to9 && window.Roles?.rollDie0to9) {
+    if (Roles?.rollDie0to9) {
       d1 = Roles.rollDie0to9();
       d2 = Roles.rollDie0to9();
     } else {
-      d1 = 1 + Math.floor(Math.random()*6);
-      d2 = 1 + Math.floor(Math.random()*6);
+      d1 = Math.floor(Math.random()*10);
+      d2 = Math.floor(Math.random()*10);
     }
-    const sum = d1 + d2;
-    state.lastRoll = sum;
-    renderDice(d1, d2, `Total: ${sum}${d1===d2?' — Dobles':''}`);
-
-    if (paid || d1===d2){
-      if (!paid && d1===d2) log(`${p.name} saca dobles y sale de la cárcel.`);
-      p.jail = 0;
-      movePlayer(p, sum);
-      state.rolled = true; updateTurnButtons(); return;
-    } else {
-      // Fallo intentando dobles
-      p.jail--;
-      if (p.jail === 0){
-        log(`${p.name} falla el 3º intento. Paga $50 y sale.`);
-        transfer(p, Estado, 50, {taxable:false, reason:'Fianza tras 3 intentos'});
-        ensureAlive(p);
-        movePlayer(p, sum);           // te mueves con la tirada del 3º intento
-        state.rolled = true; updateTurnButtons(); return;
-      }
-      log(`${p.name} no saca dobles. Le quedan ${p.jail} turno(s) en la cárcel.`);
-      state.rolled = true; renderPlayers(); updateTurnButtons(); return;
-    }
-  }
-
-  let d1, d2;
-  if (window.RolesConfig?.dice0to9 && window.Roles?.rollDie0to9) {
-    d1 = Roles.rollDie0to9();
-    d2 = Roles.rollDie0to9();
-  } else {
-    d1 = 1 + Math.floor(Math.random()*6);
-    d2 = 1 + Math.floor(Math.random()*6);
-  }
 
   if (window.Roles && Roles.maybeEditDie) {
     var ed = Roles.maybeEditDie({ playerId: p.id, d1: d1, d2: d2 });
@@ -153,14 +167,8 @@ function roll(){
     if (ed && typeof ed.d2 === 'number') d2 = ed.d2;
   }
 
-  // v22: especiales 0–9 (no afecta a dobles actuales si dice0to9=false)
-  try {
-    const sp = window.Roles?.handleDiceSpecials?.({ d1, d2, playerId: p.id }) || {};
-    if (sp.repeatTile) {
-      log('⟳ Regla 0–0: repites la casilla y resuelves de nuevo.');
-      onLand(p, p.pos);
-    }
-    if (sp.gotoNearestFiore) {
+    // Regla 6 y 9: ir al FIORE más cercano
+    if ((d1===6 && d2===9) || (d1===9 && d2===6)) {
       const total = TILES.length;
       let i = (p.pos + 1) % total;
       while (!(TILES[i]?.type==='prop' && TILES[i]?.subtype==='fiore')) {
@@ -169,10 +177,29 @@ function roll(){
       }
       log('➡️  Regla 6 y 9: vas al FIORE más cercano.');
       p.pos = i; BoardUI?.refreshTiles?.(); onLand(p, i);
-      // evita doble resolución inmediata del movimiento normal
+      state.rolled = true; updateTurnButtons();
       return;
     }
-  } catch {}
+
+    // Especiales adicionales (p.ej. 0–0 repite) si Roles lo define
+    try {
+      const sp = window.Roles?.handleDiceSpecials?.({ d1, d2, playerId: p.id }) || {};
+      if (sp.repeatTile) {
+        log('⟳ Regla 0–0: repites la casilla y resuelves de nuevo.');
+        onLand(p, p.pos);
+      }
+      if (sp.gotoNearestFiore) {
+        const total = TILES.length;
+        let i = (p.pos + 1) % total;
+        while (!(TILES[i]?.type==='prop' && TILES[i]?.subtype==='fiore')) {
+          i = (i + 1) % total;
+          if (i === p.pos) break;
+        }
+        log('➡️  Regla 6 y 9: vas al FIORE más cercano.');
+        p.pos = i; BoardUI?.refreshTiles?.(); onLand(p, i);
+        return;
+      }
+    } catch {}
 
   const sum = d1 + d2;
   state.lastRoll = sum;
