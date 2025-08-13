@@ -1109,12 +1109,27 @@ function nextAlive(from){
   return from;
 }
 
+function botEndTurnWhenIdle(){
+  const p = state.players[state.current];
+  if (!p?.isBot) return;
+  // Esperar a que no haya subastas ni acciones pendientes
+  if (!state.rolled) { setTimeout(botEndTurnWhenIdle, 500); return; }
+  if (state.auction && state.auction.open) { setTimeout(botEndTurnWhenIdle, 500); return; }
+  if (state.pendingTile != null) { setTimeout(botEndTurnWhenIdle, 500); return; }
+  const overlay = document.getElementById('overlay');
+  if (overlay && overlay.style.display !== 'none') { setTimeout(botEndTurnWhenIdle, 500); return; }
+  const auctionBox = document.getElementById('auction');
+  if (auctionBox && auctionBox.style.display !== 'none') { setTimeout(botEndTurnWhenIdle, 500); return; }
+  endTurn();
+}
+
 function botAutoPlay(){
   const p = state.players[state.current];
   if (!p?.isBot) return;
   setTimeout(()=>{
     if (!state.rolled) roll();
-    setTimeout(()=>{ if (state.rolled) endTurn(); }, 900);
+    // Revisa periódicamente si puede finalizar el turno
+    setTimeout(botEndTurnWhenIdle, 600);
   }, 600);
 }
 
@@ -7440,13 +7455,16 @@ R.eventsList = [
   }
 
   // Periodic refresh when panel open
+  // Slow down the refresh and avoid rerendering events while focused
   setInterval(()=>{
     if (DBG.enabled){
       render();
       if (secRoles.style.display === 'block') renderRoles();
-      if (secEvents.style.display === 'block') renderEvents();
+      if (secEvents.style.display === 'block' && !eventsBox.contains(document.activeElement)){
+        renderEvents();
+      }
     }
-  }, 500);
+  }, 1000);
 
   // Start open if env says so
   document.addEventListener('DOMContentLoaded', ()=>{
