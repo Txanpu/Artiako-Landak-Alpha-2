@@ -52,6 +52,15 @@
     </form>
   </dialog>
 
+  <!-- diálogo para confirmar intercambios -->
+  <dialog id="dealDialog">
+    <div id="dealDetails"></div>
+    <div class="row" style="margin-top:8px; justify-content:flex-end">
+      <button type="button" id="dealCancel">Cancelar</button>
+      <button type="button" id="dealOk" class="primary">Aceptar</button>
+    </div>
+  </dialog>
+
   <!-- jugadores -->
   <div class="players" id="players"></div>
 
@@ -67,7 +76,6 @@
     <button id="unmortgage" type="button">Levant. hipoteca</button>
     <button id="myBalance" type="button">Mi Balance</button>
     <button id="insider" type="button" style="display:none;">Insider</button>
-    <button id="toggleHeatmap" type="button">Zonas Calientes</button>
 
     <!-- los dados del v15 se siguen pintando aquí -->
     <div id="dice" class="diceWrap" aria-live="polite" aria-label="Resultado de los dados"></div>
@@ -181,9 +189,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if (window.GameRiskPlus && window.state) {
       GameRiskPlus.Insider.use(window.state.current);
     }
-  });
-  document.getElementById('toggleHeatmap')?.addEventListener('click', ()=>{
-    if (window.UIX) UIX.heatmap.toggle({ metric:'landings', windowTurns:20 });
   });
   const board = document.getElementById('board');
   board?.addEventListener('click', (e) => {

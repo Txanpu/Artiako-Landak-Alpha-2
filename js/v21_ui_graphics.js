@@ -199,6 +199,8 @@
             <div class="card"><div class="k">Cash</div><div class="v" id="v-cash">${p.money||0}</div><canvas id="sp-cash" width="120" height="28"></canvas></div>
             <div class="card"><div class="k">Deuda neta</div><div class="v" id="v-debt">${UIX.balance._debtNet(playerId)}</div><canvas id="sp-debt" width="120" height="28"></canvas></div>
             <div class="card"><div class="k">Mantenimiento</div><div class="v" id="v-maint">${UIX.balance._maintNext(playerId)}</div><canvas id="sp-maint" width="120" height="28"></canvas></div>
+            <div class="card"><div class="k">Propiedades</div><div class="v" id="v-props">${UIX.balance._propsCount(playerId)}</div><canvas id="sp-props" width="120" height="28"></canvas></div>
+            <div class="card"><div class="k">Patrimonio</div><div class="v" id="v-net">${UIX.balance._netWorth(playerId)}</div><canvas id="sp-net" width="120" height="28"></canvas></div>
             <div class="card"><div class="k">ROI medio</div><div class="v" id="v-roi">${UIX.balance._roiAvg(playerId).toFixed(2)}%</div><canvas id="sp-roi" width="120" height="28"></canvas></div>
           </div>
           <div class="risk"><div class="label">Riesgo de liquidez</div><div class="bar"><div class="fill" id="risk-fill"></div></div></div>
@@ -209,6 +211,8 @@
         UIX._spark('sp-cash', UIX._metricSeries('cash', playerId));
         UIX._spark('sp-debt', UIX._metricSeries('debt', playerId));
         UIX._spark('sp-maint', UIX._metricSeries('maint', playerId));
+        UIX._spark('sp-props', UIX._metricSeries('props', playerId));
+        UIX._spark('sp-net', UIX._metricSeries('net', playerId));
         UIX._spark('sp-roi', UIX._metricSeries('roi', playerId));
         // riesgo
         const thr = pick(global.GameRiskPlus?._cfg?.margin, 'cashThreshold', 100);
@@ -221,11 +225,13 @@
         const s=UIX._cfg.state; const rents=0; // plug real si tienes histórico
         const owned=(s.board||s.tiles||[]).filter(t=> t?.owner===pid);
         const base=sum(owned.map(t=> t.price||0)); if (!base) return 0; return (rents/base)*100;
-      }
+      },
+      _propsCount(pid){ const p=UIX._player(pid)||{}; return (p.props||[]).length; },
+      _netWorth(pid){ const p=UIX._player(pid)||{}; const s=UIX._cfg.state; const T=s.board||s.tiles||[]; const props=sum((p.props||[]).map(i=>T[i]?.price||0)); return (p.money||0)+props-UIX.balance._debtNet(pid); }
     },
 
     _metricSeries(kind, pid){ // genera serie dummy de 10 puntos con ruido leve; reemplaza con tu telemetría
-      const p=this._player(pid)||{}; const base={ cash:p.money||0, debt:this.balance._debtNet(pid), maint:this.balance._maintNext(pid), roi:this.balance._roiAvg(pid) }[kind]||0;
+      const p=this._player(pid)||{}; const base={ cash:p.money||0, debt:this.balance._debtNet(pid), maint:this.balance._maintNext(pid), roi:this.balance._roiAvg(pid), props:this.balance._propsCount(pid), net:this.balance._netWorth(pid) }[kind]||0;
       const arr=new Array(10).fill(0).map((_,i)=> base + Math.round((Math.random()-0.5)*base*0.1));
       return arr;
     },

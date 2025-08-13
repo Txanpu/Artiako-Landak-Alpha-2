@@ -465,7 +465,28 @@ function ejecutarImpagoCompleto(loan, borrower, lender, opts={}){
   log(`💥 IMPAGO: propiedades de ${getName?.(borrower)} → ${getName?.(lender)}${moved?` (${moved})`:''}${opts.motivo?` [${opts.motivo}]`:''}.`);
 }
 /* =================== INTERCAMBIO DE PROPIEDADES =================== */
-function trade(){
+function confirmTrade({mine,give,theirs,take,message}){
+  const dlg=document.getElementById('dealDialog');
+  if(!dlg){
+    const text = message || `Confirmar intercambio:\nDas: ${mine} + ${fmtMoney(give)}\nRecibes: ${theirs} + ${fmtMoney(take)}`;
+    return Promise.resolve(confirm(text));
+  }
+  const details=document.getElementById('dealDetails');
+  if(message && !mine && !theirs){
+    details.innerHTML=`<div>${message}</div>`;
+  }else{
+    details.innerHTML=`<div><strong>Das:</strong> ${mine||'—'} ${give?'+ '+fmtMoney(give):''}</div><div><strong>Recibes:</strong> ${theirs||'—'} ${take?'+ '+fmtMoney(take):''}</div>`;
+  }
+  return new Promise(resolve=>{
+    const ok=document.getElementById('dealOk');
+    const cancel=document.getElementById('dealCancel');
+    const close=v=>{ ok.onclick=cancel.onclick=null; dlg.close(); resolve(v); };
+    ok.onclick=()=>close(true);
+    cancel.onclick=()=>close(false);
+    dlg.showModal();
+  });
+}
+async function trade(){
   const me = state.players[state.current];
   const otherIdx = Number(prompt(`¿Con quién intercambias? (1..${state.players.length}, distinto de ${me.id+1})`))-1;
   if (isNaN(otherIdx)||otherIdx===me.id||!state.players[otherIdx]||!state.players[otherIdx].alive){return;}
@@ -490,7 +511,7 @@ function trade(){
   const selMine   = parse(offerMine,   myProps);
   const selTheirs = parse(offerTheirs, theirProps);
 
-  if(!confirm(`Confirmar intercambio:\nDas: ${selMine.map(i=>TILES[i].name).join(', ')||'—'} + ${fmtMoney(give)}\nRecibes: ${selTheirs.map(i=>TILES[i].name).join(', ')||'—'} + ${fmtMoney(take)}`)) return;
+  if(!await confirmTrade({ mine: selMine.map(i=>TILES[i].name).join(', ')||'—', give, theirs: selTheirs.map(i=>TILES[i].name).join(', ')||'—', take })) return;
 
       // — Base imponible = ganancia neta frente al valor-tablero (t.price)
       const sumPrice = arr => arr.reduce((s,i)=> s + (TILES[i]?.price || 0), 0);
@@ -501,7 +522,7 @@ function trade(){
       const otGain = Math.max(0, Math.round(myOut - myIn));      // ganancia neta del otro (simétrica)
 
       // Pregunta aceptación del otro
-      let accepted = confirm(`¿${other.name} acepta?`);
+      let accepted = await confirmTrade({ message:`¿${other.name} acepta?` });
       if (!accepted) {
         const forced = window.Roles?.maybeForceTradeAcceptance?.({ initiatorId: me.id, counterpartyId: other.id });
         if (forced) {
