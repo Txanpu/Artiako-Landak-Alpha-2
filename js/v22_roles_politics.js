@@ -142,7 +142,16 @@
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
 
-
+    // Número de roles especiales a asignar según probabilidad
+    const total = state.players.length;
+    const n = Math.floor(total * (cfg.roleProbability || 0));
+    const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
+    const rolesToAssign = rolesPool.slice(0, n);
+    const shuffled = state.players.slice().sort(()=> Math.random() - 0.5);
+    rolesToAssign.forEach((role, idx)=>{
+      const p = shuffled[idx];
+      if (p) state.assignments.set(p.id, role);
+    });
 
     ensureFlorentinoUses();
     saveState();

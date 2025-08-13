@@ -2228,6 +2228,26 @@ function awardAuction(){
     price    = bestV;
   }
 
+  // Impugnación por un tercero antes de adjudicar
+  try {
+    const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+    if (who) {
+      const byId = Number(who) - 1;
+      const base = Math.max(1, t.price || 1);
+      const imbalance = Math.max(0, Math.min(1, (base - price) / base));
+      const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+      if (res.annulled) {
+        alert('⚖️ Juez IA anula la adjudicación.');
+        $('#auction').style.display = 'none';
+        state.auction = null;
+        const endTurnBtn = document.getElementById('endTurn');
+        if (endTurnBtn) endTurnBtn.disabled = false;
+        updateTurnButtons();
+        return;
+      }
+    }
+  } catch {}
+
   // Ganó Estado
   if (winnerId==='E'){
     if ((Estado.money||0) < price){
@@ -2577,6 +2597,23 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       a.open = false;
 
       if (a.bestPlayer && a.bestBid > 0) {
+        // Impugnación por un tercero antes de adjudicar
+        try {
+          const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+          if (who) {
+            const byId = Number(who) - 1;
+            const base = Math.max(1, a.price || 1);
+            const imbalance = Math.max(0, Math.min(1, (base - a.bestBid) / base));
+            const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+            if (res.annulled) {
+              alert('⚖️ Juez IA anula la adjudicación.');
+              state.auction = null;
+              this._closeAuctionOverlay();
+              return;
+            }
+          }
+        } catch {}
+
         if (a.kind === 'tile') {
           this._assignTileTo(a.assetId, a.bestPlayer, a.bestBid);
         } else if (a.kind === 'loan') {
@@ -5986,7 +6023,16 @@ if (typeof window.transfer === 'function'){
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
 
-
+    // Número de roles especiales a asignar según probabilidad
+    const total = state.players.length;
+    const n = Math.floor(total * (cfg.roleProbability || 0));
+    const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI];
+    const rolesToAssign = rolesPool.slice(0, n);
+    const shuffled = state.players.slice().sort(()=> Math.random() - 0.5);
+    rolesToAssign.forEach((role, idx)=>{
+      const p = shuffled[idx];
+      if (p) state.assignments.set(p.id, role);
+    });
 
     ensureFlorentinoUses();
     saveState();
@@ -7432,13 +7478,16 @@ R.eventsList = [
   }
 
   // Periodic refresh when panel open
+  // Slow down the refresh and avoid rerendering events while focused
   setInterval(()=>{
     if (DBG.enabled){
       render();
       if (secRoles.style.display === 'block') renderRoles();
-      if (secEvents.style.display === 'block') renderEvents();
+      if (secEvents.style.display === 'block' && !eventsBox.contains(document.activeElement)){
+        renderEvents();
+      }
     }
-  }, 500);
+  }, 1000);
 
   // Start open if env says so
   document.addEventListener('DOMContentLoaded', ()=>{
