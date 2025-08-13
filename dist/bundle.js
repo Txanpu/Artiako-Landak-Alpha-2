@@ -598,23 +598,6 @@ function getRent(tile){
 window.getRent = getRent;
 
 /* ===== Carta de propiedad (modal) ===== */
-const overlay = document.getElementById('overlay');
-const cardBand = document.getElementById('cardBand');
-const cardName = document.getElementById('cardName');
-const cardPrice= document.getElementById('cardPrice');
-const cardRent = document.getElementById('cardRent');
-const cardRoi  = document.getElementById('cardRoi');
-if (cardRoi && cardRoi.parentElement) cardRoi.parentElement.style.display = 'none';
-
-// Permitir cerrar la carta clicando fuera del contenido
-if (overlay){
-  overlay.addEventListener('click', (ev)=>{
-    if (ev.target === overlay){
-      overlay.style.display = 'none';
-      if (window.state) window.state.pendingTile = null;
-    }
-  });
-}
 
 const rentsBox = document.getElementById('cardRentsBox');
 const bankWarn = document.getElementById('bankWarn');
@@ -643,25 +626,7 @@ function buildRentModel(t){
   return Array.from({length:6},(_,i)=>({ label: i===5 ? 'Hotel' : i, rent: i===5 ? base + 5*step : base + i*step, houses: i }));
 }
 
-function showCard(tileIndex, {canAuction=false}={}) {
-  if (cardName){
-    cardName.style.display = 'none';   // no mostramos el duplicado
-    cardName.textContent = '';         // evitamos que “se herede” el último nombre
-    cardName.oninput = cardName.onkeydown = cardName.onblur = null;
-  }
 
-  const t = TILES[tileIndex];
-  const st = window.state;
-  if (st) st.pendingTile = tileIndex;
-  const noBuildings = (t.subtype && !['utility','rail','ferry','air','bus'].includes(t.subtype)) || ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
-
-  cardBand.style.background = t.type==='prop' ? COLORS[t.color] : '#374151';
-  cardBand.textContent = t.name;
-
-  const cardPriceRow = document.getElementById('cardPrice')?.parentElement;
-  const cardRentRow  = document.getElementById('cardRent')?.parentElement;
-  const rentsBox     = document.getElementById('cardRentsBox');
-  const startBtn     = document.getElementById('startAuction');
 
   if (t.type === 'prop') {
     cardBand.onclick = ()=>{
@@ -675,11 +640,9 @@ function showCard(tileIndex, {canAuction=false}={}) {
     };
 
     // vehículos y utilities: ocultar “Renta base”, pero mostrar tabla
-const isVehicleOrUtil = ['utility','rail','bus','ferry','air'].includes(t.subtype);
-const isNoBuildings   = ['casino_bj','casino_roulette','fiore'].includes(t.subtype);
-
 if (cardPriceRow) cardPriceRow.style.display = 'flex';
 if (cardRentRow)  cardRentRow.style.display  = (isVehicleOrUtil || isNoBuildings) ? 'none' : 'flex';
+if (cardBuildRow) cardBuildRow.style.display = (!isVehicleOrUtil && !isNoBuildings) ? 'flex' : 'none';
 
 cardPrice.textContent = fmtMoney(t.price);
 
@@ -689,33 +652,11 @@ rentsBox.innerHTML = (Array.isArray(model) && model.length) ? renderRentsTable(m
 
 if (!isVehicleOrUtil && !isNoBuildings){
   cardRent.textContent = fmtMoney(t.baseRent ?? Math.round((t.price||0)*0.3));
+  const cost = t.houseCost ?? Math.round((t.price||0)*0.5);
+  if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
 }
 
-    // v15-part3.js — dentro de showCard, si es Fiore
-    if (t.subtype === 'fiore') {
-      bankWarn.className = '';
-      bankWarn.innerHTML = `Fiore: <b>${t.workers||0}</b> zenbat langile?`;
-      const me = st?.players?.[st.current];
-      if (me && t.owner === me.id) {
-        const btn = document.createElement('button');
-        btn.textContent = 'Kontratatu (0–5)';
-        btn.onclick = () => {
-          const n = Number(prompt('Trabajadores en Fiore (0–5):', t.workers||0));
-          if (Number.isFinite(n) && n>=0 && n<=5){ t.workers = n; BoardUI.refreshTiles(); }
-        };
-        bankWarn.appendChild(document.createElement('br'));
-        bankWarn.appendChild(btn);
-      }
-    }
-  } else {
-    cardBand.onclick = null;
-    if (cardPriceRow) cardPriceRow.style.display = 'none';
-    if (cardRentRow)  cardRentRow.style.display  = 'none';
-    if (startBtn) startBtn.style.display = 'none';
-    const msg = FUNNY[t.type] || FUNNY.default;
-    bankWarn.className = 'muted';
-    bankWarn.textContent = msg;
-    rentsBox.innerHTML = '';
+
   }
   overlay.style.display = 'flex';
 }
@@ -734,7 +675,7 @@ if (typeof window.renderRentsTable !== 'function'){
 }
 
 window.showCard = showCard;
-if (cancelAuctionBtn) cancelAuctionBtn.onclick = ()=>{ overlay.style.display='none'; if (window.state) window.state.pendingTile=null; };
+
 if (startAuctionBtn && !startAuctionBtn.__wired) {
   startAuctionBtn.__wired = true;
   startAuctionBtn.onclick = ()=>{
@@ -747,15 +688,7 @@ if (startAuctionBtn && !startAuctionBtn.__wired) {
   };
 }
 
-const FUNNY = {
-  start:    'Salida: como tu madre...',
-  tax:      'Putillas y coca',
-  jail:     'Buen sitio pa hacer Networking?',
-  gotojail: 'A la cárcel, a la cárcel, a la cárcel, a la cárcel, a la cárcel…',
-  park:     'Buen sitio pa fumar porros… o mirar palomas.',
-  slots:    'GANA GANA GANA!!!',
-  default:  'Sin info, como tu madre...'
-};
+
 
 window.dispatchEvent(new Event('game-core-ready'));
 
@@ -7493,13 +7426,4 @@ R.eventsList = [
       if (secEvents.style.display === 'block' && !eventsBox.contains(document.activeElement)){
         renderEvents();
       }
-    }
-  }, 1000);
 
-  // Start open if env says so
-  document.addEventListener('DOMContentLoaded', ()=>{
-    setDebugEnabled(enabledFromEnv());
-    if (DBG.enabled) render();
-  });
-
-})();
