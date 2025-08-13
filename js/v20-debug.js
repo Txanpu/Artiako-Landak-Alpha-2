@@ -54,7 +54,7 @@
   const toggleBtn = el('button', { id:'debugToggle', textContent:'🐞 Debug' });
   toggleBtn.style.cssText = [
     'padding:6px 10px','border-radius:10px','border:1px solid #aaa',
-    'background:#fff','cursor:pointer','box-shadow:0 2px 8px rgba(0,0,0,.15)'].join(';');
+    'background:#fff','cursor:pointer','box-shadow:0 2px 8px rgba(0,0,0,.15)','color:#111'].join(';');
 
   const card = el('div', { id:'debugCard' });
   card.style.cssText = [
@@ -65,33 +65,108 @@
   const tabs = el('div', { className:'tabs' });
   const tabState = el('button', { textContent:'State' });
   const tabLog   = el('button', { textContent:'Log' });
-  [tabState, tabLog].forEach(b => b.style.cssText='margin-right:6px;padding:4px 8px;border:1px solid #ddd;background:#f8fafc;border-radius:8px;cursor:pointer');
-  const secState = el('div'); const secLog = el('div'); secLog.style.display = 'none';
+  const tabRoles = el('button', { textContent:'Roles' });
+  [tabState, tabLog, tabRoles].forEach(b => b.style.cssText='margin-right:6px;padding:4px 8px;border:1px solid #ddd;background:#f8fafc;border-radius:8px;cursor:pointer;color:#111');
+  const secState = el('div');
+  const secLog   = el('div'); secLog.style.display = 'none';
+  const secRoles = el('div'); secRoles.style.display = 'none';
 
   const grid = el('div'); grid.style.cssText='display:grid;grid-template-columns:110px 1fr;gap:4px 8px;margin-top:6px';
   function row(k,v){ const a=el('div',{textContent:k,style:'color:#555'}), b=el('div',{textContent:v||''}); grid.append(a,b); }
   const actions = el('div'); actions.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-top:8px';
-  function action(label, fn){ const b=el('button',{textContent:label}); b.style.cssText='padding:4px 8px;border:1px solid #ddd;background:#eef;border-radius:8px;cursor:pointer'; b.onclick=fn; actions.appendChild(b); return b; }
+  function action(label, fn){ const b=el('button',{textContent:label}); b.style.cssText='padding:4px 8px;border:1px solid #ddd;background:#eef;border-radius:8px;cursor:pointer;color:#111'; b.onclick=fn; actions.appendChild(b); return b; }
 
-  const logBox = el('div'); logBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#0a0a0a;color:#e5e7eb;border-radius:8px;padding:6px;min-height:140px;white-space:pre-wrap';
+  const logBox = el('div'); logBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:140px;white-space:pre-wrap';
+
+  // Roles tab content
+  const rolesBox = el('div');
+  rolesBox.style.cssText='margin-top:8px;border:1px solid #eee;background:#fff;color:#111;border-radius:8px;padding:6px;min-height:120px;white-space:pre-wrap';
+  const rolesActions = el('div');
+  rolesActions.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-top:8px';
+  const btnEstadoBid = el('button', { textContent:'Bloquear Estado' });
+  btnEstadoBid.style.cssText='padding:4px 8px;border:1px solid #ddd;background:#fee;border-radius:8px;cursor:pointer;color:#111';
+  rolesActions.appendChild(btnEstadoBid);
+  secRoles.appendChild(rolesBox);
+  secRoles.appendChild(rolesActions);
+
+  function _roleNice(r){
+    if (r==='proxeneta') return 'Proxeneta';
+    if (r==='florentino') return 'Florentino Pérez';
+    if (r==='fbi') return 'FBI';
+    return 'Sin rol';
+  }
+
+  function renderRoles(){
+    try{
+      if (!window.Roles){
+        rolesBox.textContent = 'Roles no cargado.';
+        btnEstadoBid.disabled = true;
+        return;
+      }
+      const list = (Roles.listAssignments && Roles.listAssignments()) ||
+                   ((window.state?.players)||[]).map(p=>({id:p.id, name:p.name, role:'?'}));
+      const lines = list.map(r => `${r.name||r.id} — ${_roleNice(r.role)}`).join('\n') || 'Sin jugadores';
+      rolesBox.textContent = lines;
+
+      if (Roles.isEstadoAuctionBlocked){
+        const blocked = !!Roles.isEstadoAuctionBlocked();
+        btnEstadoBid.textContent = blocked ? 'Permitir Estado' : 'Bloquear Estado';
+        btnEstadoBid.disabled = false;
+      }
+    } catch(e){
+      rolesBox.textContent = '(error al renderizar roles)';
+    }
+  }
+
+  btnEstadoBid.onclick = () => {
+    try {
+      if (window.Roles?.setEstadoAuctionBlocked && window.Roles?.isEstadoAuctionBlocked){
+        Roles.setEstadoAuctionBlocked(!Roles.isEstadoAuctionBlocked());
+        renderRoles();
+      }
+    } catch{}
+  };
 
   secState.appendChild(grid); secState.appendChild(actions);
   secLog.appendChild(logBox);
 
-  tabs.append(tabState, tabLog);
+  tabs.append(tabState, tabLog, tabRoles);
   card.appendChild(tabs);
   card.appendChild(secState);
   card.appendChild(secLog);
+  card.appendChild(secRoles);
   panel.appendChild(toggleBtn);
   panel.appendChild(card);
   document.addEventListener('DOMContentLoaded', () => document.body.appendChild(panel));
 
   function selectTab(which){
-    if (which==='log'){ secState.style.display='none'; secLog.style.display='block'; tabLog.style.background='#fff'; tabState.style.background='#f8fafc'; }
-    else { secState.style.display='block'; secLog.style.display='none'; tabState.style.background='#fff'; tabLog.style.background='#f8fafc'; }
+    if (which==='log'){
+      secState.style.display='none';
+      secLog.style.display='block';
+      secRoles.style.display='none';
+      tabLog.style.background='#fff';
+      tabState.style.background='#f8fafc';
+      tabRoles.style.background='#f8fafc';
+    } else if (which==='roles'){
+      secState.style.display='none';
+      secLog.style.display='none';
+      secRoles.style.display='block';
+      tabRoles.style.background='#fff';
+      tabState.style.background='#f8fafc';
+      tabLog.style.background='#f8fafc';
+      renderRoles();
+    } else {
+      secState.style.display='block';
+      secLog.style.display='none';
+      secRoles.style.display='none';
+      tabState.style.background='#fff';
+      tabLog.style.background='#f8fafc';
+      tabRoles.style.background='#f8fafc';
+    }
   }
   tabState.onclick = () => selectTab('state');
   tabLog.onclick   = () => selectTab('log');
+  tabRoles.onclick = () => selectTab('roles');
 
   toggleBtn.onclick = () => {
     DBG.enabled = !DBG.enabled;
@@ -392,7 +467,12 @@
   }
 
   // Periodic refresh when panel open
-  setInterval(()=>{ if (DBG.enabled) render(); }, 500);
+  setInterval(()=>{
+    if (DBG.enabled){
+      render();
+      if (secRoles.style.display === 'block') renderRoles();
+    }
+  }, 500);
 
   // Start open if env says so
   document.addEventListener('DOMContentLoaded', ()=>{
