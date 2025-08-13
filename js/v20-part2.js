@@ -20,7 +20,10 @@ const MIN_TILE = 48;   // tamaño mínimo de casilla en px
 
 /* ==== Creación de casilla (estructura v11) ==== */
 function createTileElement(tile, index){
-  const el = document.createElement('div'); el.className='tile';
+  const el = document.createElement('div');
+  el.className = 'tile';
+  // Guarda el índice para poder identificar la casilla desde el DOM
+  el.dataset.idx = index;
   const band=document.createElement('div'); band.className='band'; band.style.background=colorFor(tile);
   const head=document.createElement('div'); head.className='head';
   const name=document.createElement('div'); name.className='name'; name.textContent=tile?.name||''; head.appendChild(name);

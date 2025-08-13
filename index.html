@@ -148,13 +148,6 @@
   startBtn?.addEventListener('click',()=>dlg.close());
 })();
 
-document.querySelectorAll('.tile').forEach(tile=>{
-  tile.addEventListener('click',()=>{ tile.classList.toggle('active'); });
-});
-document.querySelectorAll('.badge').forEach(badge=>{
-  badge.addEventListener('click',(e)=>{ e.stopPropagation(); badge.classList.toggle('active'); });
-});
-
 // legacy opcional del v15 (no hay .controls en este layout, se deja seguro)
 document.querySelector('.controls button.primary')?.addEventListener('click',()=>{ alert('El juego ha comenzado!'); });
 document.querySelector('.controls button:last-child')?.addEventListener('click',()=>{
@@ -199,10 +192,9 @@ function initGameBindings(){
   board?.addEventListener('click', (e) => {
     const tile = e.target.closest('.tile');
     if (!tile) return;
-    const tiles = Array.from(board.querySelectorAll('.tile'));
-    const idx = tiles.indexOf(tile);
+    const idx = Number(tile.dataset.idx);
     const ov = document.getElementById('overlay');
-    if (idx > -1 && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
+    if (!Number.isNaN(idx) && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
       window.showCard(idx);
     }
   });
