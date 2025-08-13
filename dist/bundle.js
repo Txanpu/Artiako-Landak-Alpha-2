@@ -4960,7 +4960,7 @@ if (typeof window.transfer === 'function'){
  *   govPeriod:8, govDuration:8,
  *   govLeft:{tax:0.25, interest:0.10, welfare:0.30},
  *   govRight:{tax:-0.20, welfare:-0.30, interest:0},
- *   dice0to9:false,
+ *   dice0to9:true,
  *   ui:{banner:true}
  */
 (function(){
@@ -4975,7 +4975,7 @@ if (typeof window.transfer === 'function'){
     CIVIL: 'civil'
   };
 
-  const defaultConfig = {$1dice0to9: false,
+  const defaultConfig = {$1dice0to9: true,
     securiAdvance: 150,
     securiTicks: 3,
     bankMaxTicks: 30,
