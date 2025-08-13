@@ -521,22 +521,22 @@ function drawAuction(){
   const sealed = !!a.sealed;
 
   let header = sealed
-    ? `<strong>Subasta (oculta): ${t.name}</strong> — Valor: ${fmtMoney(t.price)}<br><em>Pujas ocultas activas. Nadie ve quién va ganando ni cantidades.</em>`
+    ? `<div class="auctionHeader"><h3>Subasta (oculta): ${t.name}</h3><p>Valor: ${fmtMoney(t.price)}</p><p><em>Pujas ocultas activas. Nadie ve quién va ganando ni cantidades.</em></p></div>`
     : (()=> {
         const bestName = a.bestPlayer==='E'
           ? 'Estado'
           : (a.bestPlayer!=null ? state.players[a.bestPlayer].name : '-');
-        return `<strong>Subasta: ${t.name}</strong> — Valor: ${fmtMoney(t.price)}<br>
-                Mejor puja: <b>${bestName}</b> por <b>${fmtMoney(a.bestBid)}</b>`;
+        return `<div class="auctionHeader"><h3>Subasta: ${t.name}</h3><p>Valor: ${fmtMoney(t.price)}</p><p class="bestBid">Mejor puja: <b>${bestName}</b> por <b>${fmtMoney(a.bestBid)}</b></p></div>`;
       })();
 
   box.innerHTML = `
     ${header}
-    <div class="row" style="margin-top:8px">
+    <div class="auctionPlayers">
       ${players.map(p=>`
-        <div class="badge" data-p="${p.id}">
-          ${p.name} (${fmtMoney(p.money)})
-          <div class="row" style="margin-top:6px">
+        <div class="auctionPlayer ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" data-p="${p.id}">
+          <div class="name">${p.name}</div>
+          <div class="money">${fmtMoney(p.money)}</div>
+          <div class="controls">
             <button data-act="bid" data-step="10" data-p="${p.id}">+10</button>
             <button data-act="bid" data-step="50" data-p="${p.id}">+50</button>
             <button data-act="bid" data-step="100" data-p="${p.id}">+100</button>
@@ -545,7 +545,7 @@ function drawAuction(){
         </div>
       `).join('')}
     </div>
-    <div class="row" style="margin-top:8px">
+    <div class="auctionActions">
       <button id="awardAuction" class="primary">Adjudicar</button>
     </div>
   `;
