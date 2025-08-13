@@ -22,6 +22,9 @@ const MIN_TILE = 48;   // tamaño mínimo de casilla en px
 function createTileElement(tile, index){
   const el = document.createElement('div');
   el.className = 'tile';
+  // Allow keyboard focus and announce as a button
+  el.tabIndex = 0;
+  el.setAttribute('role', 'button');
   // Guarda el índice para poder identificar la casilla desde el DOM
   el.dataset.idx = index;
   const band=document.createElement('div'); band.className='band'; band.style.background=colorFor(tile);
@@ -33,6 +36,14 @@ function createTileElement(tile, index){
   const left=document.createElement('div'); left.className='left';
   const right=document.createElement('div'); right.className='right';
   meta.appendChild(left); meta.appendChild(right);
+
+  // Enable activating the tile with Enter/Space
+  el.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      el.click();
+    }
+  });
 
   el.addEventListener('click', ()=>{
     const current = V13.tiles[index];
