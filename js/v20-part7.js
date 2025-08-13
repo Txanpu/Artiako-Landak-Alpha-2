@@ -31,11 +31,25 @@ function groupTiles(t) {
   return TILES.map((x, i) => ({ x, i }))
     .filter(o => isNormalProp(o.x) && ((o.x.familia ?? o.x.color) === key));
 }
-function ownsFullGroup(p,t){ const g=groupTiles(t); return g.length && g.every(o=>o.x.owner===p.id); }
+function ownsFullGroup(p,t){
+  const g=groupTiles(t);
+  if(!g.length) return false;
+  const gov = window.Roles?.getGovernment?.();
+  if(gov==='libertarian'){
+    const owned = g.filter(o=>o.x.owner===p.id).length;
+    return owned>=2;
+  }
+  return g.every(o=>o.x.owner===p.id);
+}
 function anyMortgaged(g){ return g.some(o=>o.x.mortgaged); }
 function levelOf(x){ return x.hotel ? 5 : x.houses||0; } // 0..5 (5=hotel)
 function canBuildEven(t,p){
   const g = groupTiles(t);
+  const gov = window.Roles?.getGovernment?.();
+  if(gov==='libertarian'){
+    const ownsAll = g.every(o=>o.x.owner===p.id);
+    if(ownsAll) return !anyMortgaged(g);
+  }
   const min = Math.min(...g.map(o=>levelOf(o.x)));
   return levelOf(t)===min && !anyMortgaged(g);
 }

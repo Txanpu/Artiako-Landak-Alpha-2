@@ -336,6 +336,8 @@ async function onLand(p, idx){
             log(`${p.name} evita pagar alquiler.`);
           } else if (window.Roles?.shouldBlockRent?.()) {
             log('Huelga general: no se cobra alquiler.');
+          } else if (window.Roles?.shouldZeroRentForGender?.(payee.id, p.id)) {
+            log('YA SABRÁS POR QUÉ');
           } else {
             let redirectToEstado = false;
             let reason = `Alquiler en ${t.name}`;

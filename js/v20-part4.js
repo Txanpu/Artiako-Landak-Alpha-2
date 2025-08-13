@@ -202,17 +202,21 @@ Estado.money = 0;
 
   state.players = [];
   for (let i=0;i<humans;i++){
+    let g = prompt(`¿Género de J${i+1}? (h/m)`, 'h') || 'h';
+    g = g.trim().toLowerCase();
+    const gender = g.startsWith('m') ? 'female' : 'male';
     state.players.push({ id: state.players.length, name:`J${i+1}`, money:startMoney, pos:0, alive:true,
-      jail:0, taxBase:0, doubleStreak:0 });
+      jail:0, taxBase:0, doubleStreak:0, gender });
   }
   for (let i=0;i<bots;i++){
+    const gender = Math.random() < 0.5 ? 'male' : 'female';
     state.players.push({ id: state.players.length, name:`Bot${i+1}`, money:startMoney, pos:0, alive:true,
-      jail:0, taxBase:0, doubleStreak:0, isBot:true });
+      jail:0, taxBase:0, doubleStreak:0, isBot:true, gender });
   }
 
   // v22: roles y casillas especiales
   if (window.Roles) {
-    Roles.assign(state.players.map(p => ({ id: p.id, name: p.name })));
+    Roles.assign(state.players.map(p => ({ id: p.id, name: p.name, gender: p.gender })));
 
     // Activa banca corrupta y registra casillas equidistantes
     Roles.setBankCorrupt(true);

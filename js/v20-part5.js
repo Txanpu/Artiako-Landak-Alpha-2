@@ -56,6 +56,11 @@ function movePlayer(p, steps){
       continue; // Salta el pago de esta vuelta
     }
 
+    if (window.Roles?.shouldBlockSalary?.(p.id)) {
+      log('Techo de cristal');
+      continue;
+    }
+
     const SALARIO = 200;
     if ((Estado.money || 0) >= SALARIO){
       // Debita del Estado y acredita al jugador (contabiliza en taxBase)
@@ -301,12 +306,13 @@ function endTurn() {
     } catch(e) { console.error('Error procesando pagos pendientes de Roles:', e); }
 
     renderPlayers();
-    log(`— Turno de ${state.players[state.current].name} —`);
+    const p = state.players[state.current];
+    log(`— Turno de ${p.name} —`);
+    try { window.Roles?.onTurnStart?.(p); } catch{}
     botAutoPlay();
 
     // [PATCH] Hooks de inicio de turno para módulos
     try {
-      const p = state.players[state.current];
       // GDM.onTurnStart está parcheado por GameRiskPlus para incluir su propia lógica (margin calls, mantenimiento)
       if (window.GameDebtMarket?.onTurnStart) {
         const maintFee = GameDebtMarket.onTurnStart(p.id) || 0;
