@@ -25,6 +25,8 @@
  *      => {annulled:boolean, feeCharged:number, pNoAnnul:number}
  * 7) Gobierno:
  *    - Llama Roles.tickTurn() al cerrar cada turno.
+ *    - Roles.assign abre una votación inicial.
+ *    - Para iniciar votaciones manuales: Roles.openGovernmentElection()
  *    - Para fijar resultado de votación: Roles.setGovernment('left'|'right')
  *    - Multiplicadores disponibles: Roles.getTaxMultiplier(), Roles.getWelfareMultiplier(), Roles.getInterestMultiplier()
  * 8) Dados 0–9 (sin romper lo actual):
@@ -139,6 +141,19 @@
     });
   }
 
+  function openGovernmentElection(){
+    uiLog('🗳️ Votación de gobierno abierta');
+    if(typeof window.prompt !== 'function') return;
+    let s = window.prompt('Gobierno: left / right / authoritarian / libertarian', 'left');
+    if(!s){ uiLog('Voto cancelado'); return; }
+    s = s.trim().toLowerCase();
+    if(!['left','right','authoritarian','libertarian'].includes(s)){
+      uiLog('Voto cancelado');
+      return;
+    }
+    R.setGovernment(s);
+  }
+
   // —— Asignación de roles ——
   R.assign = function(players){
     state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero'}));
@@ -146,6 +161,10 @@
     state.fbiGuesses.clear();
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
+
+    state.turnCounter = 0;
+    state.government = null;
+    state.governmentTurnsLeft = 0;
 
     const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI, ROLE.OKUPA];
     const nRoles = Math.min(rolesPool.length, Math.round(state.players.length * (cfg.roleProbability||0)));
@@ -158,6 +177,7 @@
     ensureFlorentinoUses();
     saveState();
     uiUpdate();
+    openGovernmentElection();
   };
 
   R.get = function(player){ const id = (player&&player.id)||player; return roleOf(id); };
@@ -419,7 +439,7 @@
       }catch(e){}
     }
     if(state.turnCounter % cfg.govPeriod === 0){
-      uiLog('🗳️ Votación de gobierno abierta');
+      openGovernmentElection();
     }
     saveState(); uiUpdate();
   };
@@ -951,6 +971,7 @@
     uiUpdate();
   };
   R.ROLES = Object.assign({}, ROLE);
+  R.openGovernmentElection = openGovernmentElection;
 
   // === Eventos/CARTAS unificados ===
 // Llamas con el nombre que uses en tu mazo o en tus triggers de casilla.
