@@ -2339,25 +2339,7 @@ function awardAuction(){
     price    = bestV;
   }
 
-  // Impugnación por un tercero antes de adjudicar
-  try {
-    const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
-    if (who) {
-      const byId = Number(who) - 1;
-      const base = Math.max(1, t.price || 1);
-      const imbalance = Math.max(0, Math.min(1, (base - price) / base));
-      const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
-      if (res.annulled) {
-        alert('⚖️ Juez IA anula la adjudicación.');
-        $('#auction').style.display = 'none';
-        state.auction = null;
-        const endTurnBtn = document.getElementById('endTurn');
-        if (endTurnBtn) endTurnBtn.disabled = false;
-        updateTurnButtons();
-        return;
-      }
-    }
-  } catch {}
+  // La impugnación se limita a los intercambios: las subastas no pueden impugnarse
 
   // Ganó Estado
   if (winnerId==='E'){
@@ -2709,22 +2691,7 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       a.open = false;
 
       if (a.bestPlayer && a.bestBid > 0) {
-        // Impugnación por un tercero antes de adjudicar
-        try {
-          const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
-          if (who) {
-            const byId = Number(who) - 1;
-            const base = Math.max(1, a.price || 1);
-            const imbalance = Math.max(0, Math.min(1, (base - a.bestBid) / base));
-            const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
-            if (res.annulled) {
-              alert('⚖️ Juez IA anula la adjudicación.');
-              state.auction = null;
-              this._closeAuctionOverlay();
-              return;
-            }
-          }
-        } catch {}
+        // La impugnación solo aplica a intercambios, no a subastas
 
         if (a.kind === 'tile') {
           this._assignTileTo(a.assetId, a.bestPlayer, a.bestBid);
@@ -4850,14 +4817,20 @@ async function trade(){
       }
 
       // Impugnación por un tercero antes de ejecutar el trato
-      const who = prompt('Impugnación del J3/J4… (ID de jugador) o vacío para seguir', '');
+      const who = prompt('Impugnación de jugador externo (ID) o vacío para seguir', '');
       if (who) {
-        const byId = Number(who)-1;
-        // desbalance (0..1) según ganancia neta
-        const denom   = Math.max(1, Math.abs(myGain)+Math.abs(otGain));
-        const imbalance = Math.min(1, Math.abs(myGain-otGain)/denom);
-        const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled:false };
-        if (res.annulled) { alert('⚖️ Juez IA anula el trato.'); return; }
+        const byId = Number(who) - 1;
+        // Solo se permite impugnar a jugadores ajenos al intercambio
+        const challenger = state.players[byId];
+        if (byId === me.id || byId === other.id || !challenger || !challenger.alive) {
+          alert('Solo puede impugnar un jugador que no participe en el intercambio.');
+        } else {
+          // desbalance (0..1) según ganancia neta
+          const denom = Math.max(1, Math.abs(myGain) + Math.abs(otGain));
+          const imbalance = Math.min(1, Math.abs(myGain - otGain) / denom);
+          const res = window.Roles?.challengeDeal?.({ byId, imbalance }) || { annulled: false };
+          if (res.annulled) { alert('⚖️ Juez IA anula el trato.'); return; }
+        }
       }
 
   if (give>0 && me.money<give){ alert('No tienes suficiente dinero.'); return; }
