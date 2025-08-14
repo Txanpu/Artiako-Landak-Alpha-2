@@ -839,18 +839,24 @@ function transfer(from, to, amount, {taxable=false, reason=''}={}) {
   amount = Math.max(0, Math.floor(amount||0));
   if (amount <= 0) return;
 
+  let paid = amount;
+
   // Debitar
   if (from === Estado) {
-    Estado.money = Math.max(0, Math.round((Estado.money||0) - amount));
+    const available = Math.max(0, Math.round(Estado.money || 0));
+    paid = Math.min(available, amount);
+    Estado.money = available - paid;
   } else if (from) {
     giveMoney(from, -amount, {taxable, reason});
   }
 
+  if (paid <= 0) return;
+
   // Acreditar
   if (to === Estado) {
-    Estado.money = Math.round((Estado.money||0) + amount);
+    Estado.money = Math.round((Estado.money||0) + paid);
   } else if (to) {
-    giveMoney(to, amount, {taxable:false, reason});
+    giveMoney(to, paid, {taxable:false, reason});
   }
 
   renderPlayers?.();
