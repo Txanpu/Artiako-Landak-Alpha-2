@@ -5,7 +5,7 @@
 const V13_COLORS = {
   brown:'#8b5a2b', cyan:'#22d3ee', pink:'#f472b6', orange:'#fb923c',
   red:'#ef4444', yellow:'#eab308', green:'#22c55e', blue:'#3b82f6', slots:'#d946ef',
-  bank:'#b91c1c', event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
+  bank:'#991b1b', event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
   start:'#10b981', tax:'#f59e0b', park:'#22c55e', gotojail:'#ef4444', jail:'#111827'
 };
 function colorFor(tile){ if(!tile) return '#475569'; const k=(tile.color||tile.subtype||tile.type||'').toLowerCase(); return V13_COLORS[k]||'#475569'; }
@@ -46,6 +46,7 @@ function createTileElement(tile, index){
 /* ==== Refresco de una casilla ==== */
 function refreshTile(i){
   const t = V13.tiles[i], el = V13.els[i]; if(!t||!el) return;
+  el.classList.toggle('bank', t.type==='bank');
   // Borde dorado si está hipotecada
   el.classList.toggle('mortgaged', !!(t && t.type==='prop' && t.mortgaged));
   el.querySelector('.name').textContent = t.name || '';

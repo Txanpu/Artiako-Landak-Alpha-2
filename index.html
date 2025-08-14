@@ -57,6 +57,22 @@
     </form>
   </dialog>
 
+  <!-- menú acciones banca corrupta -->
+  <dialog id="bankMenu">
+    <form method="dialog" class="bank-menu">
+      <p>Banca corrupta: elige operación</p>
+      <div class="menu">
+        <button value="loan" class="primary">Préstamo corrupto</button>
+        <button value="securitize" id="bankMenuSecuritize">Securitizar alquileres</button>
+        <button value="debt">Mercado de deuda</button>
+        <button value="titulize">Titulizar préstamo</button>
+      </div>
+      <div class="row" style="margin-top:8px; justify-content:flex-end">
+        <button value="cancel">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- diálogo para confirmar intercambios -->
   <dialog id="dealDialog">
     <div id="dealDetails"></div>
