@@ -34,8 +34,8 @@ function createTileElement(tile, index){
   el.addEventListener('click', ()=>{
     const current = V13.tiles[index];
     if (current && typeof window.showCard === 'function'){
-      // Permitir iniciar subasta desde el click, si la propiedad está libre.
-      window.showCard(index); // por defecto canAuction=false
+      const opts = { canAuction: current.type === 'prop' && current.owner == null };
+      window.showCard(index, opts);
     }
   });
 

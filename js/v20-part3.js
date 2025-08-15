@@ -456,6 +456,11 @@ function showCard(tileIndex, {canAuction=false}={}) {
   if (cardBand) {
     cardBand.textContent = t?.name || '';
     cardBand.onclick = null;
+    try {
+      cardBand.style.background = (t?.type === 'prop') ? colorFor(t) : '#374151';
+    } catch {
+      cardBand.style.background = '#374151';
+    }
   }
 
   // Ocultar secciones específicas inicialmente

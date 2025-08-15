@@ -101,7 +101,8 @@
         <div class="title" id="cardName"></div>
         <div class="row" style="justify-content:space-between"><span class="muted">Precio</span><strong id="cardPrice"></strong></div>
         <div class="row" style="justify-content:space-between"><span class="muted">Alquiler base</span><strong id="cardRent"></strong></div>
-        <div class="row" style="justify-content:space-between"><span class="muted">Rendimiento</span><strong id="cardRoi"></strong></div>
+        <div class="row" style="justify-content:space-between"><span class="muted">Casa/Hotel</span><strong id="cardBuild"></strong></div>
+        <div id="cardRentsBox"></div>
         <div class="row" style="margin-top:10px">
           <button id="startAuction" class="primary">Iniciar subasta</button>
           <button id="cancelAuction">Cancelar</button>
@@ -183,6 +184,7 @@ function renderBoard(){
     if(t.type==='prop'){
       const pr=document.createElement('div'); pr.className='price'; pr.textContent=`${t.price} / R${t.baseRent}`; d.appendChild(pr);
       const b=document.createElement('div'); b.className='price'; b.textContent='🏠'.repeat(t.houses)+(t.hotel?' 🏨':''); d.appendChild(b);
+      d.addEventListener('click',()=>showCard(i));
     } else if (t.type==='tax'){
       const pr=document.createElement('div'); pr.className='price'; pr.textContent='3% ganancias'; d.appendChild(pr);
     } else if (t.type==='jail'){
@@ -296,8 +298,10 @@ function pass(pid){
 function maybeEstadoAutoBid(){ const a=state.auction; if(!a) return; const t=TILES[a.tile]; const target=Math.floor(t.price*1.2); if(a.bid<target && Estado.money>=a.bid+10){ setTimeout(()=>bid('E'),300); } }
 
 /* ===== Carta previa a subasta ===== */
-const overlay=document.getElementById('overlay'); const cardBand=document.getElementById('cardBand'); const cardName=document.getElementById('cardName'); const cardPrice=document.getElementById('cardPrice'); const cardRent=document.getElementById('cardRent'); const cardRoi=document.getElementById('cardRoi'); const startAuctionBtn=document.getElementById('startAuction'); const cancelAuctionBtn=document.getElementById('cancelAuction');
-function showCard(tileIndex){ const t=TILES[tileIndex]; state.pendingTile=tileIndex; cardBand.style.background = t.type==='prop'?COLORS[t.color]:'#374151'; cardName.textContent=t.name; cardPrice.textContent=`$${t.price}`; const rent=t.baseRent; cardRent.textContent=`$${rent}`; const roi=Math.round((rent/t.price)*1000)/10; cardRoi.textContent=`${roi}% por caída`; overlay.style.display='flex'; }
+const overlay=document.getElementById('overlay'); const cardBand=document.getElementById('cardBand'); const cardName=document.getElementById('cardName'); const cardPrice=document.getElementById('cardPrice'); const cardRent=document.getElementById('cardRent'); const cardBuild=document.getElementById('cardBuild'); const cardRentsBox=document.getElementById('cardRentsBox'); const startAuctionBtn=document.getElementById('startAuction'); const cancelAuctionBtn=document.getElementById('cancelAuction');
+function buildRentModel(t){ const base=t.baseRent, step=t.houseRent; return Array.from({length:6},(_,i)=>({label:i===5?'Hotel':i,rent:i===5?base+5*step:base+i*step})); }
+function renderRentsTable(model){ const rows=model.map(r=>`<tr><td>${r.label}</td><td style="text-align:right">$${r.rent}</td></tr>`).join(''); return `<table><thead><tr><th>Nº</th><th>Alquiler</th></tr></thead><tbody>${rows}</tbody></table>`; }
+function showCard(tileIndex){ const t=TILES[tileIndex]; state.pendingTile=tileIndex; cardBand.style.background = t.type==='prop'?COLORS[t.color]:'#374151'; cardName.textContent=t.name; cardPrice.textContent=`$${t.price}`; cardRent.textContent=`$${t.baseRent}`; const cost=t.houseCost; cardBuild.textContent=`Casa $${cost} · Hotel $${cost}`; cardRentsBox.innerHTML=renderRentsTable(buildRentModel(t)); overlay.style.display='flex'; }
 startAuctionBtn.onclick=()=>{ overlay.style.display='none'; if(state.pendingTile!=null){ startAuction(state.pendingTile); state.pendingTile=null; } };
 cancelAuctionBtn.onclick=()=>{ overlay.style.display='none'; state.pendingTile=null; log('Subasta cancelada.'); };
 overlay.addEventListener('click',e=>{ if(e.target===overlay){ overlay.style.display='none'; state.pendingTile=null; }});
