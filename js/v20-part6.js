@@ -146,6 +146,57 @@ function isEstadoCovered(tile){
   return false;
 }
 
+// === Fiesta clandestina ===
+const FIESTA_TILES = new Set([
+  'Pipi´s Bar',
+  'Artea',
+  'Atxarre',
+  'Casa Minte',
+  'Cocina Pablo',
+  'Garbigune',
+  'Medikue',
+  'Frontoie',
+  'Kastillue'
+]);
+
+async function maybeFiestaClandestina(p){
+  const tile = TILES[p.pos];
+  if(!tile || !FIESTA_TILES.has(tile.name)) return false;
+  if(Math.random() >= 0.30) return false;
+
+  function tileIndex(name){ return TILES.findIndex(t=>t.name===name); }
+  async function moveTo(name){
+    const idx = tileIndex(name);
+    if(idx >= 0){
+      p.pos = idx;
+      BoardUI.refreshTiles();
+      await onLand(p, idx);
+    }
+  }
+
+  const opts = [];
+  opts.push(async()=>{ log('Se ha complicado la fiesta, vas de after al Txoko.'); await moveTo('Txokoa'); });
+  if(p.gender === 'male'){
+    opts.push(async()=>{ log('No has ligado, asiue al Fiore.'); await moveTo('Fiore'); });
+  }
+  opts.push(async()=>{ log('Mandibulie eskapa yatzu hainbesteko puestadiegaz: vas a Klinika Dental Arteaga.'); await moveTo('Klinika Dental Arteaga'); });
+  opts.push(async()=>{ log('Has cogido el coche borracho y te has ostiado. Todo preocupado te escapas de la movida, y llamas al Padre de Jarein para que recoja el coche... en el siguiente turno apareces en Gruas Arego.'); p.pendingMove = tileIndex('Gruas Arego'); });
+  opts.push(async()=>{ log('Se te ha complicado y te has roto una farola. Vas a Farolak.'); await moveTo('Farolak'); });
+  opts.push(async()=>{
+    log('Se te cruzan los cables y te pones a matar pájaros en el Bird Center.');
+    if(Math.random() < 0.30){
+      log('Te pillan: vas a la cárcel.');
+      window.sendToJail?.(p);
+    } else {
+      await moveTo('Bird Center');
+    }
+  });
+
+  const action = opts[Math.floor(Math.random()*opts.length)];
+  await action();
+  return true;
+}
+
 async function onLand(p, idx){
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
   const t = TILES[idx];
@@ -312,6 +363,7 @@ async function onLand(p, idx){
     }
 
     case 'prop': {
+      if (await maybeFiestaClandestina(p)) break;
       if (t.subtype==='fiore' && window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('fiore')){
         log('Fiore cerrado por el gobierno.');
         break;

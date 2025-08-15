@@ -1040,12 +1040,12 @@ Estado.money = 0;
     else if (g.startsWith('he')) gender = 'helicoptero';
     else gender = 'male';
     state.players.push({ id: state.players.length, name:`J${i+1}`, money:startMoney, pos:0, alive:true,
-      jail:0, taxBase:0, doubleStreak:0, gender });
+      jail:0, taxBase:0, doubleStreak:0, gender, pendingMove:null });
   }
   for (let i=0;i<bots;i++){
     const gender = 'helicoptero';
     state.players.push({ id: state.players.length, name:`Bot${i+1}`, money:startMoney, pos:0, alive:true,
-      jail:0, taxBase:0, doubleStreak:0, isBot:true, gender });
+      jail:0, taxBase:0, doubleStreak:0, isBot:true, gender, pendingMove:null });
   }
 
   // v22: roles y casillas especiales
@@ -1202,6 +1202,13 @@ function movePlayer(p, steps){
 
 function roll(){
   const p = state.players[state.current]; if(!p || !p.alive) return;
+  if (p.pendingMove != null) {
+    p.pos = p.pendingMove;
+    p.pendingMove = null;
+    BoardUI?.refreshTiles?.();
+    log(`${p.name} aparece en ${TILES[p.pos].name}.`);
+    window.onLand?.(p, p.pos);
+  }
   if (p.skipTurns && p.skipTurns > 0) {
     p.skipTurns--;
     log(`${p.name} pierde el turno.`);
@@ -1510,7 +1517,7 @@ function saveGame(slot='slot1'){
     players: state.players.map(p=>({
       id: p.id, name: p.name, money: p.money, pos: p.pos,
       alive: !!p.alive, jail: p.jail||0, taxBase: p.taxBase||0,
-      doubleStreak:p.doubleStreak||0
+      doubleStreak:p.doubleStreak||0, pendingMove:p.pendingMove??null
     })),
     estado: { money: Math.floor(Estado.money||0) },
     owners: TILES.map(t => t.type==='prop' ? (t.owner ?? null) : null),
@@ -1533,7 +1540,10 @@ function loadGame(slot='slot1'){
   if (data.players) {
     state.players.forEach(p=>{
       const src = data.players.find(x=>x.id===p.id);
-      if (src) Object.assign(p, src);
+      if (src) {
+        Object.assign(p, src);
+        p.pendingMove = src.pendingMove ?? null;
+      }
     });
   }
 
@@ -1792,6 +1802,57 @@ function isEstadoCovered(tile){
   return false;
 }
 
+// === Fiesta clandestina ===
+const FIESTA_TILES = new Set([
+  'Pipi´s Bar',
+  'Artea',
+  'Atxarre',
+  'Casa Minte',
+  'Cocina Pablo',
+  'Garbigune',
+  'Medikue',
+  'Frontoie',
+  'Kastillue'
+]);
+
+async function maybeFiestaClandestina(p){
+  const tile = TILES[p.pos];
+  if(!tile || !FIESTA_TILES.has(tile.name)) return false;
+  if(Math.random() >= 0.30) return false;
+
+  function tileIndex(name){ return TILES.findIndex(t=>t.name===name); }
+  async function moveTo(name){
+    const idx = tileIndex(name);
+    if(idx >= 0){
+      p.pos = idx;
+      BoardUI.refreshTiles();
+      await onLand(p, idx);
+    }
+  }
+
+  const opts = [];
+  opts.push(async()=>{ log('Se ha complicado la fiesta, vas de after al Txoko.'); await moveTo('Txokoa'); });
+  if(p.gender === 'male'){
+    opts.push(async()=>{ log('No has ligado, asiue al Fiore.'); await moveTo('Fiore'); });
+  }
+  opts.push(async()=>{ log('Mandibulie eskapa yatzu hainbesteko puestadiegaz: vas a Klinika Dental Arteaga.'); await moveTo('Klinika Dental Arteaga'); });
+  opts.push(async()=>{ log('Has cogido el coche borracho y te has ostiado. Todo preocupado te escapas de la movida, y llamas al Padre de Jarein para que recoja el coche... en el siguiente turno apareces en Gruas Arego.'); p.pendingMove = tileIndex('Gruas Arego'); });
+  opts.push(async()=>{ log('Se te ha complicado y te has roto una farola. Vas a Farolak.'); await moveTo('Farolak'); });
+  opts.push(async()=>{
+    log('Se te cruzan los cables y te pones a matar pájaros en el Bird Center.');
+    if(Math.random() < 0.30){
+      log('Te pillan: vas a la cárcel.');
+      window.sendToJail?.(p);
+    } else {
+      await moveTo('Bird Center');
+    }
+  });
+
+  const action = opts[Math.floor(Math.random()*opts.length)];
+  await action();
+  return true;
+}
+
 async function onLand(p, idx){
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
   const t = TILES[idx];
@@ -1958,6 +2019,7 @@ async function onLand(p, idx){
     }
 
     case 'prop': {
+      if (await maybeFiestaClandestina(p)) break;
       if (t.subtype==='fiore' && window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('fiore')){
         log('Fiore cerrado por el gobierno.');
         break;

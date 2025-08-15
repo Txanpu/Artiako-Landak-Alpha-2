@@ -215,12 +215,12 @@ Estado.money = 0;
     else if (g.startsWith('he')) gender = 'helicoptero';
     else gender = 'male';
     state.players.push({ id: state.players.length, name:`J${i+1}`, money:startMoney, pos:0, alive:true,
-      jail:0, taxBase:0, doubleStreak:0, gender });
+      jail:0, taxBase:0, doubleStreak:0, gender, pendingMove:null });
   }
   for (let i=0;i<bots;i++){
     const gender = 'helicoptero';
     state.players.push({ id: state.players.length, name:`Bot${i+1}`, money:startMoney, pos:0, alive:true,
-      jail:0, taxBase:0, doubleStreak:0, isBot:true, gender });
+      jail:0, taxBase:0, doubleStreak:0, isBot:true, gender, pendingMove:null });
   }
 
   // v22: roles y casillas especiales

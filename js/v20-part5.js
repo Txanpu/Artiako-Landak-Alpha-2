@@ -81,6 +81,13 @@ function movePlayer(p, steps){
 
 function roll(){
   const p = state.players[state.current]; if(!p || !p.alive) return;
+  if (p.pendingMove != null) {
+    p.pos = p.pendingMove;
+    p.pendingMove = null;
+    BoardUI?.refreshTiles?.();
+    log(`${p.name} aparece en ${TILES[p.pos].name}.`);
+    window.onLand?.(p, p.pos);
+  }
   if (p.skipTurns && p.skipTurns > 0) {
     p.skipTurns--;
     log(`${p.name} pierde el turno.`);
@@ -389,7 +396,7 @@ function saveGame(slot='slot1'){
     players: state.players.map(p=>({
       id: p.id, name: p.name, money: p.money, pos: p.pos,
       alive: !!p.alive, jail: p.jail||0, taxBase: p.taxBase||0,
-      doubleStreak:p.doubleStreak||0
+      doubleStreak:p.doubleStreak||0, pendingMove:p.pendingMove??null
     })),
     estado: { money: Math.floor(Estado.money||0) },
     owners: TILES.map(t => t.type==='prop' ? (t.owner ?? null) : null),
@@ -412,7 +419,10 @@ function loadGame(slot='slot1'){
   if (data.players) {
     state.players.forEach(p=>{
       const src = data.players.find(x=>x.id===p.id);
-      if (src) Object.assign(p, src);
+      if (src) {
+        Object.assign(p, src);
+        p.pendingMove = src.pendingMove ?? null;
+      }
     });
   }
 
