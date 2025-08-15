@@ -865,14 +865,6 @@ async function tryCorruptLoan() {
         transfer(Estado, p, A, { taxable:false, reason:'Préstamo corrupto' });
         log('Préstamo OK: devolver ' + L.dueAmount + ' en T' + L.dueTurn + '.');
       }
-    } else if (opt === 'securitize') {
-      const S = window.Roles?.corruptBankSecuritize?.({ playerId: p.id });
-      if (!S?.ok) {
-        alert((S && S.reason) ? S.reason : 'No se pudo securitizar');
-      } else {
-        transfer(Estado, p, S.advance, { taxable:false, reason:'Securitización corrupta' });
-        log('Securitización: cobras ' + S.advance + ' ahora; durante ' + S.ticks + ' ticks tus alquileres van al Estado.');
-      }
     } else if (opt === 'debt') {
       const principal = Number(await promptDialog('Principal préstamo deuda:', '300'))||0;
       const rate = Number(await promptDialog('Tipo (%):', '20'))||0;

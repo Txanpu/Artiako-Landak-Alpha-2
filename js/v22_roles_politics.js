@@ -64,8 +64,6 @@
   const defaultConfig = {
     roleProbability: 0.50,
     dice0to9: false,
-    securiAdvance: 150,
-    securiTicks: 3,
     bankMaxTicks: 30,
     govPeriod: 7,
     govDuration: 7,
@@ -93,7 +91,6 @@
     governmentTurnsLeft: 0,
     authoritarianTick: 0,
     loans: [],
-    securitizations: new Map(),
     bankLandingAttempt: new Map(),
     powerOffTicks: 0,
     strikeTicks: 0,
@@ -391,27 +388,6 @@
     return arr;
   };
 
-  // —— Securitización en casilla de banca corrupta ——
-  R.corruptBankSecuritize = function({playerId, advance, ticks}){
-    const id = (playerId&&playerId.id)||playerId;
-    let entry = state.bankLandingAttempt.get(id);
-    const isFlorentino = roleOf(id)===ROLE.FLORENTINO;
-    if(isFlorentino && (!entry || entry.turn!==state.turnCounter)){
-      entry = { turn: state.turnCounter, attempted:false };
-      state.bankLandingAttempt.set(id, entry);
-    }
-    if(!entry){ return {ok:false, reason:'Solo en casilla de banca corrupta.'}; }
-    if(entry.turn!==state.turnCounter){ return {ok:false, reason:'Solo en el mismo turno.'}; }
-    if(entry.attempted){ return {ok:false, reason:'Ya hiciste una operación en esta caída.'}; }
-    entry.attempted = true;
-    const adv = Math.max(0, Number(advance||cfg.securiAdvance||150));
-    let T = Number(ticks||cfg.securiTicks||3); if(T<=0) T=1;
-    const until = state.turnCounter + T;
-    state.securitizations.set(id, until);
-    saveState(); uiUpdate();
-    return {ok:true, advance:adv, untilTurn:until, ticks:T};
-  };
-
   // —— Florentino: forzar trades + perks en préstamos ——
   R.getFlorentinoUsesLeft = function(player){ const id=(player&&player.id)||player; return state.florentinoUsesLeft.get(id)||0; };
 
@@ -595,7 +571,6 @@
         governmentTurnsLeft: state.governmentTurnsLeft,
         authoritarianTick: state.authoritarianTick,
         pendingPayments: state.pendingPayments||[],
-        securitizations: Array.from(state.securitizations||new Map()),
         pendingMoves: state.pendingMoves||[]
       };
       localStorage.setItem(LS_KEY, JSON.stringify(plain));
@@ -619,7 +594,6 @@
       state.governmentTurnsLeft = plain.governmentTurnsLeft||0;
       state.authoritarianTick = plain.authoritarianTick||0;
       state.pendingPayments = plain.pendingPayments||[];
-      state.securitizations = new Map(plain.securitizations||[]);
       state.pendingMoves = plain.pendingMoves||[];
       state.noRentFromWomen = new Set(plain.noRentFromWomen||[]);
     }catch(e){ /* noop */ }
@@ -665,7 +639,6 @@
       state.governmentTurnsLeft = obj.governmentTurnsLeft||0;
       state.authoritarianTick = obj.authoritarianTick||0;
       state.pendingPayments = obj.pendingPayments||[];
-      state.securitizations = new Map(obj.securitizations||[]);
       state.pendingMoves = obj.pendingMoves||[];
       state.noRentFromWomen = new Set(obj.noRentFromWomen||[]);
       saveState(); uiUpdate();
@@ -962,10 +935,6 @@
     return !!u && state.turnCounter <= u;
   };
   R.shouldRedirectRentToEstado = function(tileId){ return R.isEmbargoed(tileId); };
-  R.shouldRedirectRentToEstadoForOwner = function(ownerId){
-    const until = state.securitizations.get(ownerId);
-    return !!until && state.turnCounter <= until;
-  };
 
   // Auditoría de subvención: si Gobierno=izquierda, pagas 50 al Estado
   R.card_SUBV_AUDIT = function({playerId}){
@@ -1039,11 +1008,6 @@
     Array.from(state.embargoes.entries()).forEach(function(ent){
       var tid = ent[0], until = ent[1];
       if(state.turnCounter>until) state.embargoes.delete(tid);
-    });
-    // limpiar securitizaciones caducadas
-    Array.from(state.securitizations.entries()).forEach(function(ent){
-      var pid = ent[0], until = ent[1];
-      if(state.turnCounter>until) state.securitizations.delete(pid);
     });
     saveState(); uiUpdate();
   };
