@@ -536,7 +536,7 @@ const FUNNY = {
   gotojail: 'A la cárcel, a la cárcel, a la cárcel, a la cárcel, a la cárcel…',
   park:     'buen sitio pa fumar porros',
   slots:    'GANA GANA GANA!!!',
-  bank:     'Banca corrupta: pide préstamo o securitiza tus deudas.',
+  bank:     'Banca corrupta: pide préstamo o tituliza deudas.',
   default:  'Sin info, como tu madre...'
 };
 

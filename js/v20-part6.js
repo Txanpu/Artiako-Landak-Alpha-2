@@ -40,10 +40,6 @@ function showBankMenu(){
   return new Promise(resolve => {
     const dialog = document.getElementById('bankMenu');
     if (!dialog){ resolve(null); return; }
-    const securiBtn = document.getElementById('bankMenuSecuritize');
-    const ticks   = Roles && RolesConfig ? (RolesConfig.securiTicks||3) : 3;
-    const advance = Roles && RolesConfig ? (RolesConfig.securiAdvance||150) : 150;
-    if (securiBtn) securiBtn.textContent = `Securitizar alquileres (${ticks} ticks, anticipo ${advance})`;
     const handleClose = () => {
       dialog.removeEventListener('close', handleClose);
       const val = dialog.returnValue;
@@ -221,13 +217,6 @@ async function onLand(p, idx){
         else {
           transfer(Estado, getPlayerById(p.id), A, { taxable:false, reason:'Préstamo corrupto' });
           log('Préstamo OK: devolver ' + L.dueAmount + ' en T' + L.dueTurn + '.');
-        }
-      } else if (opt === 'securitize') {
-        const S = Roles.corruptBankSecuritize({ playerId: p.id });
-        if (!S || !S.ok) { alert((S && S.reason) ? S.reason : 'No se pudo securitizar'); }
-        else {
-          transfer(Estado, getPlayerById(p.id), S.advance, { taxable:false, reason:'Securitización corrupta' });
-          log('Securitización: cobras ' + S.advance + ' ahora; durante ' + S.ticks + ' ticks tus alquileres van al Estado.');
         }
       } else if (opt === 'debt') {
         const principal = Number(await promptDialog('Principal préstamo deuda:', '300'))||0;
@@ -508,12 +497,6 @@ async function onLand(p, idx){
               if (window.Roles?.shouldRedirectRentToEstado?.(idx)) {
                 redirectToEstado = true;
                 reason = 'Renta embargada';
-              }
-              // Securitización del PROPIETARIO (redirige TODAS sus rentas durante X ticks)
-              const ownerId = t.owner;
-              if (!redirectToEstado && window.Roles?.shouldRedirectRentToEstadoForOwner?.(ownerId)) {
-                redirectToEstado = true;
-                reason = 'Renta securitizada';
               }
             } catch (e) {}
 

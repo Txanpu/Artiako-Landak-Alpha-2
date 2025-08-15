@@ -771,7 +771,7 @@ const FUNNY = {
   gotojail: 'A la cárcel, a la cárcel, a la cárcel, a la cárcel, a la cárcel…',
   park:     'buen sitio pa fumar porros',
   slots:    'GANA GANA GANA!!!',
-  bank:     'Banca corrupta: pide préstamo o securitiza tus deudas.',
+  bank:     'Banca corrupta: pide préstamo o tituliza deudas.',
   default:  'Sin info, como tu madre...'
 };
 
@@ -1763,10 +1763,6 @@ function showBankMenu(){
   return new Promise(resolve => {
     const dialog = document.getElementById('bankMenu');
     if (!dialog){ resolve(null); return; }
-    const securiBtn = document.getElementById('bankMenuSecuritize');
-    const ticks   = Roles && RolesConfig ? (RolesConfig.securiTicks||3) : 3;
-    const advance = Roles && RolesConfig ? (RolesConfig.securiAdvance||150) : 150;
-    if (securiBtn) securiBtn.textContent = `Securitizar alquileres (${ticks} ticks, anticipo ${advance})`;
     const handleClose = () => {
       dialog.removeEventListener('close', handleClose);
       const val = dialog.returnValue;
@@ -1944,13 +1940,6 @@ async function onLand(p, idx){
         else {
           transfer(Estado, getPlayerById(p.id), A, { taxable:false, reason:'Préstamo corrupto' });
           log('Préstamo OK: devolver ' + L.dueAmount + ' en T' + L.dueTurn + '.');
-        }
-      } else if (opt === 'securitize') {
-        const S = Roles.corruptBankSecuritize({ playerId: p.id });
-        if (!S || !S.ok) { alert((S && S.reason) ? S.reason : 'No se pudo securitizar'); }
-        else {
-          transfer(Estado, getPlayerById(p.id), S.advance, { taxable:false, reason:'Securitización corrupta' });
-          log('Securitización: cobras ' + S.advance + ' ahora; durante ' + S.ticks + ' ticks tus alquileres van al Estado.');
         }
       } else if (opt === 'debt') {
         const principal = Number(await promptDialog('Principal préstamo deuda:', '300'))||0;
@@ -2232,12 +2221,6 @@ async function onLand(p, idx){
                 redirectToEstado = true;
                 reason = 'Renta embargada';
               }
-              // Securitización del PROPIETARIO (redirige TODAS sus rentas durante X ticks)
-              const ownerId = t.owner;
-              if (!redirectToEstado && window.Roles?.shouldRedirectRentToEstadoForOwner?.(ownerId)) {
-                redirectToEstado = true;
-                reason = 'Renta securitizada';
-              }
             } catch (e) {}
 
               const target = redirectToEstado ? Estado : payee;
@@ -2472,21 +2455,23 @@ function drawAuction(){
       })();
 
   box.innerHTML = `
-    ${header}
-    <div class="auctionPlayers">
-      ${players.map(p=>`
-        <div class="auctionPlayer btn-row ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" id="J${p.id+1}" data-p="${p.id}">
-          <div class="name">${p.name}</div>
-          <button data-act="bid" data-p="${p.id}" data-step="1">+1</button>
-          <button data-act="bid" data-p="${p.id}" data-step="10">+10</button>
-          <button data-act="bid" data-p="${p.id}" data-step="50">+50</button>
-          <button data-act="bid" data-p="${p.id}" data-step="100">+100</button>
-          <button data-act="pass" data-p="${p.id}">Pasar</button>
-        </div>
-      `).join('')}
-    </div>
-    <div class="auctionActions">
-      <button id="awardAuction" class="primary">Adjudicar</button>
+    <div class="auctionBox">
+      ${header}
+      <div class="auctionPlayers">
+        ${players.map(p=>`
+          <div class="auctionPlayer btn-row ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" id="J${p.id+1}" data-p="${p.id}">
+            <div class="name">${p.name}</div>
+            <button data-act="bid" data-p="${p.id}" data-step="1">+1</button>
+            <button data-act="bid" data-p="${p.id}" data-step="10">+10</button>
+            <button data-act="bid" data-p="${p.id}" data-step="50">+50</button>
+            <button data-act="bid" data-p="${p.id}" data-step="100">+100</button>
+            <button data-act="pass" data-p="${p.id}">Pasar</button>
+          </div>
+        `).join('')}
+      </div>
+      <div class="auctionActions">
+        <button id="awardAuction" class="primary">Adjudicar</button>
+      </div>
     </div>
   `;
 
@@ -5363,14 +5348,6 @@ async function tryCorruptLoan() {
         transfer(Estado, p, A, { taxable:false, reason:'Préstamo corrupto' });
         log('Préstamo OK: devolver ' + L.dueAmount + ' en T' + L.dueTurn + '.');
       }
-    } else if (opt === 'securitize') {
-      const S = window.Roles?.corruptBankSecuritize?.({ playerId: p.id });
-      if (!S?.ok) {
-        alert((S && S.reason) ? S.reason : 'No se pudo securitizar');
-      } else {
-        transfer(Estado, p, S.advance, { taxable:false, reason:'Securitización corrupta' });
-        log('Securitización: cobras ' + S.advance + ' ahora; durante ' + S.ticks + ' ticks tus alquileres van al Estado.');
-      }
     } else if (opt === 'debt') {
       const principal = Number(await promptDialog('Principal préstamo deuda:', '300'))||0;
       const rate = Number(await promptDialog('Tipo (%):', '20'))||0;
@@ -6362,8 +6339,6 @@ if (typeof window.transfer === 'function'){
   const defaultConfig = {
     roleProbability: 0.50,
     dice0to9: false,
-    securiAdvance: 150,
-    securiTicks: 3,
     bankMaxTicks: 30,
     govPeriod: 7,
     govDuration: 7,
@@ -6391,7 +6366,6 @@ if (typeof window.transfer === 'function'){
     governmentTurnsLeft: 0,
     authoritarianTick: 0,
     loans: [],
-    securitizations: new Map(),
     bankLandingAttempt: new Map(),
     powerOffTicks: 0,
     strikeTicks: 0,
@@ -6689,27 +6663,6 @@ if (typeof window.transfer === 'function'){
     return arr;
   };
 
-  // —— Securitización en casilla de banca corrupta ——
-  R.corruptBankSecuritize = function({playerId, advance, ticks}){
-    const id = (playerId&&playerId.id)||playerId;
-    let entry = state.bankLandingAttempt.get(id);
-    const isFlorentino = roleOf(id)===ROLE.FLORENTINO;
-    if(isFlorentino && (!entry || entry.turn!==state.turnCounter)){
-      entry = { turn: state.turnCounter, attempted:false };
-      state.bankLandingAttempt.set(id, entry);
-    }
-    if(!entry){ return {ok:false, reason:'Solo en casilla de banca corrupta.'}; }
-    if(entry.turn!==state.turnCounter){ return {ok:false, reason:'Solo en el mismo turno.'}; }
-    if(entry.attempted){ return {ok:false, reason:'Ya hiciste una operación en esta caída.'}; }
-    entry.attempted = true;
-    const adv = Math.max(0, Number(advance||cfg.securiAdvance||150));
-    let T = Number(ticks||cfg.securiTicks||3); if(T<=0) T=1;
-    const until = state.turnCounter + T;
-    state.securitizations.set(id, until);
-    saveState(); uiUpdate();
-    return {ok:true, advance:adv, untilTurn:until, ticks:T};
-  };
-
   // —— Florentino: forzar trades + perks en préstamos ——
   R.getFlorentinoUsesLeft = function(player){ const id=(player&&player.id)||player; return state.florentinoUsesLeft.get(id)||0; };
 
@@ -6893,7 +6846,6 @@ if (typeof window.transfer === 'function'){
         governmentTurnsLeft: state.governmentTurnsLeft,
         authoritarianTick: state.authoritarianTick,
         pendingPayments: state.pendingPayments||[],
-        securitizations: Array.from(state.securitizations||new Map()),
         pendingMoves: state.pendingMoves||[]
       };
       localStorage.setItem(LS_KEY, JSON.stringify(plain));
@@ -6917,7 +6869,6 @@ if (typeof window.transfer === 'function'){
       state.governmentTurnsLeft = plain.governmentTurnsLeft||0;
       state.authoritarianTick = plain.authoritarianTick||0;
       state.pendingPayments = plain.pendingPayments||[];
-      state.securitizations = new Map(plain.securitizations||[]);
       state.pendingMoves = plain.pendingMoves||[];
       state.noRentFromWomen = new Set(plain.noRentFromWomen||[]);
     }catch(e){ /* noop */ }
@@ -6963,7 +6914,6 @@ if (typeof window.transfer === 'function'){
       state.governmentTurnsLeft = obj.governmentTurnsLeft||0;
       state.authoritarianTick = obj.authoritarianTick||0;
       state.pendingPayments = obj.pendingPayments||[];
-      state.securitizations = new Map(obj.securitizations||[]);
       state.pendingMoves = obj.pendingMoves||[];
       state.noRentFromWomen = new Set(obj.noRentFromWomen||[]);
       saveState(); uiUpdate();
@@ -7260,10 +7210,6 @@ if (typeof window.transfer === 'function'){
     return !!u && state.turnCounter <= u;
   };
   R.shouldRedirectRentToEstado = function(tileId){ return R.isEmbargoed(tileId); };
-  R.shouldRedirectRentToEstadoForOwner = function(ownerId){
-    const until = state.securitizations.get(ownerId);
-    return !!until && state.turnCounter <= until;
-  };
 
   // Auditoría de subvención: si Gobierno=izquierda, pagas 50 al Estado
   R.card_SUBV_AUDIT = function({playerId}){
@@ -7337,11 +7283,6 @@ if (typeof window.transfer === 'function'){
     Array.from(state.embargoes.entries()).forEach(function(ent){
       var tid = ent[0], until = ent[1];
       if(state.turnCounter>until) state.embargoes.delete(tid);
-    });
-    // limpiar securitizaciones caducadas
-    Array.from(state.securitizations.entries()).forEach(function(ent){
-      var pid = ent[0], until = ent[1];
-      if(state.turnCounter>until) state.securitizations.delete(pid);
     });
     saveState(); uiUpdate();
   };
