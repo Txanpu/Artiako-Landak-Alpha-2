@@ -24,14 +24,26 @@ body{
   border: 1px solid var(--border);
 }
 
+html.mobile{
+  font-size:6.25%;
+}
 html.mobile body{
   grid-template-columns:1fr;
 }
 html.mobile .panel{
   position:static; width:auto; height:auto; top:auto; right:auto; overflow:visible;
+  padding-bottom:120px;
 }
 html.mobile .boardWrap{
   max-width:100%;
+  margin-bottom:120px;
+}
+html.mobile .actions{
+  position:fixed; bottom:0; left:0; right:0;
+  background:var(--panel);
+  border-top:1px solid var(--border);
+  padding:8px;
+  z-index:1000;
 }
 
 @media (max-width:900px){
