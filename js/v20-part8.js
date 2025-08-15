@@ -275,6 +275,7 @@
     'Trueque obligado': 'Intercambia una propiedad sin edificios con otro jugador del mismo color (si hay pareja).',
     'Bloqueo de hipoteca': 'El rival elegido no puede hipotecar durante 1 turno.',
     'Blackjack de 50': 'Mini-juego: si terminas con 20–21, cobras 120; si no, pagas 50.',
+    'Dardos amistosos': 'Mini-juego: todos lanzan dardos; el peor paga 50 al mejor.',
     'Congelar alquileres': 'Tope global de alquiler por cobro: 150 durante 2 turnos.',
     'Plan de obras': 'El Estado construye automáticamente casas en algunas de sus propiedades (si hay stock).',
     'Incendio leve': 'Pierdes 1 nivel de edificación en una propiedad (hotel pasa a 4 casas).',
@@ -416,6 +417,22 @@
         } else {
           transfer(p, Estado, 50, {taxable:false, reason:'Blackjack de 50 (pierde)'});
           log(`🃏 Blackjack: ${p.name} termina en ${total} → paga 50.`);
+        }
+    }},
+    { name: 'Dardos amistosos', run(p){
+        const players = (state.players||[]).filter(pl=>pl.alive);
+        if (players.length < 2) return log('Dardos: se necesitan al menos 2 jugadores.');
+        const scores = players.map(pl=> ({ pl, score: Math.floor(Math.random()*181) }));
+        scores.forEach(s=> log(`${s.pl.name} lanza y obtiene ${s.score} puntos.`));
+        scores.sort((a,b)=> b.score - a.score);
+        const best = scores.filter(s=> s.score === scores[0].score);
+        const worst = scores.filter(s=> s.score === scores[scores.length-1].score);
+        if (best.length === 1 && worst.length === 1 && best[0].pl.id !== worst[0].pl.id){
+          transfer(worst[0].pl, best[0].pl, 50, {taxable:false, reason:'Dardos amistosos'});
+          headline(`Dardos: ${best[0].pl.name} gana y recibe 50 de ${worst[0].pl.name}.`);
+          renderPlayers();
+        } else {
+          log('Dardos: empate, sin pagos.');
         }
     }},
     { name: 'Congelar alquileres', run(p){
