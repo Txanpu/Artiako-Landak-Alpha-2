@@ -86,10 +86,16 @@
       return new Promise((res,rej)=>{
         const ws = new WebSocket(wsUrl);
         this.ws = ws;
-        ws.onopen = ()=>{ this._send({ type:'join-room', room:this.room, id:this.id, role:this.role }); res(); };
+        ws.onopen = ()=>{ this._send({ type:'join-room', room:this.room, id:this.id, role:this.role }); this.status('Conectado'); res(); };
         ws.onmessage = (ev)=> this._onSignal(JSON.parse(ev.data||'{}'));
         ws.onerror = rej;
-        ws.onclose = ()=> this.status('WS cerrado');
+        ws.onclose = ()=>{
+          // Si aún apuntamos a este WS, intentar reconectar
+          if (this.ws === ws){
+            this.status('WS cerrado, reintentando...');
+            setTimeout(()=> this._connectWS(wsUrl).catch(()=>{}), 2000);
+          }
+        };
       });
     },
     _send(msg){
