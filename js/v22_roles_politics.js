@@ -91,6 +91,7 @@
     turnCounter: 0,
     government: null, // 'left'|'right'|'authoritarian'|'libertarian'|null
     governmentTurnsLeft: 0,
+    authoritarianTick: 0,
     loans: [],
     securitizations: new Map(),
     bankLandingAttempt: new Map(),
@@ -218,6 +219,7 @@
     state.turnCounter = 0;
     state.government = null;
     state.governmentTurnsLeft = 0;
+    state.authoritarianTick = 0;
 
     const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI, ROLE.OKUPA];
     const nRoles = Math.min(rolesPool.length, Math.round(state.players.length * (cfg.roleProbability||0)));
@@ -455,6 +457,18 @@
   R.tickTurn = function(){
     state.turnCounter++;
     state.noRentFromWomen.clear();
+    if(typeof Estado === 'object'){
+      if(state.government==='left' || state.government==='right'){
+        Estado.money = Math.round((Estado.money||0) * 1.03);
+      }else if(state.government==='authoritarian'){
+        state.authoritarianTick = (state.authoritarianTick||0) + 1;
+        if(state.authoritarianTick % 3 === 0){
+          Estado.money = Math.round((Estado.money||0) + 50);
+        }
+      }else{
+        state.authoritarianTick = 0;
+      }
+    }
     if(['left','right','authoritarian'].includes(state.government) && rand.chance(1/200)){
       if(typeof log === 'function') log('money printer go brrrrrrrr'); else uiLog('money printer go brrrrrrrr');
       if(typeof Estado === 'object') Estado.money = (Estado.money||0) + 800;
@@ -523,6 +537,7 @@
     if(!['left','right','authoritarian','libertarian'].includes(side)){ return false; }
     state.government = side;
     state.governmentTurnsLeft = cfg.govDuration;
+    state.authoritarianTick = 0;
     saveState(); uiUpdate();
     const names = {left:'de izquierdas', right:'de derechas', authoritarian:'autoritario', libertarian:'libertario'};
     uiLog(`🏛️ Gobierno ${names[side]} (${cfg.govDuration} turnos)`);
@@ -577,8 +592,9 @@
         bankCorrupt: state.bankCorrupt,
         turnCounter: state.turnCounter,
         government: state.government,
-        governmentTurnsLeft: state.governmentTurnsLeft,$1pendingPayments: state.pendingPayments||[],
-      securitizations: Array.from(state.securitizations||new Map()),
+        governmentTurnsLeft: state.governmentTurnsLeft,
+        authoritarianTick: state.authoritarianTick,
+        pendingPayments: state.pendingPayments||[],
         securitizations: Array.from(state.securitizations||new Map()),
         pendingMoves: state.pendingMoves||[]
       };
@@ -601,6 +617,7 @@
       state.turnCounter = plain.turnCounter||0;
       state.government = plain.government||null;
       state.governmentTurnsLeft = plain.governmentTurnsLeft||0;
+      state.authoritarianTick = plain.authoritarianTick||0;
       state.pendingPayments = plain.pendingPayments||[];
       state.securitizations = new Map(plain.securitizations||[]);
       state.pendingMoves = plain.pendingMoves||[];
@@ -620,6 +637,7 @@
       turnCounter: state.turnCounter,
       government: state.government,
       governmentTurnsLeft: state.governmentTurnsLeft,
+      authoritarianTick: state.authoritarianTick,
       corruptBankTiles: Array.from(state.corruptBankTiles||[]),
       bankLandingAttempt: Array.from(state.bankLandingAttempt||[]),
       loans: state.loans||[],
@@ -645,6 +663,7 @@
       state.turnCounter = obj.turnCounter||0;
       state.government = obj.government||null;
       state.governmentTurnsLeft = obj.governmentTurnsLeft||0;
+      state.authoritarianTick = obj.authoritarianTick||0;
       state.pendingPayments = obj.pendingPayments||[];
       state.securitizations = new Map(obj.securitizations||[]);
       state.pendingMoves = obj.pendingMoves||[];
