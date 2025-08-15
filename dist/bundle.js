@@ -608,7 +608,7 @@ let cardPriceRow, cardRentRow, cardBuildRow;
 let rentsBox, bankWarn, startAuctionBtn, cancelAuctionBtn;
 
 function initCardModal(){
-  if (overlay) return; // ya inicializado
+  // Re-obtener siempre los elementos por si el overlay fue reemplazado
   overlay       = document.getElementById('overlay');
   cardBand      = document.getElementById('cardBand');
   cardName      = document.getElementById('cardName');
@@ -1052,6 +1052,15 @@ function renderPlayers(){
   } catch(e) { console.warn('Error updating exercise option button', e); }
 
   try { updatePropertyButtons(); } catch(e){ console.warn('Error updating property buttons', e); }
+
+  // Enfocar en la casilla del jugador actual
+  try {
+    const pos = state.players[state.current]?.pos;
+    const tile = document.querySelector(`.tile:nth-child(${(pos|0)+1})`);
+    tile?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  } catch(e) {
+    console.warn('Error focusing current tile', e);
+  }
 }
 
 /* ===== Dados (pips y animación) ===== */
@@ -3350,6 +3359,7 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       },
       maybeBid(profileName, playerId){
         const s=GameExtras._cfg.state; const a=s.auction; if (!a || !a.open) return;
+        if (a.bestPlayer===playerId) return; // ya vamos ganando, no pujar de nuevo
         const prof=this.profiles[profileName||'value']; const p=(s.players||[]).find(x=>x.id===playerId); if(!p) return;
         const meta = (a.kind==='bundle') ? { tiles:a.bundleTiles } : (a.kind==='tile' ? GameExtras._getTile(a.assetId) : (a.kind==='loan' ? (s.loanListings||[]).find(x=>x.id===a.assetId): {}));
         const fair=this.estimateFair(a.kind, meta, playerId);
@@ -3783,7 +3793,7 @@ function animateTransportHop(player, fromIdx, toIdx, done){
         const stressed = Risk._detectStressedPlayers();
         if (!stressed.size) return;
         // Si el mejor postor actual está estresado, sube la puja hasta un cap
-        const targetId = a.bestPlayer; if (!targetId || !stressed.has(targetId)) return;
+        const targetId = a.bestPlayer; if (!targetId || targetId===botId || !stressed.has(targetId)) return;
         const fair = Risk._estimateFair(a);
         const colorAdj = Risk._colorAdjForAuction(a);
         const cap = Math.floor(fair * (1.15 + colorAdj)); // agresivo pero con tope
@@ -6405,6 +6415,22 @@ if (typeof window.transfer === 'function'){
     });
   }
 
+  function botGovernmentChoice(player, options){
+    const g = globalThis.state || {};
+    const real = (g.players||[]).find(pl=>pl.id===player.id) || {};
+    const money = real.money || 0;
+    const debt = (g.loans||[]).filter(l=> l.borrowerId===player.id)
+      .reduce((sum,l)=> sum + (l.principal + (l.accrued||0)), 0);
+    let best = options[0]?.value;
+    let bestScore = -Infinity;
+    for(const opt of options){
+      const gov = cfg['gov'+opt.value.charAt(0).toUpperCase()+opt.value.slice(1)] || {};
+      const score = (gov.welfare||0)*Math.max(0,200-money) - (gov.tax||0)*money - (gov.interest||0)*debt;
+      if(score>bestScore){ bestScore=score; best=opt.value; }
+    }
+    return best;
+  }
+
   async function openGovernmentElection(){
     uiLog('🗳️ Votación de gobierno abierta');
     const options = [
@@ -6415,7 +6441,12 @@ if (typeof window.transfer === 'function'){
     ];
     const votes = new Map();
     for(const p of state.players){
-      const choice = await window.promptChoice(`Voto de ${p.name}:`, options);
+      let choice;
+      if(p.isBot){
+        choice = botGovernmentChoice(p, options);
+      }else{
+        choice = await window.promptChoice(`Voto de ${p.name}:`, options);
+      }
       if(choice && options.some(o=>o.value===choice)){
         votes.set(choice, (votes.get(choice)||0)+1);
       }
@@ -6433,7 +6464,7 @@ if (typeof window.transfer === 'function'){
 
   // —— Asignación de roles ——
   R.assign = async function(players){
-    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero'}));
+    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero', isBot: !!p.isBot}));
     state.assignments.clear();
     state.fbiGuesses.clear();
     state.taxPot = 0;
