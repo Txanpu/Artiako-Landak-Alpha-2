@@ -2092,6 +2092,23 @@ async function onLand(p, idx){
         break;
       }
       if (t.owner === null){
+        const gov = window.Roles?.getGovernment?.();
+        if (gov === 'left') {
+          log('Con un gobierno de izquierdas no se pueden comprar ni subastar propiedades.');
+          return;
+        } else if (gov === 'authoritarian') {
+          const price = t.price || 0;
+          if ((p.money || 0) >= price) {
+            transfer(p, Estado, price, { taxable:false, reason:`Compra directa ${t.name}` });
+            t.owner = p.id;
+            t.mortgaged = false;
+            try { recomputeProps?.(); BoardUI.refreshTiles?.(); } catch {}
+            log(`${p.name} compra ${t.name} por ${price} sin subasta.`);
+          } else {
+            log(`${p.name} no tiene dinero para comprar ${t.name}.`);
+          }
+          return;
+        }
         // [PATCH] Nueva gestión de subastas con Debt Market
         if (window.GameDebtMarket && window.GameDebtMarket.onLandProperty) {
           GameDebtMarket.onLandProperty(idx, t);
