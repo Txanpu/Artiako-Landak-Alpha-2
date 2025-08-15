@@ -5,7 +5,7 @@
 const V13_COLORS = {
   brown:'#8b5a2b', cyan:'#22d3ee', pink:'#f472b6', orange:'#fb923c',
   red:'#ef4444', yellow:'#eab308', green:'#22c55e', blue:'#3b82f6', slots:'#d946ef',
-  bank:'#b91c1c', event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
+  bank:'#991b1b', event:'#a855f7', util:'#64748b', rail:'#94a3b8', ferry:'#60a5fa', air:'#0ea5e9',
   start:'#10b981', tax:'#f59e0b', park:'#22c55e', gotojail:'#ef4444', jail:'#111827'
 };
 function colorFor(tile){ if(!tile) return '#475569'; const k=(tile.color||tile.subtype||tile.type||'').toLowerCase(); return V13_COLORS[k]||'#475569'; }
@@ -46,6 +46,7 @@ function createTileElement(tile, index){
 /* ==== Refresco de una casilla ==== */
 function refreshTile(i){
   const t = V13.tiles[i], el = V13.els[i]; if(!t||!el) return;
+  el.classList.toggle('bank', t.type==='bank');
   // Borde dorado si está hipotecada
   el.classList.toggle('mortgaged', !!(t && t.type==='prop' && t.mortgaged));
   el.querySelector('.name').textContent = t.name || '';
@@ -1674,6 +1675,25 @@ function promptDialog(message, defaultValue = '') {
   });
 }
 
+// Menú de acciones al caer en banca corrupta
+function showBankMenu(){
+  return new Promise(resolve => {
+    const dialog = document.getElementById('bankMenu');
+    if (!dialog){ resolve(null); return; }
+    const securiBtn = document.getElementById('bankMenuSecuritize');
+    const ticks   = Roles && RolesConfig ? (RolesConfig.securiTicks||3) : 3;
+    const advance = Roles && RolesConfig ? (RolesConfig.securiAdvance||150) : 150;
+    if (securiBtn) securiBtn.textContent = `Securitizar alquileres (${ticks} ticks, anticipo ${advance})`;
+    const handleClose = () => {
+      dialog.removeEventListener('close', handleClose);
+      const val = dialog.returnValue;
+      resolve(val && val !== 'cancel' ? val : null);
+    };
+    dialog.addEventListener('close', handleClose, { once:true });
+    dialog.showModal();
+  });
+}
+
 // === [PATCH] Ajuste de alquileres con eventos ===
 function adjustRentForEvents(payer, tile, base){
   let rent = Math.max(0, Math.round(base||0));
@@ -1741,36 +1761,25 @@ async function onLand(p, idx){
   // Si es una casilla de banca corrupta: menú rápido
   if (t.type === 'bank') {
     try {
-      const opt = await promptDialog(
-        'Banca corrupta:\n'
-        + '1) Préstamo corrupto\n'
-        + '2) Securitizar alquileres ('
-        + (Roles && RolesConfig ? (RolesConfig.securiTicks||3) : 3) + ' ticks, anticipo '
-        + (Roles && RolesConfig ? (RolesConfig.securiAdvance||150) : 150)
-        + ')\n3) Mercado deuda (GameDebtMarket)\n'
-        + '4) Titulización de préstamo\n(Enter = nada)',
-        ''
-      );
-      if (opt === '1') {
+      const opt = await showBankMenu();
+      if (opt === 'loan') {
         const A = Number(await promptDialog('Importe del préstamo:', '300'))||0;
         const Rr = Number(await promptDialog('Tipo (%, ej 20):', '20'))||0;
         const Tt = Number(await promptDialog('Ticks (<=30):', '12'))||0;
         const L = Roles.requestCorruptLoan({ playerId: p.id, amount: A, rate: Rr, ticks: Tt, tileId: idx });
         if (!L || !L.accepted) { alert((L && L.reason) ? L.reason : 'Rechazado'); }
         else {
-          // abona el principal al jugador (dinero “sale” del Estado si quieres reflejarlo)
           transfer(Estado, getPlayerById(p.id), A, { taxable:false, reason:'Préstamo corrupto' });
           log('Préstamo OK: devolver ' + L.dueAmount + ' en T' + L.dueTurn + '.');
         }
-      } else if (opt === '2') {
+      } else if (opt === 'securitize') {
         const S = Roles.corruptBankSecuritize({ playerId: p.id });
         if (!S || !S.ok) { alert((S && S.reason) ? S.reason : 'No se pudo securitizar'); }
         else {
-          // anticipo al jugador y a partir de ahora sus alquileres van al Estado por S.ticks
           transfer(Estado, getPlayerById(p.id), S.advance, { taxable:false, reason:'Securitización corrupta' });
           log('Securitización: cobras ' + S.advance + ' ahora; durante ' + S.ticks + ' ticks tus alquileres van al Estado.');
         }
-      } else if (opt === '3') {
+      } else if (opt === 'debt') {
         const principal = Number(await promptDialog('Principal préstamo deuda:', '300'))||0;
         const rate = Number(await promptDialog('Tipo (%):', '20'))||0;
         const term = Number(await promptDialog('Plazo (turnos):', '12'))||0;
@@ -1784,7 +1793,7 @@ async function onLand(p, idx){
         GameDebtMarket.addLoan(L);
         transfer(Estado, getPlayerById(p.id), principal, { taxable:false, reason:'Préstamo mercado deuda' });
         log('Mercado deuda: préstamo ' + L.id + ' creado.');
-      } else if (opt === '4') {
+      } else if (opt === 'titulize') {
         const loanId = await promptDialog('ID préstamo a titulizar:', '');
         if (loanId) {
           try {
