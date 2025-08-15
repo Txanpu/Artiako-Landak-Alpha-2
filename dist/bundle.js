@@ -1884,10 +1884,12 @@ async function onLand(p, idx){
       playSlotsFree(p, t);
       break;
 
-    case 'event':
-      log(`🃏 ${p.name} cae en EVENTO.`);
-      try{ window.drawEvent?.(p); }catch(e){ log('Error al ejecutar evento.'); }
+    case 'event': {
+      const title = (t && t.name) ? t.name : 'Evento';
+      log(`🃏 ${p.name} cae en ${title.toUpperCase()}.`);
+      try { window.drawEvent?.(p, title); } catch (e) { log('Error al ejecutar evento.'); }
       break;
+    }
 
     case 'prop': {
       if (t.subtype==='fiore' && window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('fiore')){
@@ -2449,7 +2451,9 @@ function updateTurnButtons() {
       const landings = new Map(window.Roles.exportState().bankLandingAttempt || []);
       const landing = landings.get(p.id);
       const canTry = landing && landing.turn === state.turnCount && !landing.attempted;
-      btn.style.display = canTry ? '' : 'none';
+      const isFlorentino = window.Roles?.get?.(p.id) === 'florentino';
+      const bankOn = window.Roles?.isBankCorrupt?.();
+      btn.style.display = (canTry || (isFlorentino && bankOn)) ? '' : 'none';
     }
   } catch {}
 }
@@ -5107,28 +5111,59 @@ function playSlotsFree(player, tile){
 
 }
 
-function tryCorruptLoan() {
+async function tryCorruptLoan() {
   const p = state.players[state.current];
   if (!p) return;
   const idx = p.pos;
 
-  const A = Number(prompt('Importe préstamo corrupto:', '300'))||0;
-  if (A <= 0) return;
-  const R = Number(prompt('Tipo (%, ej 20):', '20'))||0;
-  const T = Number(prompt('Ticks (<=30):', '12'))||0;
-  const res = window.Roles?.requestCorruptLoan?.({
-    playerId: p.id,
-    amount: A,
-    rate: R,
-    ticks: T,
-    tileId: idx
-  });
-  if (!res?.accepted) {
-    alert((res?.reason || 'Préstamo rechazado.') + (res?.pAccept!=null ? ` (p≈${(res.pAccept*100|0)}%)` : ''));
-  } else {
-    giveMoney(p, A, { taxable:false, reason:'Préstamo corrupto' });
-    log(`Debe devolver ${fmtMoney(res.dueAmount)} al Estado en el turno ${res.dueTurn}.`);
-  }
+  try {
+    const opt = await showBankMenu();
+    if (opt === 'loan') {
+      const A = Number(await promptDialog('Importe del préstamo:', '300'))||0;
+      const Rr = Number(await promptDialog('Tipo (%, ej 20):', '20'))||0;
+      const Tt = Number(await promptDialog('Ticks (<=30):', '12'))||0;
+      const L = window.Roles?.requestCorruptLoan?.({ playerId: p.id, amount: A, rate: Rr, ticks: Tt, tileId: idx });
+      if (!L?.accepted) {
+        alert((L?.reason || 'Préstamo rechazado.') + (L?.pAccept!=null ? ` (p≈${(L.pAccept*100|0)}%)` : ''));
+      } else {
+        transfer(Estado, p, A, { taxable:false, reason:'Préstamo corrupto' });
+        log('Préstamo OK: devolver ' + L.dueAmount + ' en T' + L.dueTurn + '.');
+      }
+    } else if (opt === 'securitize') {
+      const S = window.Roles?.corruptBankSecuritize?.({ playerId: p.id });
+      if (!S?.ok) {
+        alert((S && S.reason) ? S.reason : 'No se pudo securitizar');
+      } else {
+        transfer(Estado, p, S.advance, { taxable:false, reason:'Securitización corrupta' });
+        log('Securitización: cobras ' + S.advance + ' ahora; durante ' + S.ticks + ' ticks tus alquileres van al Estado.');
+      }
+    } else if (opt === 'debt') {
+      const principal = Number(await promptDialog('Principal préstamo deuda:', '300'))||0;
+      const rate = Number(await promptDialog('Tipo (%):', '20'))||0;
+      const term = Number(await promptDialog('Plazo (turnos):', '12'))||0;
+      const L = GameDebtMarket.mkLoan({ borrowerId: p.id, lenderId: 'E', principal, ratePct: rate, termTurns: term });
+      GameDebtMarket.addLoan(L);
+      transfer(Estado, p, principal, { taxable:false, reason:'Préstamo mercado deuda' });
+      log('Mercado deuda: préstamo ' + L.id + ' creado.');
+    } else if (opt === 'titulize') {
+      const loanId = await promptDialog('ID préstamo a titulizar:', '');
+      if (loanId) {
+        try {
+          const shares = GameSecuritization.splitLoan(loanId, [
+            { ownerId: p.id, bips: 5000 },
+            { ownerId: 'E', bips: 5000 }
+          ]);
+          if (shares) {
+            log('Titulización OK: ' + shares.join(','));
+          } else {
+            alert('No se pudo titulizar');
+          }
+        } catch (e) {
+          alert('Error titulizando: ' + e.message);
+        }
+      }
+    }
+  } catch(e){}
 };
 function sendToJail(player = state.players[state.current]) {
   if (!player || !player.alive) return;
@@ -5766,7 +5801,7 @@ if (typeof window.transfer === 'function'){
   function ensureDeck(){ if (!state.eventDeck || !state.eventDeck.length) state.eventDeck = shuffle(EVENT_CARDS.slice()); }
 
   // Carta visible + ejecución del efecto
-  window.drawEvent = function(p){
+  window.drawEvent = function(p, titleOverride){
     let card = null;
     // [PATCH] Insider: usa el evento fijado si existe
     if (window.GameRiskPlus?.drawEventPatched) {
@@ -5780,8 +5815,12 @@ if (typeof window.transfer === 'function'){
     // El objeto card puede venir del deck o del patcher.
     // Buscamos la descripción en el mapa global.
     const text = card.desc || EVENT_DESCS[card.name] || '';
+    const title = titleOverride || card.name;
+    const body  = (titleOverride && titleOverride !== card.name)
+      ? `${card.name}: ${text}`
+      : text;
     log(`🃏 Evento: <b>${card.name}</b>`);
-    showEventCard(card.name, text).then(()=>{
+    showEventCard(title, body).then(()=>{
       try {
         if (typeof window.resolverCarta === 'function') {
           // v22: Lógica unificada de eventos y efectos
@@ -6098,6 +6137,7 @@ if (typeof window.transfer === 'function'){
     governmentTurnsLeft: 0,
     loans: [],
     securitizations: new Map(),
+    bankLandingAttempt: new Map(),
     powerOffTicks: 0,
     strikeTicks: 0,
     noRentFromWomen: new Set(),
@@ -6327,11 +6367,16 @@ if (typeof window.transfer === 'function'){
   };
   R.requestCorruptLoan = function({playerId, amount, rate, ticks, tileId}){
     const id = (playerId&&playerId.id)||playerId;
-    if(!state.bankLandingAttempt.has(id)) { return {accepted:false, reason:'Solo en casilla de préstamo corrupto.'}; }
-    const entry = state.bankLandingAttempt.get(id);
+    let entry = state.bankLandingAttempt.get(id);
+    const isFlorentino = roleOf(id)===ROLE.FLORENTINO;
+    if(isFlorentino && (!entry || entry.turn!==state.turnCounter)){
+      entry = { turn: state.turnCounter, attempted:false, tileId };
+      state.bankLandingAttempt.set(id, entry);
+    }
+    if(!entry){ return {accepted:false, reason:'Solo en casilla de préstamo corrupto.'}; }
     if(entry.turn!==state.turnCounter){ return {accepted:false, reason:'Solo en el mismo turno.'}; }
     if(entry.attempted){ return {accepted:false, reason:'Ya hiciste una operación en esta caída.'}; }
-    if(!entry.tileId || (typeof tileId!=='undefined' && entry.tileId!==tileId)){
+    if(!isFlorentino && (!entry.tileId || (typeof tileId!=='undefined' && entry.tileId!==tileId))){
       return {accepted:false, reason:'Debes pedirlo desde esa casilla.'};
     }
     entry.attempted = true;
@@ -6368,8 +6413,13 @@ if (typeof window.transfer === 'function'){
   // —— Securitización en casilla de banca corrupta ——
   R.corruptBankSecuritize = function({playerId, advance, ticks}){
     const id = (playerId&&playerId.id)||playerId;
-    if(!state.bankLandingAttempt.has(id)) { return {ok:false, reason:'Solo en casilla de banca corrupta.'}; }
-    const entry = state.bankLandingAttempt.get(id);
+    let entry = state.bankLandingAttempt.get(id);
+    const isFlorentino = roleOf(id)===ROLE.FLORENTINO;
+    if(isFlorentino && (!entry || entry.turn!==state.turnCounter)){
+      entry = { turn: state.turnCounter, attempted:false };
+      state.bankLandingAttempt.set(id, entry);
+    }
+    if(!entry){ return {ok:false, reason:'Solo en casilla de banca corrupta.'}; }
     if(entry.turn!==state.turnCounter){ return {ok:false, reason:'Solo en el mismo turno.'}; }
     if(entry.attempted){ return {ok:false, reason:'Ya hiciste una operación en esta caída.'}; }
     entry.attempted = true;

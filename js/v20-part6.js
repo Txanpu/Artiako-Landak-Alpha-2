@@ -806,7 +806,9 @@ function updateTurnButtons() {
       const landings = new Map(window.Roles.exportState().bankLandingAttempt || []);
       const landing = landings.get(p.id);
       const canTry = landing && landing.turn === state.turnCount && !landing.attempted;
-      btn.style.display = canTry ? '' : 'none';
+      const isFlorentino = window.Roles?.get?.(p.id) === 'florentino';
+      const bankOn = window.Roles?.isBankCorrupt?.();
+      btn.style.display = (canTry || (isFlorentino && bankOn)) ? '' : 'none';
     }
   } catch {}
 }
