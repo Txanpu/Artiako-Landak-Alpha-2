@@ -38,3 +38,5 @@ Desde esta versión se incluye un modo P2P básico. Usa **Compartir** para actua
 - `js/utils/overlay.js` permite alternar la visibilidad del overlay mediante teclado.
   El parámetro opcional `toggleKey` (por defecto `F2`) define la tecla usada. El overlay
   no se ocultará mientras haya una subasta activa para evitar interferencias.
+
+- El antiguo prototipo `mono_jail_dados.html` se integró en `index.html`, por lo que se eliminó el archivo redundante.
