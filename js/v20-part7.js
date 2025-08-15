@@ -1028,7 +1028,7 @@ window.sendToJail = sendToJail;
       state.pendingTile = null;
       state.usedTransportHop = false;
     }catch{}
-    log('⛑️ SafeBug: turno forzado.');
+    log('⛑️ SafeBug: JODER JODER KOITXAU PUTE BAT NAZ');
     // Llama al endTurn estándar (con nóminas, préstamos, etc.)
     window.endTurn?.();
     beat();
