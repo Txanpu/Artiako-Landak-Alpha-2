@@ -316,7 +316,8 @@ window.assignPlaceholderNamesAZ();
 /* ===== Estado de partida ===== */
 const Estado = { name:'Estado', money: 100, id:'E' }; // banca central
 window.Estado = Estado;
-const state = { players: [], current: 0, rolled: false, auction: null, pendingTile: null, loans: [], lastRoll: 0, _endingTurn: false };
+// Se añaden "options" para almacenar derivados de propiedades (call/put)
+const state = { players: [], current: 0, rolled: false, auction: null, pendingTile: null, loans: [], options: [], lastRoll: 0, _endingTurn: false };
 window.state = state;
 
 /* ===== Utilidades ===== */

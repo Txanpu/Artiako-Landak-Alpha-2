@@ -54,6 +54,45 @@ function showBankMenu(){
   });
 }
 
+async function exerciseOption(p){
+  if(!p) return;
+  const propName = await promptDialog('Nombre propiedad a ejercer:', '');
+  const idx = state.options.findIndex(o => o.property === propName && o.buyer === p.id);
+  if (idx < 0) {
+    alert('No posees opción sobre esa propiedad');
+    return;
+  }
+  const optData = state.options[idx];
+  const tile = TILES.find(t => t.name === optData.property);
+  const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
+  const seller = getPlayerById(optData.seller);
+  const buyer  = getPlayerById(optData.buyer);
+  if (optData.type === 'call') {
+    if (!tile || tile.owner !== optData.seller) {
+      alert('Propiedad no disponible para call');
+    } else if (buyer.money < optData.strike) {
+      alert('No tienes dinero para ejercer');
+    } else {
+      transfer(buyer, seller, optData.strike, { taxable:false, reason:`Ejercicio call ${tile.name}` });
+      tile.owner = optData.buyer;
+      state.options.splice(idx,1);
+      log(`${buyer.name} ejerce call sobre ${tile.name}.`);
+    }
+  } else if (optData.type === 'put') {
+    if (!tile || tile.owner !== optData.buyer) {
+      alert('No posees la propiedad para ejercer put');
+    } else if (seller.money < optData.strike) {
+      alert('Vendedor sin fondos');
+    } else {
+      transfer(seller, buyer, optData.strike, { taxable:false, reason:`Ejercicio put ${tile.name}` });
+      tile.owner = optData.seller;
+      state.options.splice(idx,1);
+      log(`${buyer.name} ejerce put sobre ${tile.name}.`);
+    }
+  }
+}
+window.exerciseOption = exerciseOption;
+
 // === [PATCH] Ajuste de alquileres con eventos ===
 function adjustRentForEvents(payer, tile, base){
   let rent = Math.max(0, Math.round(base||0));
@@ -169,6 +208,32 @@ async function onLand(p, idx){
           } catch (e) {
             alert('Error titulizando: ' + e.message);
           }
+        }
+      } else if (opt === 'options') {
+        const action = (await promptDialog('Operación (sell/exercise):', 'sell') || '').toLowerCase();
+        if (action === 'sell') {
+          const propName = await promptDialog('Nombre propiedad:', '');
+          const tile = TILES.find(t => t.name === propName && t.owner === p.id);
+          if (!tile) {
+            alert('No posees esa propiedad');
+          } else {
+            const typeOpt = (await promptDialog('Tipo (call/put):', 'call') || '').toLowerCase();
+            const strike = Number(await promptDialog('Precio ejercicio:', '100')) || 0;
+            const premium = Number(await promptDialog('Prima:', '10')) || 0;
+            const buyerId = await promptDialog('ID comprador:', '');
+            const buyer = state.players[buyerId];
+            if (!buyer) {
+              alert('Comprador inválido');
+            } else if (buyer.money < premium) {
+              alert('Comprador sin fondos');
+            } else {
+              transfer(buyer, getPlayerById(p.id), premium, { taxable:false, reason: `Prima opción ${typeOpt}` });
+              state.options.push({ property: tile.name, type: typeOpt, strike, premium, seller: p.id, buyer: buyerId });
+              log(`Opción ${typeOpt} sobre ${tile.name} vendida a ${buyer.name}.`);
+            }
+          }
+        } else if (action === 'exercise') {
+          await exerciseOption(p);
         }
       }
     } catch(e){}
