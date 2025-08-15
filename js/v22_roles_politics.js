@@ -28,7 +28,7 @@
  *    - Roles.assign abre una votación inicial.
  *    - Para iniciar votaciones manuales: Roles.openGovernmentElection()
  *    - Para fijar resultado de votación: Roles.setGovernment('left'|'right')
- *    - Multiplicadores disponibles: Roles.getTaxMultiplier(), Roles.getWelfareMultiplier(), Roles.getInterestMultiplier()
+ *    - Multiplicadores disponibles: Roles.getTaxMultiplier(), Roles.getWelfareMultiplier(), Roles.getInterestMultiplier(), Roles.getRentIVAMultiplier()
  * 8) Dados 0–9 (sin romper lo actual):
  *    - Si activas window.RolesConfig.dice0to9=true, puedes usar Roles.rollDie0to9() por dado.
  *    - Tras tirar dos dados d1,d2: const act = Roles.handleDiceSpecials({d1,d2,playerId})
@@ -39,8 +39,10 @@
  *   florentinoForceP:0.13, florentinoForceMax:5,
  *   judgeFee:50, judgeNoAnnulFloor:0.33,
  *   govPeriod:7, govDuration:7,
- *   govLeft:{tax:0.25, interest:0.10, welfare:0.30},
- *   govRight:{tax:-0.20, welfare:-0.30, interest:0},
+ *   govLeft:{tax:0.25, interest:0.10, welfare:0.30, rentIVA:0.30},
+ *   govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
+ *   govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
+ *   govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
  *   dice0to9:false,
  *   ui:{banner:true}
  */
@@ -70,10 +72,10 @@
     govPeriod: 7,
     govDuration: 7,
     roleReshufflePeriod: 20,
-    govLeft:{tax:0.25, welfare:0.30, interest:0.10},
-    govRight:{tax:-0.20, welfare:-0.30, interest:0},
-    govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05},
-    govLibertarian:{tax:-1, welfare:0, interest:-0.05},
+    govLeft:{tax:0.25, welfare:0.30, interest:0.10, rentIVA:0.30},
+    govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
+    govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
+    govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
     ui: { banner: true }
   };
 
@@ -551,6 +553,13 @@
     if(state.government==='right') return 1 + (cfg.govRight.tax||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.tax||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.tax||0);
+    return 1;
+  };
+  R.getRentIVAMultiplier = function(){
+    if(state.government==='left') return 1 + (cfg.govLeft.rentIVA||0);
+    if(state.government==='right') return 1 + (cfg.govRight.rentIVA||0);
+    if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.rentIVA||0);
+    if(state.government==='libertarian') return 1 + (cfg.govLibertarian.rentIVA||0);
     return 1;
   };
   R.getWelfareMultiplier = function(){
