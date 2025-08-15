@@ -113,15 +113,6 @@
   <!-- subasta y log fijos dentro del panel -->
   <div id="auction" class="auction" style="display:none"></div>
   <div class="log" id="log"></div>
-
-  <div id="chatBox" class="chat">
-    <div id="chatLog" class="chat-log"></div>
-    <div class="row chat-input">
-      <input id="chatInput" type="text" placeholder="Mensaje...">
-      <button id="chatSend" type="button">Enviar</button>
-    </div>
-  </div>
-
   <details class="rules" id="rules" style="display:none;">
     <summary>Reglas</summary>
     <ul>
@@ -197,30 +188,7 @@
     Net.join(joinRoom, wsUrl);
   }
 
-  const chatLog = document.getElementById('chatLog');
-  const chatInput = document.getElementById('chatInput');
-  const chatSend = document.getElementById('chatSend');
-
-  function appendChat(msg, from){
-    const who = (Net.playerNum && from===Net.id)
-      ? `J${Net.playerNum}`
-      : (Net.peers.get(from)?.num ? `J${Net.peers.get(from).num}` : from);
-    const line = document.createElement('div');
-    line.textContent = `${who}: ${msg}`;
-    chatLog?.appendChild(line);
-    if (chatLog) chatLog.scrollTop = chatLog.scrollHeight;
-  }
-  Net.onChat = appendChat;
-
-  function send(){
-    const msg = chatInput?.value.trim();
-    if (!msg) return;
-    Net.sendChat(msg);
-    chatInput.value='';
-  }
-  chatSend?.addEventListener('click', send);
-  chatInput?.addEventListener('keydown', (e)=>{ if (e.key==='Enter') send(); });
-})();
+  })();
 
 document.querySelectorAll('.tile').forEach((tile, idx) => {
   tile.addEventListener('click', (e) => {
