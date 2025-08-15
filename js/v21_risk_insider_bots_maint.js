@@ -153,7 +153,7 @@
         const stressed = Risk._detectStressedPlayers();
         if (!stressed.size) return;
         // Si el mejor postor actual está estresado, sube la puja hasta un cap
-        const targetId = a.bestPlayer; if (!targetId || !stressed.has(targetId)) return;
+        const targetId = a.bestPlayer; if (!targetId || targetId===botId || !stressed.has(targetId)) return;
         const fair = Risk._estimateFair(a);
         const colorAdj = Risk._colorAdjForAuction(a);
         const cap = Math.floor(fair * (1.15 + colorAdj)); // agresivo pero con tope
