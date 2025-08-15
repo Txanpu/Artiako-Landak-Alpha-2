@@ -749,21 +749,23 @@ function drawAuction(){
       })();
 
   box.innerHTML = `
-    ${header}
-    <div class="auctionPlayers">
-      ${players.map(p=>`
-        <div class="auctionPlayer btn-row ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" id="J${p.id+1}" data-p="${p.id}">
-          <div class="name">${p.name}</div>
-          <button data-act="bid" data-p="${p.id}" data-step="1">+1</button>
-          <button data-act="bid" data-p="${p.id}" data-step="10">+10</button>
-          <button data-act="bid" data-p="${p.id}" data-step="50">+50</button>
-          <button data-act="bid" data-p="${p.id}" data-step="100">+100</button>
-          <button data-act="pass" data-p="${p.id}">Pasar</button>
-        </div>
-      `).join('')}
-    </div>
-    <div class="auctionActions">
-      <button id="awardAuction" class="primary">Adjudicar</button>
+    <div class="auctionBox">
+      ${header}
+      <div class="auctionPlayers">
+        ${players.map(p=>`
+          <div class="auctionPlayer btn-row ${(!sealed && a.bestPlayer===p.id) ? 'leader' : ''}" id="J${p.id+1}" data-p="${p.id}">
+            <div class="name">${p.name}</div>
+            <button data-act="bid" data-p="${p.id}" data-step="1">+1</button>
+            <button data-act="bid" data-p="${p.id}" data-step="10">+10</button>
+            <button data-act="bid" data-p="${p.id}" data-step="50">+50</button>
+            <button data-act="bid" data-p="${p.id}" data-step="100">+100</button>
+            <button data-act="pass" data-p="${p.id}">Pasar</button>
+          </div>
+        `).join('')}
+      </div>
+      <div class="auctionActions">
+        <button id="awardAuction" class="primary">Adjudicar</button>
+      </div>
     </div>
   `;
 

@@ -95,10 +95,29 @@ button.primary{ background:#22c55e; border-color:#16a34a; color:#06280f; }
   gap:12px;
   z-index:1000;
 }
-.auctionHeader h3{ margin:0; font-size:1.5rem; }
-.auctionPlayers{ display:flex; flex-direction:column; gap:8px; width:100%; max-width:600px; }
 
-.auctionActions{ display:flex; justify-content:flex-end; width:100%; max-width:600px; }
+/* Contenedor del contenido de la subasta */
+.auctionBox{
+  background:#1f2937;
+  border:1px solid #374151;
+  border-radius:12px;
+  padding:24px;
+  width:100%;
+  max-width:600px;
+  box-shadow:0 10px 25px rgba(0,0,0,.6);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.auctionHeader{ text-align:center; }
+.auctionHeader h3{ margin:0; font-size:1.5rem; }
+.auctionPlayers{ display:flex; flex-direction:column; gap:8px; width:100%; }
+.auctionPlayer{ display:flex; align-items:center; gap:8px; }
+.auctionPlayer.leader{ background:#064e3b; border-radius:8px; }
+.auctionPlayer .name{ flex:1; }
+
+.auctionActions{ display:flex; justify-content:flex-end; width:100%; }
 .log{ background:#0d1117; border:1px solid #30363d; border-radius:12px; padding:10px; min-height:160px; max-height:380px; overflow:auto; font-family:ui-monospace,monospace; font-size:.9rem; flex-shrink:0 }
 
 /* diálogo de configuración */
