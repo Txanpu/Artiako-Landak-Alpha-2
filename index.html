@@ -224,8 +224,15 @@
   chatInput?.addEventListener('keydown', (e)=>{ if (e.key==='Enter') send(); });
 })();
 
-document.querySelectorAll('.tile').forEach(tile=>{
-  tile.addEventListener('click',()=>{ tile.classList.toggle('active'); });
+document.querySelectorAll('.tile').forEach((tile, idx) => {
+  tile.addEventListener('click', (e) => {
+    e.stopPropagation();
+    tile.classList.toggle('active');
+    const ov = document.getElementById('overlay');
+    if (typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
+      window.showCard(idx);
+    }
+  });
 });
 document.querySelectorAll('.badge').forEach(badge=>{
   badge.addEventListener('click',(e)=>{ e.stopPropagation(); badge.classList.toggle('active'); });
