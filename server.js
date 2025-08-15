@@ -1,3 +1,20 @@
+const errorMessage = 'JODER JODER KOITXAU PUTE BAT NAZ, DANA TXARTO URTETAN YAT';
+
+// Override console error output and unhandled errors to show a custom message
+console.error = () => {
+  console.log(errorMessage);
+};
+
+process.on('uncaughtException', () => {
+  console.log(errorMessage);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', () => {
+  console.log(errorMessage);
+  process.exit(1);
+});
+
 const { WebSocketServer } = require('ws');
 const wss = new WebSocketServer({ port: 8080 });
 const rooms = new Map(); // roomId -> Set(ws)
