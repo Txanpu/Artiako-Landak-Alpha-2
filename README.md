@@ -34,9 +34,21 @@ Artiako Landak es un juego de tablero que combina economía, subastas y roles op
 ## Juego en línea
 Desde esta versión se incluye un modo P2P básico con chat integrado. Usa **Compartir** para actuar como anfitrión (J1) y se generará un enlace que podrás enviar. Tus amigos pueden abrirlo y pulsar **Unirse** para conectarse como J2, J3, etc. El chat permite enviar mensajes rápidos entre jugadores durante la partida.
 
+Si la conexión WebSocket se pierde, el cliente intentará reconectarse automáticamente.
+
 ## Desarrollo
 - `js/utils/overlay.js` permite alternar la visibilidad del overlay mediante teclado.
   El parámetro opcional `toggleKey` (por defecto `F2`) define la tecla usada. El overlay
   no se ocultará mientras haya una subasta activa para evitar interferencias.
 
 - El antiguo prototipo `mono_jail_dados.html` se integró en `index.html`, por lo que se eliminó el archivo redundante.
+
+## Mejoras recomendadas
+
+Para facilitar la jugabilidad y el mantenimiento del proyecto se sugieren los siguientes cambios:
+
+- Reducir el tamaño del paquete JavaScript aplicando *tree‑shaking* o dividiendo el código en módulos para cargar solo lo necesario.
+- Mover la lógica incrustada en `index.html` a archivos independientes que permitan reutilizar componentes y probarlos por separado.
+- Validar los mensajes intercambiados en el servidor usando esquemas específicos por tipo para evitar datos corruptos o maliciosos.
+- Añadir soporte de gestos de pinza u otros controles que permitan hacer zoom en dispositivos táctiles.
+- Ajustar dinámicamente la altura mínima del tablero para adaptarse mejor a pantallas pequeñas.
