@@ -12,11 +12,16 @@ const $$ = (q)=>Array.from(document.querySelectorAll(q));
 // Diálogo con botones para elegir opciones
 function promptChoice(message, options){
   return new Promise(resolve => {
-    const dlg = document.getElementById('choiceDialog');
+    let dlg = document.getElementById('choiceDialog');
     if (!dlg){
-      const fallback = window.prompt(message, options?.[0]?.value || '');
-      resolve(fallback);
-      return;
+      dlg = document.createElement('dialog');
+      dlg.id = 'choiceDialog';
+      dlg.innerHTML = `
+        <form method="dialog" id="choiceForm">
+          <p id="choiceMessage"></p>
+          <div id="choiceButtons" class="row" style="margin-top:8px; justify-content:flex-end; flex-wrap:wrap; gap:8px;"></div>
+        </form>`;
+      document.body.appendChild(dlg);
     }
     const msg = document.getElementById('choiceMessage');
     const box = document.getElementById('choiceButtons');
