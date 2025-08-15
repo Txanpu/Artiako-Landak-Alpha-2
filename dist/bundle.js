@@ -2938,6 +2938,27 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       const t = tileObj || this._getTile(tileIndex);
       if (!t) return;
       if (t.owner == null) {
+        const gov = global.Roles?.getGovernment?.();
+        if (gov === 'authoritarian') {
+          const p = state.players?.[state.current];
+          const price = t.price || 0;
+          if (p && (p.money || 0) >= price) {
+            const transfer = safeGet('transfer');
+            const Estado = safeGet('Estado');
+            const recomputeProps = safeGet('recomputeProps');
+            const BoardUI = safeGet('BoardUI');
+            const log = safeGet('log');
+            try { transfer && Estado && transfer(p, Estado, price, { taxable:false, reason:`Compra directa ${t.name}` }); } catch {}
+            t.owner = p.id;
+            t.mortgaged = false;
+            try { recomputeProps && recomputeProps(); BoardUI?.refreshTiles?.(); } catch {}
+            try { log && log(`${p.name} compra ${t.name} por ${price} sin subasta.`); } catch {}
+          } else {
+            const log = safeGet('log');
+            try { log && log(`${p?.name || 'Jugador'} no tiene dinero para comprar ${t.name}.`); } catch {}
+          }
+          return;
+        }
         // Mostrar carta si existe API
         const showCard = safeGet('showCard');
         try { if (typeof showCard === 'function') showCard(tileIndex, { canAuction: true }); } catch (_) {}
@@ -6346,6 +6367,7 @@ if (typeof window.transfer === 'function'){
     bankMaxTicks: 30,
     govPeriod: 7,
     govDuration: 7,
+    roleReshufflePeriod: 20,
     govLeft:{tax:0.25, welfare:0.30, interest:0.10},
     govRight:{tax:-0.20, welfare:-0.30, interest:0},
     govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05},
@@ -6367,6 +6389,7 @@ if (typeof window.transfer === 'function'){
     turnCounter: 0,
     government: null, // 'left'|'right'|'authoritarian'|'libertarian'|null
     governmentTurnsLeft: 0,
+    authoritarianTick: 0,
     loans: [],
     securitizations: new Map(),
     bankLandingAttempt: new Map(),
@@ -6494,6 +6517,7 @@ if (typeof window.transfer === 'function'){
     state.turnCounter = 0;
     state.government = null;
     state.governmentTurnsLeft = 0;
+    state.authoritarianTick = 0;
 
     const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI, ROLE.OKUPA];
     const nRoles = Math.min(rolesPool.length, Math.round(state.players.length * (cfg.roleProbability||0)));
@@ -6731,6 +6755,18 @@ if (typeof window.transfer === 'function'){
   R.tickTurn = function(){
     state.turnCounter++;
     state.noRentFromWomen.clear();
+    if(typeof Estado === 'object'){
+      if(state.government==='left' || state.government==='right'){
+        Estado.money = Math.round((Estado.money||0) * 1.03);
+      }else if(state.government==='authoritarian'){
+        state.authoritarianTick = (state.authoritarianTick||0) + 1;
+        if(state.authoritarianTick % 3 === 0){
+          Estado.money = Math.round((Estado.money||0) + 50);
+        }
+      }else{
+        state.authoritarianTick = 0;
+      }
+    }
     if(['left','right','authoritarian'].includes(state.government) && rand.chance(1/200)){
       if(typeof log === 'function') log('money printer go brrrrrrrr'); else uiLog('money printer go brrrrrrrr');
       if(typeof Estado === 'object') Estado.money = (Estado.money||0) + 800;
@@ -6788,6 +6824,10 @@ if (typeof window.transfer === 'function'){
     if(state.turnCounter % cfg.govPeriod === 0){
       openGovernmentElection();
     }
+    if(cfg.roleReshufflePeriod > 0 && state.turnCounter % cfg.roleReshufflePeriod === 0){
+      R.reshuffle();
+      return;
+    }
     saveState(); uiUpdate();
   };
 
@@ -6795,6 +6835,7 @@ if (typeof window.transfer === 'function'){
     if(!['left','right','authoritarian','libertarian'].includes(side)){ return false; }
     state.government = side;
     state.governmentTurnsLeft = cfg.govDuration;
+    state.authoritarianTick = 0;
     saveState(); uiUpdate();
     const names = {left:'de izquierdas', right:'de derechas', authoritarian:'autoritario', libertarian:'libertario'};
     uiLog(`🏛️ Gobierno ${names[side]} (${cfg.govDuration} turnos)`);
@@ -6849,8 +6890,9 @@ if (typeof window.transfer === 'function'){
         bankCorrupt: state.bankCorrupt,
         turnCounter: state.turnCounter,
         government: state.government,
-        governmentTurnsLeft: state.governmentTurnsLeft,$1pendingPayments: state.pendingPayments||[],
-      securitizations: Array.from(state.securitizations||new Map()),
+        governmentTurnsLeft: state.governmentTurnsLeft,
+        authoritarianTick: state.authoritarianTick,
+        pendingPayments: state.pendingPayments||[],
         securitizations: Array.from(state.securitizations||new Map()),
         pendingMoves: state.pendingMoves||[]
       };
@@ -6873,6 +6915,7 @@ if (typeof window.transfer === 'function'){
       state.turnCounter = plain.turnCounter||0;
       state.government = plain.government||null;
       state.governmentTurnsLeft = plain.governmentTurnsLeft||0;
+      state.authoritarianTick = plain.authoritarianTick||0;
       state.pendingPayments = plain.pendingPayments||[];
       state.securitizations = new Map(plain.securitizations||[]);
       state.pendingMoves = plain.pendingMoves||[];
@@ -6892,6 +6935,7 @@ if (typeof window.transfer === 'function'){
       turnCounter: state.turnCounter,
       government: state.government,
       governmentTurnsLeft: state.governmentTurnsLeft,
+      authoritarianTick: state.authoritarianTick,
       corruptBankTiles: Array.from(state.corruptBankTiles||[]),
       bankLandingAttempt: Array.from(state.bankLandingAttempt||[]),
       loans: state.loans||[],
@@ -6917,6 +6961,7 @@ if (typeof window.transfer === 'function'){
       state.turnCounter = obj.turnCounter||0;
       state.government = obj.government||null;
       state.governmentTurnsLeft = obj.governmentTurnsLeft||0;
+      state.authoritarianTick = obj.authoritarianTick||0;
       state.pendingPayments = obj.pendingPayments||[];
       state.securitizations = new Map(obj.securitizations||[]);
       state.pendingMoves = obj.pendingMoves||[];

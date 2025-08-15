@@ -130,6 +130,27 @@
       const t = tileObj || this._getTile(tileIndex);
       if (!t) return;
       if (t.owner == null) {
+        const gov = global.Roles?.getGovernment?.();
+        if (gov === 'authoritarian') {
+          const p = state.players?.[state.current];
+          const price = t.price || 0;
+          if (p && (p.money || 0) >= price) {
+            const transfer = safeGet('transfer');
+            const Estado = safeGet('Estado');
+            const recomputeProps = safeGet('recomputeProps');
+            const BoardUI = safeGet('BoardUI');
+            const log = safeGet('log');
+            try { transfer && Estado && transfer(p, Estado, price, { taxable:false, reason:`Compra directa ${t.name}` }); } catch {}
+            t.owner = p.id;
+            t.mortgaged = false;
+            try { recomputeProps && recomputeProps(); BoardUI?.refreshTiles?.(); } catch {}
+            try { log && log(`${p.name} compra ${t.name} por ${price} sin subasta.`); } catch {}
+          } else {
+            const log = safeGet('log');
+            try { log && log(`${p?.name || 'Jugador'} no tiene dinero para comprar ${t.name}.`); } catch {}
+          }
+          return;
+        }
         // Mostrar carta si existe API
         const showCard = safeGet('showCard');
         try { if (typeof showCard === 'function') showCard(tileIndex, { canAuction: true }); } catch (_) {}
