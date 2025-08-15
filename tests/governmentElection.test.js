@@ -29,3 +29,19 @@ test('government election tie resolved randomly', async () => {
   assert.strictEqual(Roles.getGovernment(), 'right');
   Math.random = origRandom;
 });
+
+test('automatic government election occurs every 7 ticks', async () => {
+  const origRandom = Math.random;
+  Math.random = () => 0.5;
+  const votes = ['left', 'left', 'right', 'right', 'right', 'left'];
+  let i = 0;
+  window.promptChoice = async () => votes[i++];
+  await Roles.assign([{id:1},{id:2},{id:3}]);
+  assert.strictEqual(Roles.getGovernment(), 'left');
+  for (let t = 0; t < 7; t++) {
+    Roles.tickTurn();
+    await new Promise(r => setImmediate(r));
+  }
+  assert.strictEqual(Roles.getGovernment(), 'right');
+  Math.random = origRandom;
+});
