@@ -661,18 +661,35 @@ function showCard(tileIndex, {canAuction=false}={}) {
   const t = TILES[tileIndex];
   const st = window.state;
   if (st) st.pendingTile = tileIndex;
+  // Título por defecto
+  if (cardBand) {
+    cardBand.textContent = t?.name || '';
+    cardBand.onclick = null;
+  }
 
+  // Ocultar secciones específicas inicialmente
+  if (cardPriceRow) cardPriceRow.style.display = 'none';
+  if (cardRentRow)  cardRentRow.style.display  = 'none';
+  if (cardBuildRow) cardBuildRow.style.display = 'none';
+  if (startAuctionBtn) startAuctionBtn.style.display = 'none';
+
+  rentsBox.innerHTML = '';
+  bankWarn.className = 'muted';
+  bankWarn.textContent = FUNNY[t.type] || FUNNY.default;
 
   if (t.type === 'prop') {
-    cardBand.onclick = ()=>{
-      const nuevo = prompt('Nuevo nombre de la propiedad:', t.name||'');
-      if (nuevo && nuevo.trim()){
-        t.name = nuevo.trim();
-        savePropName(tileIndex, t.name);
-        cardBand.textContent = t.name;
-        BoardUI.refreshTile(tileIndex);
-      }
-    };
+    if (cardBand) {
+      cardBand.textContent = t.name;
+      cardBand.onclick = ()=>{
+        const nuevo = prompt('Nuevo nombre de la propiedad:', t.name||'');
+        if (nuevo && nuevo.trim()){
+          t.name = nuevo.trim();
+          savePropName(tileIndex, t.name);
+          cardBand.textContent = t.name;
+          BoardUI.refreshTile(tileIndex);
+        }
+      };
+    }
 
     // vehículos y utilities: ocultar “Renta base”, pero mostrar tabla
     const isVehicleOrUtil = ['rail','bus','ferry','air','utility'].includes(t.subtype);
@@ -693,11 +710,7 @@ function showCard(tileIndex, {canAuction=false}={}) {
       if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
     }
 
-
-    const msg = FUNNY[t.type] || FUNNY.default;
-    bankWarn.className = 'muted';
-    bankWarn.textContent = msg;
-    rentsBox.innerHTML = '';
+    if (startAuctionBtn) startAuctionBtn.style.display = canAuction ? '' : 'none';
   }
   overlay.style.display = 'flex';
 }
@@ -1161,7 +1174,7 @@ function movePlayer(p, steps){
   window.onLand?.(p, np);
 }
 
-function roll(){
+async function roll(){
   const p = state.players[state.current]; if(!p || !p.alive) return;
   if (p.skipTurns && p.skipTurns > 0) {
     p.skipTurns--;
@@ -1171,12 +1184,17 @@ function roll(){
   }
   if (state.rolled){ log('Ya has tirado este turno.'); return; }
     if (p.jail > 0){
-      // Elegir: pagar o intentar dobles
-      let choice = prompt(`Estás en la cárcel (${p.jail} turno(s)). Escribe "pagar" para salir por $50 o "tirar" para intentar dobles.`, 'tirar');
-      choice = (choice||'').trim().toLowerCase();
+      // Elegir: pagar o intentar dobles usando botones
+      const choice = await promptChoice(
+        `Estás en la cárcel (${p.jail} turno(s)). ¿Qué quieres hacer?`,
+        [
+          { label: 'Pagar $50', value: 'pagar' },
+          { label: 'Tirar dados', value: 'tirar' }
+        ]
+      );
 
       let paid = false;
-      if (choice.startsWith('p')) {
+      if (choice === 'pagar') {
         if (p.money < 50) {
           alert('No te llega para pagar 50. Debes intentar dobles.');
         } else {
@@ -1707,10 +1725,8 @@ async function onLand(p, idx){
   if (window.UIX?.track.onLand) UIX.track.onLand(idx);
 
   // Si es una casilla de banca corrupta: menú rápido
-  try {
-    const st = Roles.exportState ? Roles.exportState() : null;
-    const cbt = st && st.corruptBankTiles || [];
-    if (Array.isArray(cbt) && cbt.indexOf(idx) !== -1) {
+  if (t.type === 'bank') {
+    try {
       const opt = await promptDialog(
         'Banca corrupta:\n'
         + '1) Préstamo corrupto\n'
@@ -1772,8 +1788,8 @@ async function onLand(p, idx){
           }
         }
       }
-    }
-  } catch(e){}
+    } catch(e){}
+  }
 
   switch(t.type){
     case 'start':
@@ -6047,6 +6063,8 @@ if (typeof window.transfer === 'function'){
  *      => {annulled:boolean, feeCharged:number, pNoAnnul:number}
  * 7) Gobierno:
  *    - Llama Roles.tickTurn() al cerrar cada turno.
+ *    - Roles.assign abre una votación inicial.
+ *    - Para iniciar votaciones manuales: Roles.openGovernmentElection()
  *    - Para fijar resultado de votación: Roles.setGovernment('left'|'right')
  *    - Multiplicadores disponibles: Roles.getTaxMultiplier(), Roles.getWelfareMultiplier(), Roles.getInterestMultiplier()
  * 8) Dados 0–9 (sin romper lo actual):
@@ -6161,6 +6179,19 @@ if (typeof window.transfer === 'function'){
     });
   }
 
+  function openGovernmentElection(){
+    uiLog('🗳️ Votación de gobierno abierta');
+    if(typeof window.prompt !== 'function') return;
+    let s = window.prompt('Gobierno: left / right / authoritarian / libertarian', 'left');
+    if(!s){ uiLog('Voto cancelado'); return; }
+    s = s.trim().toLowerCase();
+    if(!['left','right','authoritarian','libertarian'].includes(s)){
+      uiLog('Voto cancelado');
+      return;
+    }
+    R.setGovernment(s);
+  }
+
   // —— Asignación de roles ——
   R.assign = function(players){
     state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero'}));
@@ -6168,6 +6199,10 @@ if (typeof window.transfer === 'function'){
     state.fbiGuesses.clear();
     state.taxPot = 0;
     state.fbiAllKnownReady = false;
+
+    state.turnCounter = 0;
+    state.government = null;
+    state.governmentTurnsLeft = 0;
 
     const rolesPool = [ROLE.PROXENETA, ROLE.FLORENTINO, ROLE.FBI, ROLE.OKUPA];
     const nRoles = Math.min(rolesPool.length, Math.round(state.players.length * (cfg.roleProbability||0)));
@@ -6180,6 +6215,7 @@ if (typeof window.transfer === 'function'){
     ensureFlorentinoUses();
     saveState();
     uiUpdate();
+    openGovernmentElection();
   };
 
   R.get = function(player){ const id = (player&&player.id)||player; return roleOf(id); };
@@ -6441,7 +6477,7 @@ if (typeof window.transfer === 'function'){
       }catch(e){}
     }
     if(state.turnCounter % cfg.govPeriod === 0){
-      uiLog('🗳️ Votación de gobierno abierta');
+      openGovernmentElection();
     }
     saveState(); uiUpdate();
   };
@@ -6973,6 +7009,7 @@ if (typeof window.transfer === 'function'){
     uiUpdate();
   };
   R.ROLES = Object.assign({}, ROLE);
+  R.openGovernmentElection = openGovernmentElection;
 
   // === Eventos/CARTAS unificados ===
 // Llamas con el nombre que uses en tu mazo o en tus triggers de casilla.

@@ -79,7 +79,7 @@ function movePlayer(p, steps){
   window.onLand?.(p, np);
 }
 
-function roll(){
+async function roll(){
   const p = state.players[state.current]; if(!p || !p.alive) return;
   if (p.skipTurns && p.skipTurns > 0) {
     p.skipTurns--;
@@ -89,12 +89,17 @@ function roll(){
   }
   if (state.rolled){ log('Ya has tirado este turno.'); return; }
     if (p.jail > 0){
-      // Elegir: pagar o intentar dobles
-      let choice = prompt(`Estás en la cárcel (${p.jail} turno(s)). Escribe "pagar" para salir por $50 o "tirar" para intentar dobles.`, 'tirar');
-      choice = (choice||'').trim().toLowerCase();
+      // Elegir: pagar o intentar dobles usando botones
+      const choice = await promptChoice(
+        `Estás en la cárcel (${p.jail} turno(s)). ¿Qué quieres hacer?`,
+        [
+          { label: 'Pagar $50', value: 'pagar' },
+          { label: 'Tirar dados', value: 'tirar' }
+        ]
+      );
 
       let paid = false;
-      if (choice.startsWith('p')) {
+      if (choice === 'pagar') {
         if (p.money < 50) {
           alert('No te llega para pagar 50. Debes intentar dobles.');
         } else {

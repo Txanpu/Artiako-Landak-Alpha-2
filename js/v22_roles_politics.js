@@ -157,19 +157,21 @@
     });
   }
 
-  function openGovernmentElection(){
+  async function openGovernmentElection(){
     uiLog('🗳️ Votación de gobierno abierta');
-    if(typeof window.prompt !== 'function') return;
-    const options = ['left','right','authoritarian','libertarian'];
+    const options = [
+      { value:'left', label:'Izquierda' },
+      { value:'right', label:'Derecha' },
+      { value:'authoritarian', label:'Autoritario' },
+      { value:'libertarian', label:'Libertario' }
+    ];
     const votes = new Map();
-    state.players.forEach(p=>{
-      let s = window.prompt(`Voto de ${p.name}: left / right / authoritarian / libertarian`, 'left');
-      if(!s) return;
-      s = s.trim().toLowerCase();
-      if(options.includes(s)){
-        votes.set(s, (votes.get(s)||0)+1);
+    for(const p of state.players){
+      const choice = await window.promptChoice(`Voto de ${p.name}:`, options);
+      if(choice && options.some(o=>o.value===choice)){
+        votes.set(choice, (votes.get(choice)||0)+1);
       }
-    });
+    }
     if(votes.size===0){ uiLog('Votación sin votos válidos'); return; }
     let max = 0;
     const winners = [];
@@ -182,7 +184,7 @@
   }
 
   // —— Asignación de roles ——
-  R.assign = function(players){
+  R.assign = async function(players){
     state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero'}));
     state.assignments.clear();
     state.fbiGuesses.clear();
@@ -212,15 +214,15 @@
     ensureFlorentinoUses();
     saveState();
     uiUpdate();
-    openGovernmentElection();
+    await openGovernmentElection();
   };
 
   R.get = function(player){ const id = (player&&player.id)||player; return roleOf(id); };
   R.is = function(player, role){ return R.get(player)===role; };
 
-  R.reshuffle = function(){
+  R.reshuffle = async function(){
     const players = [...state.players];
-    R.assign(players);
+    await R.assign(players);
     state.fbiAllKnownReady = false;
     state.fbiGuesses.clear();
     saveState();
