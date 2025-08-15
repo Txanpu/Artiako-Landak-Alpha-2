@@ -2327,7 +2327,8 @@ function startAuctionFlow(tileIndex, opts = {}){
     timer: null
   };
 
-  box.style.display = 'block';
+  // Mostrar overlay centrado utilizando flexbox
+  box.style.display = 'flex';
   drawAuction();
   // Arrancar puja automática del Estado
   maybeStateAutoBid();
