@@ -470,9 +470,11 @@ function showCard(tileIndex, {canAuction=false}={}) {
   if (cardBuildRow) cardBuildRow.style.display = 'none';
   if (startAuctionBtn) startAuctionBtn.style.display = 'none';
 
-  rentsBox.innerHTML = '';
-  bankWarn.className = 'muted';
-  bankWarn.textContent = FUNNY[t.type] || FUNNY.default;
+  if (rentsBox) rentsBox.innerHTML = '';
+  if (bankWarn){
+    bankWarn.className = 'muted';
+    bankWarn.textContent = FUNNY[t.type] || FUNNY.default;
+  }
 
   if (t.type === 'prop') {
     if (cardBand) {
@@ -495,21 +497,21 @@ function showCard(tileIndex, {canAuction=false}={}) {
     if (cardRentRow)  cardRentRow.style.display  = (isVehicleOrUtil || isNoBuildings) ? 'none' : 'flex';
     if (cardBuildRow) cardBuildRow.style.display = (!isVehicleOrUtil && !isNoBuildings) ? 'flex' : 'none';
 
-    cardPrice.textContent = fmtMoney(t.price);
+    if (cardPrice) cardPrice.textContent = fmtMoney(t.price);
 
     // siempre que haya modelo, mostrar tabla (incluye vehículos)
     const model = buildRentModel(t);
-    rentsBox.innerHTML = (Array.isArray(model) && model.length) ? renderRentsTable(model) : '';
+    if (rentsBox) rentsBox.innerHTML = (Array.isArray(model) && model.length) ? renderRentsTable(model) : '';
 
     if (!isVehicleOrUtil && !isNoBuildings){
-      cardRent.textContent = fmtMoney(t.baseRent ?? Math.round((t.price||0)*0.3));
+      if (cardRent) cardRent.textContent = fmtMoney(t.baseRent ?? Math.round((t.price||0)*0.3));
       const cost = t.houseCost ?? Math.round((t.price||0)*0.5);
       if (cardBuild) cardBuild.textContent = `Casa ${fmtMoney(cost)} · Hotel ${fmtMoney(cost)}`;
     }
 
     if (startAuctionBtn) startAuctionBtn.style.display = canAuction ? '' : 'none';
   }
-  overlay.style.display = 'flex';
+  if (overlay) overlay.style.display = 'flex';
 }
 
 if (typeof window.renderRentsTable !== 'function'){
