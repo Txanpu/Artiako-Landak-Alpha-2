@@ -480,7 +480,7 @@
   function ensureDeck(){ if (!state.eventDeck || !state.eventDeck.length) state.eventDeck = shuffle(EVENT_CARDS.slice()); }
 
   // Carta visible + ejecución del efecto
-  window.drawEvent = function(p){
+  window.drawEvent = function(p, titleOverride){
     let card = null;
     // [PATCH] Insider: usa el evento fijado si existe
     if (window.GameRiskPlus?.drawEventPatched) {
@@ -494,8 +494,12 @@
     // El objeto card puede venir del deck o del patcher.
     // Buscamos la descripción en el mapa global.
     const text = card.desc || EVENT_DESCS[card.name] || '';
+    const title = titleOverride || card.name;
+    const body  = (titleOverride && titleOverride !== card.name)
+      ? `${card.name}: ${text}`
+      : text;
     log(`🃏 Evento: <b>${card.name}</b>`);
-    showEventCard(card.name, text).then(()=>{
+    showEventCard(title, body).then(()=>{
       try {
         if (typeof window.resolverCarta === 'function') {
           // v22: Lógica unificada de eventos y efectos
