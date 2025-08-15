@@ -834,6 +834,37 @@ document.addEventListener('DOMContentLoaded', ()=>{
 const $  = (q)=>document.querySelector(q);
 const $$ = (q)=>Array.from(document.querySelectorAll(q));
 
+// Diálogo con botones para elegir opciones
+function promptChoice(message, options){
+  return new Promise(resolve => {
+    const dlg = document.getElementById('choiceDialog');
+    if (!dlg){
+      const fallback = window.prompt(message, options?.[0]?.value || '');
+      resolve(fallback);
+      return;
+    }
+    const msg = document.getElementById('choiceMessage');
+    const box = document.getElementById('choiceButtons');
+    msg.textContent = message;
+    box.innerHTML = '';
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = opt.label;
+      btn.addEventListener('click', () => { dlg.close(); resolve(opt.value); });
+      box.appendChild(btn);
+    });
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = 'Cancelar';
+    cancel.addEventListener('click', () => { dlg.close(); resolve(null); });
+    box.appendChild(cancel);
+    dlg.addEventListener('cancel', (ev)=>{ ev.preventDefault(); dlg.close(); resolve(null); }, { once:true });
+    dlg.showModal();
+  });
+}
+window.promptChoice = promptChoice;
+
 /* ===== Estado económico y eventos ===== */
 function giveMoney(player, amount, {taxable=true, reason=''}={}){
   if(!player || !Number.isFinite(amount)) return;
@@ -1022,7 +1053,7 @@ function renderDice(d1, d2, meta=''){
 }
 
 /* ===== Nueva partida ===== */
-function newGame(){
+async function newGame(){
 Estado.money = 0;
   let humans = Math.max(0, Math.min(6, parseInt($('#numHumans').value||'2',10)));
   let bots   = Math.max(0, Math.min(6, parseInt($('#numBots').value||'0',10)));
@@ -1033,12 +1064,12 @@ Estado.money = 0;
 
   state.players = [];
   for (let i=0;i<humans;i++){
-    let g = prompt(`¿Género de J${i+1}? (h/m/he)`, 'he') || 'he';
-    g = g.trim().toLowerCase();
-    let gender;
-    if (g.startsWith('m')) gender = 'female';
-    else if (g.startsWith('he')) gender = 'helicoptero';
-    else gender = 'male';
+    let gender = await promptChoice(`Género de J${i+1}?`, [
+      { value:'male', label:'Hombre' },
+      { value:'female', label:'Mujer' },
+      { value:'helicoptero', label:'Helicóptero' }
+    ]);
+    if(!gender) gender = 'helicoptero';
     state.players.push({ id: state.players.length, name:`J${i+1}`, money:startMoney, pos:0, alive:true,
       jail:0, taxBase:0, doubleStreak:0, gender, pendingMove:null });
   }
@@ -1050,7 +1081,7 @@ Estado.money = 0;
 
   // v22: roles y casillas especiales
   if (window.Roles) {
-    Roles.assign(state.players.map(p => ({ id: p.id, name: p.name, gender: p.gender })));
+    await Roles.assign(state.players.map(p => ({ id: p.id, name: p.name, gender: p.gender })));
 
     // Activa banca corrupta y registra casillas equidistantes
     Roles.setBankCorrupt(true);
@@ -1200,7 +1231,7 @@ function movePlayer(p, steps){
   window.onLand?.(p, np);
 }
 
-function roll(){
+async function roll(){
   const p = state.players[state.current]; if(!p || !p.alive) return;
   if (p.pendingMove != null) {
     p.pos = p.pendingMove;
@@ -1217,12 +1248,17 @@ function roll(){
   }
   if (state.rolled){ log('Ya has tirado este turno.'); return; }
     if (p.jail > 0){
-      // Elegir: pagar o intentar dobles
-      let choice = prompt(`Estás en la cárcel (${p.jail} turno(s)). Escribe "pagar" para salir por $50 o "tirar" para intentar dobles.`, 'tirar');
-      choice = (choice||'').trim().toLowerCase();
+      // Elegir: pagar o intentar dobles usando botones
+      const choice = await promptChoice(
+        `Estás en la cárcel (${p.jail} turno(s)). ¿Qué quieres hacer?`,
+        [
+          { label: 'Pagar $50', value: 'pagar' },
+          { label: 'Tirar dados', value: 'tirar' }
+        ]
+      );
 
       let paid = false;
-      if (choice.startsWith('p')) {
+      if (choice === 'pagar') {
         if (p.money < 50) {
           alert('No te llega para pagar 50. Debes intentar dobles.');
         } else {
@@ -6332,19 +6368,21 @@ if (typeof window.transfer === 'function'){
     });
   }
 
-  function openGovernmentElection(){
+  async function openGovernmentElection(){
     uiLog('🗳️ Votación de gobierno abierta');
-    if(typeof window.prompt !== 'function') return;
-    const options = ['left','right','authoritarian','libertarian'];
+    const options = [
+      { value:'left', label:'Izquierda' },
+      { value:'right', label:'Derecha' },
+      { value:'authoritarian', label:'Autoritario' },
+      { value:'libertarian', label:'Libertario' }
+    ];
     const votes = new Map();
-    state.players.forEach(p=>{
-      let s = window.prompt(`Voto de ${p.name}: left / right / authoritarian / libertarian`, 'left');
-      if(!s) return;
-      s = s.trim().toLowerCase();
-      if(options.includes(s)){
-        votes.set(s, (votes.get(s)||0)+1);
+    for(const p of state.players){
+      const choice = await window.promptChoice(`Voto de ${p.name}:`, options);
+      if(choice && options.some(o=>o.value===choice)){
+        votes.set(choice, (votes.get(choice)||0)+1);
       }
-    });
+    }
     if(votes.size===0){ uiLog('Votación sin votos válidos'); return; }
     let max = 0;
     const winners = [];
@@ -6357,7 +6395,7 @@ if (typeof window.transfer === 'function'){
   }
 
   // —— Asignación de roles ——
-  R.assign = function(players){
+  R.assign = async function(players){
     state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero'}));
     state.assignments.clear();
     state.fbiGuesses.clear();
@@ -6387,15 +6425,15 @@ if (typeof window.transfer === 'function'){
     ensureFlorentinoUses();
     saveState();
     uiUpdate();
-    openGovernmentElection();
+    await openGovernmentElection();
   };
 
   R.get = function(player){ const id = (player&&player.id)||player; return roleOf(id); };
   R.is = function(player, role){ return R.get(player)===role; };
 
-  R.reshuffle = function(){
+  R.reshuffle = async function(){
     const players = [...state.players];
-    R.assign(players);
+    await R.assign(players);
     state.fbiAllKnownReady = false;
     state.fbiGuesses.clear();
     saveState();

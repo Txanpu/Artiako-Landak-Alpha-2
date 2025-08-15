@@ -9,6 +9,37 @@
 const $  = (q)=>document.querySelector(q);
 const $$ = (q)=>Array.from(document.querySelectorAll(q));
 
+// Diálogo con botones para elegir opciones
+function promptChoice(message, options){
+  return new Promise(resolve => {
+    const dlg = document.getElementById('choiceDialog');
+    if (!dlg){
+      const fallback = window.prompt(message, options?.[0]?.value || '');
+      resolve(fallback);
+      return;
+    }
+    const msg = document.getElementById('choiceMessage');
+    const box = document.getElementById('choiceButtons');
+    msg.textContent = message;
+    box.innerHTML = '';
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = opt.label;
+      btn.addEventListener('click', () => { dlg.close(); resolve(opt.value); });
+      box.appendChild(btn);
+    });
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = 'Cancelar';
+    cancel.addEventListener('click', () => { dlg.close(); resolve(null); });
+    box.appendChild(cancel);
+    dlg.addEventListener('cancel', (ev)=>{ ev.preventDefault(); dlg.close(); resolve(null); }, { once:true });
+    dlg.showModal();
+  });
+}
+window.promptChoice = promptChoice;
+
 /* ===== Estado económico y eventos ===== */
 function giveMoney(player, amount, {taxable=true, reason=''}={}){
   if(!player || !Number.isFinite(amount)) return;
@@ -197,7 +228,7 @@ function renderDice(d1, d2, meta=''){
 }
 
 /* ===== Nueva partida ===== */
-function newGame(){
+async function newGame(){
 Estado.money = 0;
   let humans = Math.max(0, Math.min(6, parseInt($('#numHumans').value||'2',10)));
   let bots   = Math.max(0, Math.min(6, parseInt($('#numBots').value||'0',10)));
@@ -208,12 +239,12 @@ Estado.money = 0;
 
   state.players = [];
   for (let i=0;i<humans;i++){
-    let g = prompt(`¿Género de J${i+1}? (h/m/he)`, 'he') || 'he';
-    g = g.trim().toLowerCase();
-    let gender;
-    if (g.startsWith('m')) gender = 'female';
-    else if (g.startsWith('he')) gender = 'helicoptero';
-    else gender = 'male';
+    let gender = await promptChoice(`Género de J${i+1}?`, [
+      { value:'male', label:'Hombre' },
+      { value:'female', label:'Mujer' },
+      { value:'helicoptero', label:'Helicóptero' }
+    ]);
+    if(!gender) gender = 'helicoptero';
     state.players.push({ id: state.players.length, name:`J${i+1}`, money:startMoney, pos:0, alive:true,
       jail:0, taxBase:0, doubleStreak:0, gender, pendingMove:null });
   }
@@ -225,7 +256,7 @@ Estado.money = 0;
 
   // v22: roles y casillas especiales
   if (window.Roles) {
-    Roles.assign(state.players.map(p => ({ id: p.id, name: p.name, gender: p.gender })));
+    await Roles.assign(state.players.map(p => ({ id: p.id, name: p.name, gender: p.gender })));
 
     // Activa banca corrupta y registra casillas equidistantes
     Roles.setBankCorrupt(true);
