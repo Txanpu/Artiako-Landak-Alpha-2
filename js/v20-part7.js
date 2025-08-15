@@ -847,28 +847,59 @@ function playSlotsFree(player, tile){
 
 }
 
-function tryCorruptLoan() {
+async function tryCorruptLoan() {
   const p = state.players[state.current];
   if (!p) return;
   const idx = p.pos;
 
-  const A = Number(prompt('Importe préstamo corrupto:', '300'))||0;
-  if (A <= 0) return;
-  const R = Number(prompt('Tipo (%, ej 20):', '20'))||0;
-  const T = Number(prompt('Ticks (<=30):', '12'))||0;
-  const res = window.Roles?.requestCorruptLoan?.({
-    playerId: p.id,
-    amount: A,
-    rate: R,
-    ticks: T,
-    tileId: idx
-  });
-  if (!res?.accepted) {
-    alert((res?.reason || 'Préstamo rechazado.') + (res?.pAccept!=null ? ` (p≈${(res.pAccept*100|0)}%)` : ''));
-  } else {
-    giveMoney(p, A, { taxable:false, reason:'Préstamo corrupto' });
-    log(`Debe devolver ${fmtMoney(res.dueAmount)} al Estado en el turno ${res.dueTurn}.`);
-  }
+  try {
+    const opt = await showBankMenu();
+    if (opt === 'loan') {
+      const A = Number(await promptDialog('Importe del préstamo:', '300'))||0;
+      const Rr = Number(await promptDialog('Tipo (%, ej 20):', '20'))||0;
+      const Tt = Number(await promptDialog('Ticks (<=30):', '12'))||0;
+      const L = window.Roles?.requestCorruptLoan?.({ playerId: p.id, amount: A, rate: Rr, ticks: Tt, tileId: idx });
+      if (!L?.accepted) {
+        alert((L?.reason || 'Préstamo rechazado.') + (L?.pAccept!=null ? ` (p≈${(L.pAccept*100|0)}%)` : ''));
+      } else {
+        transfer(Estado, p, A, { taxable:false, reason:'Préstamo corrupto' });
+        log('Préstamo OK: devolver ' + L.dueAmount + ' en T' + L.dueTurn + '.');
+      }
+    } else if (opt === 'securitize') {
+      const S = window.Roles?.corruptBankSecuritize?.({ playerId: p.id });
+      if (!S?.ok) {
+        alert((S && S.reason) ? S.reason : 'No se pudo securitizar');
+      } else {
+        transfer(Estado, p, S.advance, { taxable:false, reason:'Securitización corrupta' });
+        log('Securitización: cobras ' + S.advance + ' ahora; durante ' + S.ticks + ' ticks tus alquileres van al Estado.');
+      }
+    } else if (opt === 'debt') {
+      const principal = Number(await promptDialog('Principal préstamo deuda:', '300'))||0;
+      const rate = Number(await promptDialog('Tipo (%):', '20'))||0;
+      const term = Number(await promptDialog('Plazo (turnos):', '12'))||0;
+      const L = GameDebtMarket.mkLoan({ borrowerId: p.id, lenderId: 'E', principal, ratePct: rate, termTurns: term });
+      GameDebtMarket.addLoan(L);
+      transfer(Estado, p, principal, { taxable:false, reason:'Préstamo mercado deuda' });
+      log('Mercado deuda: préstamo ' + L.id + ' creado.');
+    } else if (opt === 'titulize') {
+      const loanId = await promptDialog('ID préstamo a titulizar:', '');
+      if (loanId) {
+        try {
+          const shares = GameSecuritization.splitLoan(loanId, [
+            { ownerId: p.id, bips: 5000 },
+            { ownerId: 'E', bips: 5000 }
+          ]);
+          if (shares) {
+            log('Titulización OK: ' + shares.join(','));
+          } else {
+            alert('No se pudo titulizar');
+          }
+        } catch (e) {
+          alert('Error titulizando: ' + e.message);
+        }
+      }
+    }
+  } catch(e){}
 };
 function sendToJail(player = state.players[state.current]) {
   if (!player || !player.alive) return;

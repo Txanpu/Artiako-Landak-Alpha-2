@@ -90,6 +90,7 @@
     governmentTurnsLeft: 0,
     loans: [],
     securitizations: new Map(),
+    bankLandingAttempt: new Map(),
     powerOffTicks: 0,
     strikeTicks: 0,
     noRentFromWomen: new Set(),
@@ -319,11 +320,16 @@
   };
   R.requestCorruptLoan = function({playerId, amount, rate, ticks, tileId}){
     const id = (playerId&&playerId.id)||playerId;
-    if(!state.bankLandingAttempt.has(id)) { return {accepted:false, reason:'Solo en casilla de préstamo corrupto.'}; }
-    const entry = state.bankLandingAttempt.get(id);
+    let entry = state.bankLandingAttempt.get(id);
+    const isFlorentino = roleOf(id)===ROLE.FLORENTINO;
+    if(isFlorentino && (!entry || entry.turn!==state.turnCounter)){
+      entry = { turn: state.turnCounter, attempted:false, tileId };
+      state.bankLandingAttempt.set(id, entry);
+    }
+    if(!entry){ return {accepted:false, reason:'Solo en casilla de préstamo corrupto.'}; }
     if(entry.turn!==state.turnCounter){ return {accepted:false, reason:'Solo en el mismo turno.'}; }
     if(entry.attempted){ return {accepted:false, reason:'Ya hiciste una operación en esta caída.'}; }
-    if(!entry.tileId || (typeof tileId!=='undefined' && entry.tileId!==tileId)){
+    if(!isFlorentino && (!entry.tileId || (typeof tileId!=='undefined' && entry.tileId!==tileId))){
       return {accepted:false, reason:'Debes pedirlo desde esa casilla.'};
     }
     entry.attempted = true;
@@ -360,8 +366,13 @@
   // —— Securitización en casilla de banca corrupta ——
   R.corruptBankSecuritize = function({playerId, advance, ticks}){
     const id = (playerId&&playerId.id)||playerId;
-    if(!state.bankLandingAttempt.has(id)) { return {ok:false, reason:'Solo en casilla de banca corrupta.'}; }
-    const entry = state.bankLandingAttempt.get(id);
+    let entry = state.bankLandingAttempt.get(id);
+    const isFlorentino = roleOf(id)===ROLE.FLORENTINO;
+    if(isFlorentino && (!entry || entry.turn!==state.turnCounter)){
+      entry = { turn: state.turnCounter, attempted:false };
+      state.bankLandingAttempt.set(id, entry);
+    }
+    if(!entry){ return {ok:false, reason:'Solo en casilla de banca corrupta.'}; }
     if(entry.turn!==state.turnCounter){ return {ok:false, reason:'Solo en el mismo turno.'}; }
     if(entry.attempted){ return {ok:false, reason:'Ya hiciste una operación en esta caída.'}; }
     entry.attempted = true;
