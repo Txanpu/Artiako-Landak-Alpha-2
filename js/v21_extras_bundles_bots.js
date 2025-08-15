@@ -214,6 +214,7 @@
       },
       maybeBid(profileName, playerId){
         const s=GameExtras._cfg.state; const a=s.auction; if (!a || !a.open) return;
+        if (a.bestPlayer===playerId) return; // ya vamos ganando, no pujar de nuevo
         const prof=this.profiles[profileName||'value']; const p=(s.players||[]).find(x=>x.id===playerId); if(!p) return;
         const meta = (a.kind==='bundle') ? { tiles:a.bundleTiles } : (a.kind==='tile' ? GameExtras._getTile(a.assetId) : (a.kind==='loan' ? (s.loanListings||[]).find(x=>x.id===a.assetId): {}));
         const fair=this.estimateFair(a.kind, meta, playerId);

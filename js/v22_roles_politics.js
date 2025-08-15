@@ -157,6 +157,22 @@
     });
   }
 
+  function botGovernmentChoice(player, options){
+    const g = globalThis.state || {};
+    const real = (g.players||[]).find(pl=>pl.id===player.id) || {};
+    const money = real.money || 0;
+    const debt = (g.loans||[]).filter(l=> l.borrowerId===player.id)
+      .reduce((sum,l)=> sum + (l.principal + (l.accrued||0)), 0);
+    let best = options[0]?.value;
+    let bestScore = -Infinity;
+    for(const opt of options){
+      const gov = cfg['gov'+opt.value.charAt(0).toUpperCase()+opt.value.slice(1)] || {};
+      const score = (gov.welfare||0)*Math.max(0,200-money) - (gov.tax||0)*money - (gov.interest||0)*debt;
+      if(score>bestScore){ bestScore=score; best=opt.value; }
+    }
+    return best;
+  }
+
   async function openGovernmentElection(){
     uiLog('🗳️ Votación de gobierno abierta');
     const options = [
@@ -167,7 +183,12 @@
     ];
     const votes = new Map();
     for(const p of state.players){
-      const choice = await window.promptChoice(`Voto de ${p.name}:`, options);
+      let choice;
+      if(p.isBot){
+        choice = botGovernmentChoice(p, options);
+      }else{
+        choice = await window.promptChoice(`Voto de ${p.name}:`, options);
+      }
       if(choice && options.some(o=>o.value===choice)){
         votes.set(choice, (votes.get(choice)||0)+1);
       }
@@ -185,7 +206,7 @@
 
   // —— Asignación de roles ——
   R.assign = async function(players){
-    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero'}));
+    state.players = (players||[]).map(p=> ({id: p.id, name: p.name||('P'+p.id), gender: p.gender||'helicoptero', isBot: !!p.isBot}));
     state.assignments.clear();
     state.fbiGuesses.clear();
     state.taxPot = 0;
