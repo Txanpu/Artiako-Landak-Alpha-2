@@ -373,7 +373,7 @@ let cardPriceRow, cardRentRow, cardBuildRow;
 let rentsBox, bankWarn, startAuctionBtn, cancelAuctionBtn;
 
 function initCardModal(){
-  if (overlay) return; // ya inicializado
+  // Re-obtener siempre los elementos por si el overlay fue reemplazado
   overlay       = document.getElementById('overlay');
   cardBand      = document.getElementById('cardBand');
   cardName      = document.getElementById('cardName');
