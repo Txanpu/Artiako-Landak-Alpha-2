@@ -69,6 +69,7 @@
     bankMaxTicks: 30,
     govPeriod: 7,
     govDuration: 7,
+    roleReshufflePeriod: 20,
     govLeft:{tax:0.25, welfare:0.30, interest:0.10},
     govRight:{tax:-0.20, welfare:-0.30, interest:0},
     govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05},
@@ -510,6 +511,10 @@
     }
     if(state.turnCounter % cfg.govPeriod === 0){
       openGovernmentElection();
+    }
+    if(cfg.roleReshufflePeriod > 0 && state.turnCounter % cfg.roleReshufflePeriod === 0){
+      R.reshuffle();
+      return;
     }
     saveState(); uiUpdate();
   };

@@ -22,7 +22,7 @@ Artiako Landak es un juego de tablero que combina economía, subastas y roles op
 - **GameDebtMarket:** subastas visibles, subastas selladas para eventos y un mercado de préstamos P2P que puede subastarse.
 - **GameRiskPlus:** llamadas de margen cuando un deudor queda por debajo de un umbral de efectivo, cartas **Insider** para conocer y fijar el próximo evento, IA predadora y mantenimiento dinámico según monopolios de color.
 - **GameExtras:** subasta paquetes de casillas libres, aplica costes de mantenimiento a tiles premium, detecta colusión, ofrece bots con distintos perfiles y un panel **Mi balance**.
-- **Roles y política:** roles secretos como proxeneta o FBI, gobierno que modifica impuestos e intereses, banca corrupta, juez IA y votaciones.
+- **Roles y política:** roles secretos como proxeneta o FBI, gobierno que modifica impuestos e intereses, banca corrupta, juez IA y votaciones. Los roles se redistribuyen automáticamente cada 20 turnos.
 
 ## Atajos de teclado
 - **R**: tirar dados
