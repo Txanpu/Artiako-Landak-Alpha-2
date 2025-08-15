@@ -2146,15 +2146,14 @@ async function onLand(p, idx){
         if (t.subtype === 'fiore') {
           const workers = t.workers||0;
           const per     = t.workerRent||70;
-          const total   = workers * per;
+          const baseTotal = workers * per;
           const payee   = t.mortgaged ? Estado : state.players[t.owner];
 
-          if (total > 0 && payee) {
-            const ivaMul = state.rentIVAMul || 1;
-            const base = (ivaMul > 1) ? Math.round(total / ivaMul) : total;
-            const iva  = Math.max(0, total - base);
+          if (baseTotal > 0 && payee) {
+            const ivaMul = (window.Roles?.getRentIVAMultiplier?.() || 1) * (state.rentIVAMul || 1);
+            const iva  = Math.max(0, Math.round(baseTotal * (ivaMul - 1)));
 
-            transfer(p, payee, base, { taxable:false, deductible:true, reason:`Fiore ${workers}×${per}` });
+            transfer(p, payee, baseTotal, { taxable:false, deductible:true, reason:`Fiore ${workers}×${per}` });
             if (iva > 0){
               transfer(p, payee, iva, { taxable:false, deductible:true, reason:`IVA Fiore` });
               markIVAPaid(p, iva, ' (Fiore)');
@@ -2163,7 +2162,7 @@ async function onLand(p, idx){
 
             // v22: propina aleatoria al/los Proxeneta(s) (no descuenta a nadie)
             try {
-              const totalPagado = (base||0) + (iva||0);
+              const totalPagado = (baseTotal||0) + (iva||0);
               const resTip = window.Roles?.onFiorePayment?.({ payerId: p.id, amount: totalPagado });
               if (resTip?.tips?.length) {
                 resTip.tips.forEach(tp => {
@@ -2224,30 +2223,24 @@ async function onLand(p, idx){
             } catch (e) {}
 
               const target = redirectToEstado ? Estado : payee;
-              const ivaMul = state.rentIVAMul || 1;
+              const ivaMul = (window.Roles?.getRentIVAMultiplier?.() || 1) * (state.rentIVAMul || 1);
               const govLeft = (()=>{ try{ return window.Roles?.exportState?.().government === 'left'; }catch{ return false; }})();
               const stateCovers = govLeft && isEstadoCovered(t);
 
+              const iva = Math.max(0, Math.round(adjusted * (ivaMul - 1)));
+
               if (stateCovers) {
-                if (ivaMul > 1){
-                  const base = Math.round(adjusted / ivaMul);
-                  const iva  = Math.max(0, adjusted - base);
-                  transfer(Estado, target, base, { taxable:false, reason: reason });
+                transfer(Estado, target, adjusted, { taxable:false, reason: reason });
+                if (iva > 0){
                   transfer(Estado, target, iva,  { taxable:false, reason: `IVA ${reason}` });
                   try { markIVAPaid(Estado, iva, ' (alquiler estatal)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler estatal)'); } catch{}
-                } else {
-                  transfer(Estado, target, adjusted, { taxable:false, reason: reason });
                 }
                 log(`El Estado cubre el alquiler en ${t.name}.`);
               } else {
-                if (ivaMul > 1){
-                  const base = Math.round(adjusted / ivaMul);
-                  const iva  = Math.max(0, adjusted - base);
-                  transfer(p, target, base, { taxable:false, deductible:true, reason: reason });
+                transfer(p, target, adjusted, { taxable:false, deductible:true, reason: reason });
+                if (iva > 0){
                   transfer(p, target, iva,  { taxable:false, deductible:true, reason: `IVA ${reason}` });
                   try { markIVAPaid(p, iva, ' (alquiler)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler)'); } catch{}
-                } else {
-                  transfer(p, target, adjusted, { taxable:false, deductible:true, reason: reason });
                 }
                 ensureAlive(p);
               }
@@ -6311,7 +6304,7 @@ if (typeof window.transfer === 'function'){
  *    - Roles.assign abre una votación inicial.
  *    - Para iniciar votaciones manuales: Roles.openGovernmentElection()
  *    - Para fijar resultado de votación: Roles.setGovernment('left'|'right')
- *    - Multiplicadores disponibles: Roles.getTaxMultiplier(), Roles.getWelfareMultiplier(), Roles.getInterestMultiplier()
+ *    - Multiplicadores disponibles: Roles.getTaxMultiplier(), Roles.getWelfareMultiplier(), Roles.getInterestMultiplier(), Roles.getRentIVAMultiplier()
  * 8) Dados 0–9 (sin romper lo actual):
  *    - Si activas window.RolesConfig.dice0to9=true, puedes usar Roles.rollDie0to9() por dado.
  *    - Tras tirar dos dados d1,d2: const act = Roles.handleDiceSpecials({d1,d2,playerId})
@@ -6322,8 +6315,10 @@ if (typeof window.transfer === 'function'){
  *   florentinoForceP:0.13, florentinoForceMax:5,
  *   judgeFee:50, judgeNoAnnulFloor:0.33,
  *   govPeriod:7, govDuration:7,
- *   govLeft:{tax:0.25, interest:0.10, welfare:0.30},
- *   govRight:{tax:-0.20, welfare:-0.30, interest:0},
+ *   govLeft:{tax:0.25, interest:0.10, welfare:0.30, rentIVA:0.30},
+ *   govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
+ *   govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
+ *   govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
  *   dice0to9:false,
  *   ui:{banner:true}
  */
@@ -6351,10 +6346,10 @@ if (typeof window.transfer === 'function'){
     govPeriod: 7,
     govDuration: 7,
     roleReshufflePeriod: 20,
-    govLeft:{tax:0.25, welfare:0.30, interest:0.10},
-    govRight:{tax:-0.20, welfare:-0.30, interest:0},
-    govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05},
-    govLibertarian:{tax:-1, welfare:0, interest:-0.05},
+    govLeft:{tax:0.25, welfare:0.30, interest:0.10, rentIVA:0.30},
+    govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
+    govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
+    govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
     ui: { banner: true }
   };
 
@@ -6810,6 +6805,13 @@ if (typeof window.transfer === 'function'){
     if(state.government==='right') return 1 + (cfg.govRight.tax||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.tax||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.tax||0);
+    return 1;
+  };
+  R.getRentIVAMultiplier = function(){
+    if(state.government==='left') return 1 + (cfg.govLeft.rentIVA||0);
+    if(state.government==='right') return 1 + (cfg.govRight.rentIVA||0);
+    if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.rentIVA||0);
+    if(state.government==='libertarian') return 1 + (cfg.govLibertarian.rentIVA||0);
     return 1;
   };
   R.getWelfareMultiplier = function(){

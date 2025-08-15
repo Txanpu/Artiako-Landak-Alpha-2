@@ -423,15 +423,14 @@ async function onLand(p, idx){
         if (t.subtype === 'fiore') {
           const workers = t.workers||0;
           const per     = t.workerRent||70;
-          const total   = workers * per;
+          const baseTotal = workers * per;
           const payee   = t.mortgaged ? Estado : state.players[t.owner];
 
-          if (total > 0 && payee) {
-            const ivaMul = state.rentIVAMul || 1;
-            const base = (ivaMul > 1) ? Math.round(total / ivaMul) : total;
-            const iva  = Math.max(0, total - base);
+          if (baseTotal > 0 && payee) {
+            const ivaMul = (window.Roles?.getRentIVAMultiplier?.() || 1) * (state.rentIVAMul || 1);
+            const iva  = Math.max(0, Math.round(baseTotal * (ivaMul - 1)));
 
-            transfer(p, payee, base, { taxable:false, deductible:true, reason:`Fiore ${workers}×${per}` });
+            transfer(p, payee, baseTotal, { taxable:false, deductible:true, reason:`Fiore ${workers}×${per}` });
             if (iva > 0){
               transfer(p, payee, iva, { taxable:false, deductible:true, reason:`IVA Fiore` });
               markIVAPaid(p, iva, ' (Fiore)');
@@ -440,7 +439,7 @@ async function onLand(p, idx){
 
             // v22: propina aleatoria al/los Proxeneta(s) (no descuenta a nadie)
             try {
-              const totalPagado = (base||0) + (iva||0);
+              const totalPagado = (baseTotal||0) + (iva||0);
               const resTip = window.Roles?.onFiorePayment?.({ payerId: p.id, amount: totalPagado });
               if (resTip?.tips?.length) {
                 resTip.tips.forEach(tp => {
@@ -501,30 +500,24 @@ async function onLand(p, idx){
             } catch (e) {}
 
               const target = redirectToEstado ? Estado : payee;
-              const ivaMul = state.rentIVAMul || 1;
+              const ivaMul = (window.Roles?.getRentIVAMultiplier?.() || 1) * (state.rentIVAMul || 1);
               const govLeft = (()=>{ try{ return window.Roles?.exportState?.().government === 'left'; }catch{ return false; }})();
               const stateCovers = govLeft && isEstadoCovered(t);
 
+              const iva = Math.max(0, Math.round(adjusted * (ivaMul - 1)));
+
               if (stateCovers) {
-                if (ivaMul > 1){
-                  const base = Math.round(adjusted / ivaMul);
-                  const iva  = Math.max(0, adjusted - base);
-                  transfer(Estado, target, base, { taxable:false, reason: reason });
+                transfer(Estado, target, adjusted, { taxable:false, reason: reason });
+                if (iva > 0){
                   transfer(Estado, target, iva,  { taxable:false, reason: `IVA ${reason}` });
                   try { markIVAPaid(Estado, iva, ' (alquiler estatal)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler estatal)'); } catch{}
-                } else {
-                  transfer(Estado, target, adjusted, { taxable:false, reason: reason });
                 }
                 log(`El Estado cubre el alquiler en ${t.name}.`);
               } else {
-                if (ivaMul > 1){
-                  const base = Math.round(adjusted / ivaMul);
-                  const iva  = Math.max(0, adjusted - base);
-                  transfer(p, target, base, { taxable:false, deductible:true, reason: reason });
+                transfer(p, target, adjusted, { taxable:false, deductible:true, reason: reason });
+                if (iva > 0){
                   transfer(p, target, iva,  { taxable:false, deductible:true, reason: `IVA ${reason}` });
                   try { markIVAPaid(p, iva, ' (alquiler)'); markIVACharged(target===Estado? Estado : target, iva, ' (alquiler)'); } catch{}
-                } else {
-                  transfer(p, target, adjusted, { taxable:false, deductible:true, reason: reason });
                 }
                 ensureAlive(p);
               }
