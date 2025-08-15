@@ -36,4 +36,5 @@ Desde esta versión se incluye un modo P2P básico. Usa **Compartir** para actua
 
 ## Desarrollo
 - `js/utils/overlay.js` permite alternar la visibilidad del overlay mediante teclado.
-  El parámetro opcional `toggleKey` (por defecto `F2`) define la tecla usada.
+  El parámetro opcional `toggleKey` (por defecto `F2`) define la tecla usada. El overlay
+  no se ocultará mientras haya una subasta activa para evitar interferencias.
