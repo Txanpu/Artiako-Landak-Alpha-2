@@ -227,6 +227,15 @@ function renderPlayers(){
   } catch(e) { console.warn('Error updating exercise option button', e); }
 
   try { updatePropertyButtons(); } catch(e){ console.warn('Error updating property buttons', e); }
+
+  // Enfocar en la casilla del jugador actual
+  try {
+    const pos = state.players[state.current]?.pos;
+    const tile = document.querySelector(`.tile:nth-child(${(pos|0)+1})`);
+    tile?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  } catch(e) {
+    console.warn('Error focusing current tile', e);
+  }
 }
 
 /* ===== Dados (pips y animación) ===== */
