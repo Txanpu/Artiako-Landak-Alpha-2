@@ -239,10 +239,12 @@ async function onLand(p, idx){
       playSlotsFree(p, t);
       break;
 
-    case 'event':
-      log(`🃏 ${p.name} cae en EVENTO.`);
-      try{ window.drawEvent?.(p); }catch(e){ log('Error al ejecutar evento.'); }
+    case 'event': {
+      const title = (t && t.name) ? t.name : 'Evento';
+      log(`🃏 ${p.name} cae en ${title.toUpperCase()}.`);
+      try { window.drawEvent?.(p, title); } catch (e) { log('Error al ejecutar evento.'); }
       break;
+    }
 
     case 'prop': {
       if (t.subtype==='fiore' && window.Roles && Roles.shouldBlockGame && Roles.shouldBlockGame('fiore')){
