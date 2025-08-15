@@ -4128,7 +4128,7 @@ function animateTransportHop(player, fromIdx, toIdx, done){
     // ========== BALANCE PANEL =============================================
     balance:{
       show(playerId){ const p=UIX._player(playerId)||{}; let el=document.getElementById('uix-balance'); if(!el){ el=document.createElement('div'); el.id='uix-balance'; document.body.appendChild(el); }
-        el.className='uix-balance'; el.innerHTML=`
+          el.className='uix-balance'; el.innerHTML=`
           <div class="title">Mi balance</div>
           <div class="cards">
             <div class="card"><div class="k">Cash</div><div class="v" id="v-cash">${p.money||0}</div><canvas id="sp-cash" width="120" height="28"></canvas></div>
@@ -4141,11 +4141,17 @@ function animateTransportHop(player, fromIdx, toIdx, done){
           <div class="propsList">${UIX.balance._propsByGroup(playerId)}</div>
           <div class="risk"><div class="label">Riesgo de liquidez</div><div class="bar"><div class="fill" id="risk-fill"></div></div></div>
           <div class="actions"><button id="uix-balance-close">Cerrar</button><button id="uix-balance-refresh">Actualizar</button></div>`;
-        el.querySelector('#uix-balance-close').onclick=()=> el.remove();
-        el.querySelector('#uix-balance-refresh').onclick=()=> UIX.balance.show(playerId);
-        // sparklines dummy: usa historial de metricas en memoria
-        UIX._spark('sp-cash', UIX._metricSeries('cash', playerId));
-        UIX._spark('sp-debt', UIX._metricSeries('debt', playerId));
+          el.querySelector('#uix-balance-close').onclick=()=> el.remove();
+          el.querySelector('#uix-balance-refresh').onclick=()=> UIX.balance.show(playerId);
+          el.querySelectorAll('.propLink').forEach(link=>{
+            link.addEventListener('click', ()=>{
+              const tid = Number(link.getAttribute('data-tile'));
+              if (typeof window.showCard === 'function') window.showCard(tid);
+            });
+          });
+          // sparklines dummy: usa historial de metricas en memoria
+          UIX._spark('sp-cash', UIX._metricSeries('cash', playerId));
+          UIX._spark('sp-debt', UIX._metricSeries('debt', playerId));
         UIX._spark('sp-maint', UIX._metricSeries('maint', playerId));
         UIX._spark('sp-props', UIX._metricSeries('props', playerId));
         UIX._spark('sp-net', UIX._metricSeries('net', playerId));
@@ -4163,11 +4169,12 @@ function animateTransportHop(player, fromIdx, toIdx, done){
         const base=sum(owned.map(t=> t.price||0)); if (!base) return 0; return (rents/base)*100;
       },
       _propsCount(pid){ const p=UIX._player(pid)||{}; return (p.props||[]).length; },
-      _netWorth(pid){ const p=UIX._player(pid)||{}; const s=UIX._cfg.state; const T=s.board||s.tiles||[]; const props=sum((p.props||[]).map(i=>T[i]?.price||0)); return (p.money||0)+props-UIX.balance._debtNet(pid); },
-      _propsByGroup(pid){ const s=UIX._cfg.state; const p=UIX._player(pid)||{}; const T=s.board||s.tiles||[]; const groups={};
-        (p.props||[]).forEach(i=>{ const t=T[i]; if(!t||t.type!=='prop') return; const key=t.familia||t.color||'Otros'; (groups[key]=groups[key]||[]).push(t.name||('Tile '+i)); });
+      _propsByGroup(pid){
+        const s=UIX._cfg.state; const p=UIX._player(pid)||{}; const T=s.board||s.tiles||[]; const groups={};
+        (p.props||[]).forEach(i=>{ const t=T[i]; if(!t||t.type!=='prop') return; const key=t.familia||t.color||'Otros';(groups[key]=groups[key]||[]).push({name: t.name||('Tile '+i), idx: i}); });
         const entries=Object.entries(groups); if(!entries.length) return '<div class="propGroup">Sin propiedades</div>';
-        return entries.map(([g,list])=>`<div class="propGroup"><span class="g">${g}</span>: ${list.join(', ')}</div>`).join(''); }
+        return entries.map(([g,list])=>`<div class="propGroup"><span class="g">${g}</span>: ${list.map(it=>`<span class="propLink" data-tile="${it.idx}">${it.name}</span>`).join(', ')}</div>`).join('');
+      }
     },
 
     _metricSeries(kind, pid){ // genera serie dummy de 10 puntos con ruido leve; reemplaza con tu telemetría
@@ -4189,6 +4196,7 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       #uix-balance .propsList{margin-top:10px}
       #uix-balance .propGroup{margin-bottom:4px;font-size:13px}
       #uix-balance .propGroup .g{font-weight:600;margin-right:4px}
+      #uix-balance .propLink{cursor:pointer;text-decoration:underline}
       #uix-balance .risk{margin-top:10px}
       #uix-balance .risk .bar{height:10px;border-radius:8px;background:rgba(255,255,255,.08);overflow:hidden}
       #uix-balance .risk .fill{height:10px;background:linear-gradient(90deg,#4ade80,#facc15,#f97316,#ef4444)}
