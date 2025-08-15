@@ -104,7 +104,6 @@
     <button id="sell" type="button">Vender casa</button>
     <button id="mortgage" type="button">Hipotecar</button>
     <button id="unmortgage" type="button">Levant. hipoteca</button>
-    <button id="myBalance" type="button">Mi Balance</button>
     <button id="exerciseOption" type="button" style="display:none;">Ejercer opción</button>
     <button id="insider" type="button" style="display:none;">Insider</button>
 
@@ -265,14 +264,6 @@ function initGameBindings(){
   if (window.UIX) {
     UIX.install({ state: window.state, map:{ fromDOM: '.tile' } });
   }
-  document.getElementById('myBalance')?.addEventListener('click', ()=>{
-    // [PATCH] UIX balance panel supersedes GameExtras
-    if (window.UIX && window.state) {
-      UIX.balance.show(window.state.current);
-    } else if (window.GameExtras && window.state) {
-      GameExtras.showMyBalance(window.state.current);
-    }
-  });
   document.getElementById('insider')?.addEventListener('click', ()=>{
     if (window.GameRiskPlus && window.state) {
       GameRiskPlus.Insider.use(window.state.current);
