@@ -218,3 +218,10 @@ body.playing .setup { justify-content:flex-end; gap:8px; }
   box-shadow: inset 0 0 0 2px rgba(245,158,11,.35);
 }
 
+/* Simple chat */
+.chat{ margin-top:8px; }
+.chat-log{ max-height:100px; overflow-y:auto; border:1px solid #ccc; padding:4px; background:#fff; }
+.chat-log div{ margin:2px 0; }
+.chat-input{ margin-top:4px; }
+.chat-input input{ flex:1; }
+
