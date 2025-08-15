@@ -32,7 +32,7 @@ Artiako Landak es un juego de tablero que combina economía, subastas y roles op
 - **S**: guardar partida
 
 ## Juego en línea
-Desde esta versión se incluye un modo P2P básico. Usa **Compartir** para actuar como anfitrión (J1) y se generará un enlace que podrás enviar. Tus amigos pueden abrirlo y pulsar **Unirse** para conectarse como J2, J3, etc.
+Desde esta versión se incluye un modo P2P básico con chat integrado. Usa **Compartir** para actuar como anfitrión (J1) y se generará un enlace que podrás enviar. Tus amigos pueden abrirlo y pulsar **Unirse** para conectarse como J2, J3, etc. El chat permite enviar mensajes rápidos entre jugadores durante la partida.
 
 ## Desarrollo
 - `js/utils/overlay.js` permite alternar la visibilidad del overlay mediante teclado.
