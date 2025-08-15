@@ -66,6 +66,7 @@
         <button value="securitize" id="bankMenuSecuritize">Securitizar alquileres</button>
         <button value="debt">Mercado de deuda</button>
         <button value="titulize">Titulizar préstamo</button>
+        <button value="options">Derivados de propiedades</button>
       </div>
       <div class="row" style="margin-top:8px; justify-content:flex-end">
         <button value="cancel">Cancelar</button>
@@ -96,6 +97,7 @@
     <button id="mortgage" type="button">Hipotecar</button>
     <button id="unmortgage" type="button">Levant. hipoteca</button>
     <button id="myBalance" type="button">Mi Balance</button>
+    <button id="exerciseOption" type="button">Ejercer opción</button>
     <button id="insider" type="button" style="display:none;">Insider</button>
 
     <!-- los dados del v15 se siguen pintando aquí -->
@@ -227,6 +229,11 @@ function initGameBindings(){
   document.getElementById('insider')?.addEventListener('click', ()=>{
     if (window.GameRiskPlus && window.state) {
       GameRiskPlus.Insider.use(window.state.current);
+    }
+  });
+  document.getElementById('exerciseOption')?.addEventListener('click', ()=>{
+    if (window.exerciseOption && window.state) {
+      window.exerciseOption(window.state.players[window.state.current]);
     }
   });
   const board = document.getElementById('board');
