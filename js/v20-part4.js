@@ -211,6 +211,21 @@ function renderPlayers(){
     }
   } catch(e) { console.warn('Error updating insider button', e); }
 
+  // [PATCH] Mostrar/ocultar botón "Ejercer opción"
+  try {
+    const exBtn = document.getElementById('exerciseOption');
+    if (exBtn) {
+      const p = state.players[state.current];
+      const opts = state.options?.filter(o => o.buyer === p.id) || [];
+      exBtn.style.display = opts.length ? '' : 'none';
+      if (opts.length) {
+        exBtn.textContent = `Ejercer opción (${opts.length})`;
+      } else {
+        exBtn.textContent = 'Ejercer opción';
+      }
+    }
+  } catch(e) { console.warn('Error updating exercise option button', e); }
+
   try { updatePropertyButtons(); } catch(e){ console.warn('Error updating property buttons', e); }
 }
 
