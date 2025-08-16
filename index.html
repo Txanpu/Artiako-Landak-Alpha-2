@@ -190,19 +190,6 @@
 
   })();
 
-document.querySelectorAll('.tile').forEach((tile, idx) => {
-  tile.addEventListener('click', (e) => {
-    e.stopPropagation();
-    tile.classList.toggle('active');
-    const ov = document.getElementById('overlay');
-    if (typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
-      window.showCard(idx);
-    }
-  });
-});
-document.querySelectorAll('.badge').forEach(badge=>{
-  badge.addEventListener('click',(e)=>{ e.stopPropagation(); badge.classList.toggle('active'); });
-});
 
 // legacy opcional del v15 (no hay .controls en este layout, se deja seguro)
 document.querySelector('.controls button.primary')?.addEventListener('click',()=>{ alert('El juego ha comenzado!'); });
