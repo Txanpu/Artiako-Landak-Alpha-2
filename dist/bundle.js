@@ -1419,8 +1419,12 @@ async function roll(){
 
   // Dobles normales: hasta 3 tiradas, luego cárcel
   if (isDouble){
-    document.getElementById('doubleOverlay').style.display='block';
-    setTimeout(()=>{ document.getElementById('doubleOverlay').style.display='none'; }, 900);
+    const d = document.getElementById('doubleOverlay');
+    if (d){
+      d.style.display='block';
+      d.style.pointerEvents='none';
+      setTimeout(()=>{ d.style.display='none'; d.style.pointerEvents=''; }, 900);
+    }
 
     if (p.doubleStreak >= 3){
       log(`${p.name} saca 3 dobles seguidos → cárcel.`);
@@ -1555,7 +1559,8 @@ function showDoublesOverlay() {
   if (!overlay) return;
   overlay.innerHTML = '<img src="img/doubles.jpg" alt="Dobles">';
   overlay.style.display = 'flex';
-  setTimeout(()=>{ overlay.style.display='none'; }, 2200);
+  overlay.style.pointerEvents = 'none';
+  setTimeout(()=>{ overlay.style.display='none'; overlay.style.pointerEvents=''; }, 2200);
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
@@ -4277,11 +4282,12 @@ function animateTransportHop(player, fromIdx, toIdx, done){
     ov.classList.add('casino');
     ov.innerHTML = html;
     ov.style.display = 'flex';
+    ov.style.pointerEvents = 'auto';
     return ov;
   }
   function ovHide(){
     const ov = overlay();
-    if (ov){ ov.style.display = 'none'; ov.classList.remove('casino'); }
+    if (ov){ ov.style.display = 'none'; ov.style.pointerEvents = ''; ov.classList.remove('casino'); }
   }
   const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
@@ -5279,6 +5285,7 @@ function playSlotsFree(player, tile){
       <div class="slotsMsg" id="slotsMsg">Girando…</div>
     </div>`;
   overlay.style.display = 'flex';
+  overlay.style.pointerEvents = 'auto';
 
   const pick = ()=> symbols[Math.floor(Math.random()*symbols.length)];
   function spin(el, duration, final){
@@ -5326,7 +5333,7 @@ function playSlotsFree(player, tile){
       }
       renderPlayers?.();
       state.rolled = true; updateTurnButtons?.();
-      setTimeout(()=>{ overlay.style.display='none'; }, 1200);
+      setTimeout(()=>{ overlay.style.display='none'; overlay.style.pointerEvents=''; }, 1200);
     }, 1350);
   }, 240);
 
@@ -5776,6 +5783,7 @@ if (typeof window.transfer === 'function'){
           <button class="eventBtn" autofocus>Aceptar</button>
         </div>`;
         ov.style.display = 'flex';
+        ov.style.pointerEvents = 'auto';
         ov.style.opacity = '1';
         ov.style.transition = 'opacity 0.2s';
         let closed = false;
@@ -5783,7 +5791,7 @@ if (typeof window.transfer === 'function'){
           if(closed) return;
           closed = true;
           ov.style.opacity = '0';
-          setTimeout(()=>{ ov.style.display='none'; ov.style.opacity=''; resolve(); }, 200);
+          setTimeout(()=>{ ov.style.display='none'; ov.style.opacity=''; ov.style.pointerEvents=''; resolve(); }, 200);
         }
         ov.querySelector('.eventBtn').onclick = close;
         setTimeout(close, 700);
@@ -6136,9 +6144,10 @@ if (typeof window.transfer === 'function'){
     if (!ov) throw new Error('Falta #doubleOverlay en el DOM');
     ov.innerHTML = html;
     ov.style.display = 'flex';
+    ov.style.pointerEvents = 'auto';
     return ov;
   }
-  function ovHide(){ const ov = document.getElementById('doubleOverlay'); if (ov) ov.style.display = 'none'; }
+  function ovHide(){ const ov = document.getElementById('doubleOverlay'); if (ov) { ov.style.display = 'none'; ov.style.pointerEvents = ''; } }
 
   // Paso 1: recoger apuestas de TODOS los jugadores (secuencial, un overlay por jugador)
   function ghAskBetSequential(potRef){

@@ -242,6 +242,7 @@
           <button class="eventBtn" autofocus>Aceptar</button>
         </div>`;
         ov.style.display = 'flex';
+        ov.style.pointerEvents = 'auto';
         ov.style.opacity = '1';
         ov.style.transition = 'opacity 0.2s';
         let closed = false;
@@ -249,7 +250,7 @@
           if(closed) return;
           closed = true;
           ov.style.opacity = '0';
-          setTimeout(()=>{ ov.style.display='none'; ov.style.opacity=''; resolve(); }, 200);
+          setTimeout(()=>{ ov.style.display='none'; ov.style.opacity=''; ov.style.pointerEvents=''; resolve(); }, 200);
         }
         ov.querySelector('.eventBtn').onclick = close;
         setTimeout(close, 700);
@@ -602,9 +603,10 @@
     if (!ov) throw new Error('Falta #doubleOverlay en el DOM');
     ov.innerHTML = html;
     ov.style.display = 'flex';
+    ov.style.pointerEvents = 'auto';
     return ov;
   }
-  function ovHide(){ const ov = document.getElementById('doubleOverlay'); if (ov) ov.style.display = 'none'; }
+  function ovHide(){ const ov = document.getElementById('doubleOverlay'); if (ov) { ov.style.display = 'none'; ov.style.pointerEvents = ''; } }
 
   // Paso 1: recoger apuestas de TODOS los jugadores (secuencial, un overlay por jugador)
   function ghAskBetSequential(potRef){

@@ -236,8 +236,12 @@ async function roll(){
 
   // Dobles normales: hasta 3 tiradas, luego cárcel
   if (isDouble){
-    document.getElementById('doubleOverlay').style.display='block';
-    setTimeout(()=>{ document.getElementById('doubleOverlay').style.display='none'; }, 900);
+    const d = document.getElementById('doubleOverlay');
+    if (d){
+      d.style.display='block';
+      d.style.pointerEvents='none';
+      setTimeout(()=>{ d.style.display='none'; d.style.pointerEvents=''; }, 900);
+    }
 
     if (p.doubleStreak >= 3){
       log(`${p.name} saca 3 dobles seguidos → cárcel.`);
@@ -372,7 +376,8 @@ function showDoublesOverlay() {
   if (!overlay) return;
   overlay.innerHTML = '<img src="img/doubles.jpg" alt="Dobles">';
   overlay.style.display = 'flex';
-  setTimeout(()=>{ overlay.style.display='none'; }, 2200);
+  overlay.style.pointerEvents = 'none';
+  setTimeout(()=>{ overlay.style.display='none'; overlay.style.pointerEvents=''; }, 2200);
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
