@@ -50,6 +50,26 @@ function showBankMenu(){
   });
 }
 
+async function manageCorruptContract(){
+  if(!window.Roles) return;
+  const existing = Roles.getCorruptContract ? Roles.getCorruptContract() : null;
+  if(existing && existing.text){
+    alert(`Contrato actual:\n${existing.text}\nParticipantes: ${(existing.players||[]).join(', ')}`);
+    const edit = await promptChoice('¿Editar contrato?', [
+      {label:'Editar', value:true},
+      {label:'Salir', value:false}
+    ]);
+    if(!edit) return;
+  }
+  const text = await promptDialog('Texto del contrato:', existing?.text || '');
+  if(text===null) return;
+  const ids = await promptDialog('IDs participantes (separados por comas):', (existing?.players||[]).join(','));
+  if(ids===null) return;
+  const players = ids.split(',').map(s=>s.trim()).filter(Boolean);
+  Roles.setCorruptContract({ text, players });
+  alert('Contrato guardado.');
+}
+
 async function exerciseOption(p){
   if(!p) return;
   const propName = await promptDialog('Nombre propiedad a ejercer:', '');
@@ -276,6 +296,8 @@ async function onLand(p, idx){
             }
           }
         }
+      } else if (opt === 'contract') {
+        await manageCorruptContract();
       }
     } catch(e){}
   }

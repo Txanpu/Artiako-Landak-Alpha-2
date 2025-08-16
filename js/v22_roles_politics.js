@@ -107,7 +107,8 @@
     fentanyl: { tiles: new Set(), chance: 0.15, fee: 15 },
     statuses: new Map(), // playerId -> { fentanyl?: { tileId, fee, active:true } }
     pendingPayments: [],
-    pendingMoves: []
+    pendingMoves: [],
+    contract: null
   };
 
   // Utilidades
@@ -393,6 +394,15 @@
     return arr;
   };
 
+  R.setCorruptContract = function(data){
+    state.contract = data || null;
+    saveState();
+  };
+
+  R.getCorruptContract = function(){
+    return state.contract || null;
+  };
+
   // —— Florentino: forzar trades + perks en préstamos ——
   R.getFlorentinoUsesLeft = function(player){ const id=(player&&player.id)||player; return state.florentinoUsesLeft.get(id)||0; };
 
@@ -587,7 +597,8 @@
         governmentTurnsLeft: state.governmentTurnsLeft,
         authoritarianTick: state.authoritarianTick,
         pendingPayments: state.pendingPayments||[],
-        pendingMoves: state.pendingMoves||[]
+        pendingMoves: state.pendingMoves||[],
+        contract: state.contract
       };
       localStorage.setItem(LS_KEY, JSON.stringify(plain));
     }catch(e){ /* noop */ }
@@ -612,6 +623,7 @@
       state.pendingPayments = plain.pendingPayments||[];
       state.pendingMoves = plain.pendingMoves||[];
       state.noRentFromWomen = new Set(plain.noRentFromWomen||[]);
+      state.contract = plain.contract || null;
     }catch(e){ /* noop */ }
   }
 
@@ -635,7 +647,8 @@
       statuses: Array.from(state.statuses||new Map()),
       pendingPayments: state.pendingPayments||[],
       pendingMoves: state.pendingMoves||[],
-      noRentFromWomen: Array.from(state.noRentFromWomen||[])
+      noRentFromWomen: Array.from(state.noRentFromWomen||[]),
+      contract: state.contract||null
     };
   };
   R.importState = function(obj){
@@ -657,6 +670,7 @@
       state.pendingPayments = obj.pendingPayments||[];
       state.pendingMoves = obj.pendingMoves||[];
       state.noRentFromWomen = new Set(obj.noRentFromWomen||[]);
+      state.contract = obj.contract || null;
       saveState(); uiUpdate();
       return true;
     }catch(e){ return false; }

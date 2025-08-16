@@ -1804,6 +1804,26 @@ function showBankMenu(){
   });
 }
 
+async function manageCorruptContract(){
+  if(!window.Roles) return;
+  const existing = Roles.getCorruptContract ? Roles.getCorruptContract() : null;
+  if(existing && existing.text){
+    alert(`Contrato actual:\n${existing.text}\nParticipantes: ${(existing.players||[]).join(', ')}`);
+    const edit = await promptChoice('¿Editar contrato?', [
+      {label:'Editar', value:true},
+      {label:'Salir', value:false}
+    ]);
+    if(!edit) return;
+  }
+  const text = await promptDialog('Texto del contrato:', existing?.text || '');
+  if(text===null) return;
+  const ids = await promptDialog('IDs participantes (separados por comas):', (existing?.players||[]).join(','));
+  if(ids===null) return;
+  const players = ids.split(',').map(s=>s.trim()).filter(Boolean);
+  Roles.setCorruptContract({ text, players });
+  alert('Contrato guardado.');
+}
+
 async function exerciseOption(p){
   if(!p) return;
   const propName = await promptDialog('Nombre propiedad a ejercer:', '');
@@ -2030,6 +2050,8 @@ async function onLand(p, idx){
             }
           }
         }
+      } else if (opt === 'contract') {
+        await manageCorruptContract();
       }
     } catch(e){}
   }
@@ -6434,7 +6456,8 @@ if (typeof window.transfer === 'function'){
     fentanyl: { tiles: new Set(), chance: 0.15, fee: 15 },
     statuses: new Map(), // playerId -> { fentanyl?: { tileId, fee, active:true } }
     pendingPayments: [],
-    pendingMoves: []
+    pendingMoves: [],
+    contract: null
   };
 
   // Utilidades
@@ -6720,6 +6743,15 @@ if (typeof window.transfer === 'function'){
     return arr;
   };
 
+  R.setCorruptContract = function(data){
+    state.contract = data || null;
+    saveState();
+  };
+
+  R.getCorruptContract = function(){
+    return state.contract || null;
+  };
+
   // —— Florentino: forzar trades + perks en préstamos ——
   R.getFlorentinoUsesLeft = function(player){ const id=(player&&player.id)||player; return state.florentinoUsesLeft.get(id)||0; };
 
@@ -6914,7 +6946,8 @@ if (typeof window.transfer === 'function'){
         governmentTurnsLeft: state.governmentTurnsLeft,
         authoritarianTick: state.authoritarianTick,
         pendingPayments: state.pendingPayments||[],
-        pendingMoves: state.pendingMoves||[]
+        pendingMoves: state.pendingMoves||[],
+        contract: state.contract
       };
       localStorage.setItem(LS_KEY, JSON.stringify(plain));
     }catch(e){ /* noop */ }
@@ -6939,6 +6972,7 @@ if (typeof window.transfer === 'function'){
       state.pendingPayments = plain.pendingPayments||[];
       state.pendingMoves = plain.pendingMoves||[];
       state.noRentFromWomen = new Set(plain.noRentFromWomen||[]);
+      state.contract = plain.contract || null;
     }catch(e){ /* noop */ }
   }
 
@@ -6962,7 +6996,8 @@ if (typeof window.transfer === 'function'){
       statuses: Array.from(state.statuses||new Map()),
       pendingPayments: state.pendingPayments||[],
       pendingMoves: state.pendingMoves||[],
-      noRentFromWomen: Array.from(state.noRentFromWomen||[])
+      noRentFromWomen: Array.from(state.noRentFromWomen||[]),
+      contract: state.contract||null
     };
   };
   R.importState = function(obj){
@@ -6984,6 +7019,7 @@ if (typeof window.transfer === 'function'){
       state.pendingPayments = obj.pendingPayments||[];
       state.pendingMoves = obj.pendingMoves||[];
       state.noRentFromWomen = new Set(obj.noRentFromWomen||[]);
+      state.contract = obj.contract || null;
       saveState(); uiUpdate();
       return true;
     }catch(e){ return false; }
