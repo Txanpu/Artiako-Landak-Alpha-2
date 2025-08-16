@@ -28,4 +28,5 @@ test('state funds evolve with government type', async () => {
   assert.strictEqual(await runScenario('left', 1, 100), 103);
   assert.strictEqual(await runScenario('right', 1, 100), 103);
   assert.strictEqual(await runScenario('authoritarian', 3, 100), 150);
+  assert.strictEqual(await runScenario('anarchy', 1, 100), 100);
 });

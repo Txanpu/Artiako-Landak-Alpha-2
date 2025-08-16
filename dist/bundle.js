@@ -6368,12 +6368,13 @@ if (typeof window.transfer === 'function'){
  *   judgeFee:50, judgeNoAnnulFloor:0.33,
  *   govPeriod:7, govDuration:7,
  *   govLeft:{tax:0.25, interest:0.10, welfare:0.30, rentIVA:0.30},
- *   govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
- *   govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
- *   govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
- *   dice0to9:false,
- *   ui:{banner:true}
- */
+*   govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
+*   govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
+*   govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
+*   govAnarchy:{tax:0, welfare:0, interest:0, rentIVA:0},
+*   dice0to9:false,
+*   ui:{banner:true}
+*/
 (function(){
   'use strict';
 
@@ -6402,6 +6403,7 @@ if (typeof window.transfer === 'function'){
     govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
     govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
     govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
+    govAnarchy:{tax:0, welfare:0, interest:0, rentIVA:0},
     ui: { banner: true }
   };
 
@@ -6417,7 +6419,7 @@ if (typeof window.transfer === 'function'){
     florentinoUsesLeft: new Map(), // playerId -> remaining
     bankCorrupt: false,
     turnCounter: 0,
-    government: null, // 'left'|'right'|'authoritarian'|'libertarian'|null
+    government: null, // 'left'|'right'|'authoritarian'|'libertarian'|'anarchy'|null
     governmentTurnsLeft: 0,
     authoritarianTick: 0,
     loans: [],
@@ -6510,7 +6512,8 @@ if (typeof window.transfer === 'function'){
       { value:'left', label:'Izquierda' },
       { value:'right', label:'Derecha' },
       { value:'authoritarian', label:'Autoritario' },
-      { value:'libertarian', label:'Libertario' }
+      { value:'libertarian', label:'Libertario' },
+      { value:'anarchy', label:'Anarquía' }
     ];
     const votes = new Map();
     for(const p of state.players){
@@ -6840,12 +6843,12 @@ if (typeof window.transfer === 'function'){
   };
 
   R.setGovernment = function(side){
-    if(!['left','right','authoritarian','libertarian'].includes(side)){ return false; }
+    if(!['left','right','authoritarian','libertarian','anarchy'].includes(side)){ return false; }
     state.government = side;
     state.governmentTurnsLeft = cfg.govDuration;
     state.authoritarianTick = 0;
     saveState(); uiUpdate();
-    const names = {left:'de izquierdas', right:'de derechas', authoritarian:'autoritario', libertarian:'libertario'};
+    const names = {left:'de izquierdas', right:'de derechas', authoritarian:'autoritario', libertarian:'libertario', anarchy:'anarquista'};
     uiLog(`🏛️ Gobierno ${names[side]} (${cfg.govDuration} turnos)`);
     return true;
   };
@@ -6857,6 +6860,7 @@ if (typeof window.transfer === 'function'){
     if(state.government==='right') return 1 + (cfg.govRight.tax||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.tax||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.tax||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.tax||0);
     return 1;
   };
   R.getRentIVAMultiplier = function(){
@@ -6864,6 +6868,7 @@ if (typeof window.transfer === 'function'){
     if(state.government==='right') return 1 + (cfg.govRight.rentIVA||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.rentIVA||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.rentIVA||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.rentIVA||0);
     return 1;
   };
   R.getWelfareMultiplier = function(){
@@ -6871,6 +6876,7 @@ if (typeof window.transfer === 'function'){
     if(state.government==='right') return 1 + (cfg.govRight.welfare||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.welfare||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.welfare||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.welfare||0);
     return 1;
   };
   R.getInterestMultiplier = function(){
@@ -6878,6 +6884,7 @@ if (typeof window.transfer === 'function'){
     if(state.government==='right') return 1 + (cfg.govRight.interest||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.interest||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.interest||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.interest||0);
     return 1;
   };
 
