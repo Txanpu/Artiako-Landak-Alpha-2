@@ -190,16 +190,6 @@
 
   })();
 
-document.querySelectorAll('.tile').forEach((tile, idx) => {
-  tile.addEventListener('click', (e) => {
-    e.stopPropagation();
-    tile.classList.toggle('active');
-    const ov = document.getElementById('overlay');
-    if (typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
-      window.showCard(idx);
-    }
-  });
-});
 document.querySelectorAll('.badge').forEach(badge=>{
   badge.addEventListener('click',(e)=>{ e.stopPropagation(); badge.classList.toggle('active'); });
 });
@@ -245,10 +235,9 @@ function initGameBindings(){
   board?.addEventListener('click', (e) => {
     const tile = e.target.closest('.tile');
     if (!tile) return;
-    const tiles = Array.from(board.querySelectorAll('.tile'));
-    const idx = tiles.indexOf(tile);
+    const idx = parseInt(tile.dataset.index, 10);
     const ov = document.getElementById('overlay');
-    if (idx > -1 && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
+    if (!Number.isNaN(idx) && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
       window.showCard(idx);
     }
   });
