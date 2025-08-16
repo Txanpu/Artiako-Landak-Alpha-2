@@ -687,6 +687,10 @@ function showCard(tileIndex, {canAuction=false}={}) {
   }
 
   const t = TILES[tileIndex];
+  if (!t) {
+    if (overlay) overlay.style.display = 'none';
+    return;
+  }
   const st = window.state;
   if (st) st.pendingTile = tileIndex;
   // Título por defecto
