@@ -233,33 +233,36 @@ async function onLand(p, idx){
         transfer(Estado, getPlayerById(p.id), principal, { taxable:false, reason:'Préstamo mercado deuda' });
         log('Mercado deuda: préstamo ' + L.id + ' creado.');
       } else if (opt === 'titulize') {
-        const loanId = await promptDialog('ID préstamo a titulizar:', '');
-        if (loanId) {
-          try {
-            const shares = GameSecuritization.splitLoan(loanId, [
-              { ownerId: p.id, bips: 5000 },
-              { ownerId: 'E', bips: 5000 }
-            ]);
-            if (shares) {
-              log('Titulización OK: ' + shares.join(','));
-            } else {
-              alert('No se pudo titulizar');
+        const p2p = (state.loans||[]).filter(l => state.players[l.lenderId] && state.players[l.borrowerId]);
+        if (!p2p.length) {
+          alert('No hay préstamos P2P para titulizar');
+        } else {
+          const choice = await promptChoice('Elige préstamo P2P a titulizar:', p2p.map(l => ({ text:`${l.id} (${l.principal})`, value:l.id })));
+          if (choice) {
+            try {
+              const shares = GameSecuritization.splitLoan(choice, [
+                { ownerId: p.id, bips: 5000 },
+                { ownerId: 'E', bips: 5000 }
+              ]);
+              if (shares) {
+                log('Titulización OK: ' + shares.join(','));
+              } else {
+                alert('No se pudo titulizar');
+              }
+            } catch (e) {
+              alert('Error titulizando: ' + e.message);
             }
-          } catch (e) {
-            alert('Error titulizando: ' + e.message);
           }
         }
       } else if (opt === 'options') {
-        const action = (await promptDialog('Operación (sell/exercise):', 'sell') || '').toLowerCase();
-        if (action === 'sell') {
-          const propName = await promptDialog('Nombre propiedad:', '');
-          const tile = TILES.find(t => t.name === propName && t.owner === p.id);
-          if (!tile) {
-            alert('No posees esa propiedad');
-          } else {
-            const typeOpt = (await promptDialog('Tipo (call/put):', 'call') || '').toLowerCase();
-            const strike = Number(await promptDialog('Precio ejercicio:', '100')) || 0;
-            const premium = Number(await promptDialog('Prima:', '10')) || 0;
+        const owned = TILES.filter(t => t.owner === p.id);
+        if (!owned.length) {
+          alert('No tienes propiedades para opciones');
+        } else {
+          const propName = await promptChoice('Propiedad para opción de compra:', owned.map(t => ({ text:t.name, value:t.name })));
+          if (propName) {
+            const strike = Number(await promptDialog('Precio de ejercicio:', '100')) || 0;
+            const premium = Number(await promptDialog('Precio de la opción:', '10')) || 0;
             const buyerId = await promptDialog('ID comprador:', '');
             const buyer = state.players[buyerId];
             if (!buyer) {
@@ -267,13 +270,11 @@ async function onLand(p, idx){
             } else if (buyer.money < premium) {
               alert('Comprador sin fondos');
             } else {
-              transfer(buyer, getPlayerById(p.id), premium, { taxable:false, reason: `Prima opción ${typeOpt}` });
-              state.options.push({ property: tile.name, type: typeOpt, strike, premium, seller: p.id, buyer: buyerId });
-              log(`Opción ${typeOpt} sobre ${tile.name} vendida a ${buyer.name}.`);
+              transfer(buyer, getPlayerById(p.id), premium, { taxable:false, reason:'Prima opción call' });
+              state.options.push({ property: propName, type:'call', strike, premium, seller: p.id, buyer: buyerId });
+              log(`Opción call sobre ${propName} vendida a ${buyer.name}.`);
             }
           }
-        } else if (action === 'exercise') {
-          await exerciseOption(p);
         }
       }
     } catch(e){}
