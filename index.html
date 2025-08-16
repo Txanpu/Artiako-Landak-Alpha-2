@@ -18,7 +18,6 @@
 <div class="boardWrap">
   <div id="board" class="board dark"></div>
 </div>
-<div id="tooltip-carta" class="tooltip"></div>
 
 <!-- ===== PANEL nuevo (manteniendo IDs del v15) ===== -->
   <div class="panel">
@@ -219,7 +218,6 @@ function initGameBindings(){
   const btnPlay = document.getElementById('main-play');
   const btnOptions = document.getElementById('main-options');
   const btnExit = document.getElementById('main-exit');
-  const tooltip = document.getElementById('tooltip-carta');
   btnPlay?.addEventListener('click', () => {
     menu?.classList.add('hidden');
     document.getElementById('openSetup')?.click();
@@ -272,18 +270,26 @@ function initGameBindings(){
     const tile = e.target.closest('.tile');
     if (!tile) return;
     const idx = parseInt(tile.dataset.index, 10);
-    const card = window.BoardUI?.tiles?.[idx];
-    if (!card) return;
-    tooltip.style.display = 'block';
-    tooltip.textContent = `${card.name}\nPrecio: $${card.price || 0}`;
-  });
-  board?.addEventListener('mousemove', (e) => {
-    tooltip.style.top = e.pageY + 5 + 'px';
-    tooltip.style.left = e.pageX + 5 + 'px';
+    const ov = document.getElementById('overlay');
+    if (Number.isNaN(idx) || typeof window.showCard !== 'function') return;
+    if (ov && ov.style.display === 'flex' && !ov.dataset.preview) return;
+    window.showCard(idx);
+    if (ov) {
+      ov.dataset.preview = 'true';
+      ov.style.pointerEvents = 'none';
+      ov.dataset.prevBg = ov.style.background;
+      ov.style.background = 'transparent';
+    }
   });
   board?.addEventListener('mouseout', (e) => {
+    const ov = document.getElementById('overlay');
+    if (!ov || ov.dataset.preview !== 'true') return;
     if (!e.relatedTarget || !e.relatedTarget.closest('.tile')) {
-      tooltip.style.display = 'none';
+      ov.style.display = 'none';
+      ov.style.pointerEvents = '';
+      ov.style.background = ov.dataset.prevBg || '';
+      delete ov.dataset.preview;
+      delete ov.dataset.prevBg;
     }
   });
 }
