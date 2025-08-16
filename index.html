@@ -10,11 +10,21 @@
 
 </head>
 <body>
-<div id="main-menu" class="menu-centro">
-  <button id="main-play">Jugar</button>
-  <button id="main-options">Opciones</button>
-  <button id="main-exit">Salir</button>
-</div>
+  <div id="menu">
+    <table id="menutable" cellspacing="0">
+      <tr>
+        <td class="menu-item" id="buy-menu-item">
+          <a href="javascript:void(0);" title="View alerts and buy the property you landed on.">Buy</a>
+        </td>
+        <td class="menu-item" id="manage-menu-item">
+          <a href="javascript:void(0);" title="View, mortgage, and improve your property.">Manage</a>
+        </td>
+        <td class="menu-item" id="trade-menu-item">
+          <a href="javascript:void(0);" title="Exchange property with other players.">Trade</a>
+        </td>
+      </tr>
+    </table>
+  </div>
 <div class="boardWrap">
   <div id="board" class="board dark"></div>
 </div>
