@@ -106,6 +106,27 @@ window.ensureVAT      = ensureVAT;
 window.markIVAPaid    = markIVAPaid;
 window.markIVACharged = markIVACharged;
 
+function endGame(message){
+  let dlg = document.getElementById('endGameDialog');
+  if(!dlg){
+    dlg = document.createElement('dialog');
+    dlg.id = 'endGameDialog';
+    dlg.innerHTML = `
+      <p id="endGameMessage"></p>
+      <div class="row" style="margin-top:8px; justify-content:flex-end">
+        <button id="endGameRestart" class="primary">Nueva partida</button>
+      </div>`;
+    document.body.appendChild(dlg);
+    const btn = document.getElementById('endGameRestart');
+    btn.addEventListener('click', ()=>{ location.reload(); });
+    dlg.addEventListener('cancel', ev=>ev.preventDefault());
+  }
+  const msg = document.getElementById('endGameMessage');
+  if(msg) msg.textContent = message;
+  dlg.showModal();
+}
+window.endGame = endGame;
+
 function ensureAlive(player){
   if (!player || player===Estado) return;
   if (player.money >= 0) return;
@@ -123,6 +144,11 @@ function ensureAlive(player){
   if (state.current === player.id) endTurn(); // pasa turno si el activo muere
   BoardUI.refreshTiles();
   renderPlayers();
+
+  const vivos = state.players.filter(p=>p.alive);
+  if (vivos.length === 1){
+    endGame(`Zorionak ${vivos[0].name} ha ganado.`);
+  }
 }
 
 function updatePropertyButtons(){
