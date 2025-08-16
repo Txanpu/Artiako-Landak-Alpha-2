@@ -10,9 +10,15 @@
 
 </head>
 <body>
+<div id="main-menu" class="menu-centro">
+  <button id="main-play">Jugar</button>
+  <button id="main-options">Opciones</button>
+  <button id="main-exit">Salir</button>
+</div>
 <div class="boardWrap">
   <div id="board" class="board dark"></div>
 </div>
+<div id="tooltip-carta" class="tooltip"></div>
 
 <!-- ===== PANEL nuevo (manteniendo IDs del v15) ===== -->
   <div class="panel">
@@ -209,6 +215,19 @@ document.querySelector('.controls button:last-child')?.addEventListener('click',
 });
 
 function initGameBindings(){
+  const menu = document.getElementById('main-menu');
+  const btnPlay = document.getElementById('main-play');
+  const btnOptions = document.getElementById('main-options');
+  const btnExit = document.getElementById('main-exit');
+  const tooltip = document.getElementById('tooltip-carta');
+  btnPlay?.addEventListener('click', () => {
+    menu?.classList.add('hidden');
+    document.getElementById('openSetup')?.click();
+  });
+  btnOptions?.addEventListener('click', () => {
+    alert('Opciones no disponibles');
+  });
+  btnExit?.addEventListener('click', () => menu?.classList.add('hidden'));
   // [PATCH] Inicialización de módulos
   if (window.GameDebtMarket) {
     GameDebtMarket.install({ state: window.state, fixPropertyAuction: true });
@@ -247,6 +266,24 @@ function initGameBindings(){
     const ov = document.getElementById('overlay');
     if (!Number.isNaN(idx) && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
       window.showCard(idx);
+    }
+  });
+  board?.addEventListener('mouseover', (e) => {
+    const tile = e.target.closest('.tile');
+    if (!tile) return;
+    const idx = parseInt(tile.dataset.index, 10);
+    const card = window.BoardUI?.tiles?.[idx];
+    if (!card) return;
+    tooltip.style.display = 'block';
+    tooltip.textContent = `${card.name}\nPrecio: $${card.price || 0}`;
+  });
+  board?.addEventListener('mousemove', (e) => {
+    tooltip.style.top = e.pageY + 5 + 'px';
+    tooltip.style.left = e.pageX + 5 + 'px';
+  });
+  board?.addEventListener('mouseout', (e) => {
+    if (!e.relatedTarget || !e.relatedTarget.closest('.tile')) {
+      tooltip.style.display = 'none';
     }
   });
 }
