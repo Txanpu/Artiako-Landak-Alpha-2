@@ -5001,6 +5001,26 @@ function requestLoan(){
 }
 window.askLoan = requestLoan;
 
+function viewLoans(){
+  const dlg = document.getElementById('loansDialog');
+  const list = document.getElementById('loansList');
+  if (!dlg || !list) return;
+  list.innerHTML = '';
+  (state.loans||[]).forEach(loan=>{
+    try{
+      if (window.UIX?.debt?.ticket){
+        list.appendChild(UIX.debt.ticket(loan));
+      } else {
+        const div=document.createElement('div');
+        div.textContent = `Préstamo ${loan.id||''}: ${loan.principal}`;
+        list.appendChild(div);
+      }
+    }catch(e){}
+  });
+  dlg.showModal();
+}
+window.viewLoans = viewLoans;
+
 // ================= COBRO AL FINAL DE CADA TURNO (tick global) =================
 function applyLoansAtTurnEnd(){
   const remaining = [];
@@ -5498,6 +5518,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('#mortgage')?.addEventListener('click', mortgage);
   $('#unmortgage')?.addEventListener('click', unmortgage);
   $('#corruptLoan')?.addEventListener('click', tryCorruptLoan);
+  $('#viewLoans')?.addEventListener('click', viewLoans);
+  $('#closeLoans')?.addEventListener('click', ()=> document.getElementById('loansDialog')?.close());
   // $('#loan')?.addEventListener('click', requestLoan); // ← antes era askLoan
   (() => {
     const btn = document.getElementById('loan');
