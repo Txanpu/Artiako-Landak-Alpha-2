@@ -2671,12 +2671,9 @@ function updateTurnButtons() {
     const btn = document.getElementById('corruptLoan');
     if (btn && window.Roles?.exportState) {
       const p = state.players[state.current];
-      const landings = new Map(window.Roles.exportState().bankLandingAttempt || []);
-      const landing = landings.get(p.id);
-      const canTry = landing && landing.turn === state.turnCount && !landing.attempted;
       const isFlorentino = window.Roles?.get?.(p.id) === 'florentino';
       const bankOn = window.Roles?.isBankCorrupt?.();
-      btn.style.display = (canTry || (isFlorentino && bankOn)) ? '' : 'none';
+      btn.style.display = (isFlorentino && bankOn) ? '' : 'none';
     }
   } catch {}
 }
