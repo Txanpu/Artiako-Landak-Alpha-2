@@ -63,11 +63,12 @@
     ov.classList.add('casino');
     ov.innerHTML = html;
     ov.style.display = 'flex';
+    ov.style.pointerEvents = 'auto';
     return ov;
   }
   function ovHide(){
     const ov = overlay();
-    if (ov){ ov.style.display = 'none'; ov.classList.remove('casino'); }
+    if (ov){ ov.style.display = 'none'; ov.style.pointerEvents = ''; ov.classList.remove('casino'); }
   }
   const sleep = ms => new Promise(r=>setTimeout(r,ms));
 

@@ -794,6 +794,7 @@ function playSlotsFree(player, tile){
       <div class="slotsMsg" id="slotsMsg">Girando…</div>
     </div>`;
   overlay.style.display = 'flex';
+  overlay.style.pointerEvents = 'auto';
 
   const pick = ()=> symbols[Math.floor(Math.random()*symbols.length)];
   function spin(el, duration, final){
@@ -841,7 +842,7 @@ function playSlotsFree(player, tile){
       }
       renderPlayers?.();
       state.rolled = true; updateTurnButtons?.();
-      setTimeout(()=>{ overlay.style.display='none'; }, 1200);
+      setTimeout(()=>{ overlay.style.display='none'; overlay.style.pointerEvents=''; }, 1200);
     }, 1350);
   }, 240);
 
