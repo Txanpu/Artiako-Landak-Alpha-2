@@ -84,6 +84,22 @@
     return cards.slice(0,3);
   }
 
+  function spinCard(el, final){
+    const symbols = [2,3,4,5,6,7,8,9,10,11];
+    const start = performance.now();
+    const duration = 500;
+    function tick(t){
+      if (t - start < duration){
+        el.textContent = String(symbols[Math.floor(Math.random()*symbols.length)]);
+        requestAnimationFrame(tick);
+      } else {
+        el.textContent = String(final);
+        el.classList.add('in');
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
   // === Blackjack con animación
   window.playBlackjack = async function(player, owner, tile){
     if (!owner || owner.alive === false){ log('El dueño no puede actuar.'); return; }
@@ -141,11 +157,12 @@
     const dCards = fakeCardsFor(dealer);
     let dSum = 0;
     for (const v of dCards){
-      const c = document.createElement('div'); c.className='card'; c.textContent=String(v);
+      const c = document.createElement('div'); c.className='card'; c.textContent='?';
       dRow.querySelector('.bjCards').appendChild(c);
-      await sleep(40); c.classList.add('in'); dSum += v;
+      spinCard(c, v);
+      await sleep(600);
+      dSum += v;
       dRow.querySelector('.total').textContent = String(dSum);
-      await sleep(160);
     }
 
     // Jugadores
@@ -159,11 +176,12 @@
       const cards = fakeCardsFor(r.me);
       let sum = 0;
       for (const v of cards){
-        const c = document.createElement('div'); c.className='card'; c.textContent=String(v);
+        const c = document.createElement('div'); c.className='card'; c.textContent='?';
         row.querySelector('.bjCards').appendChild(c);
-        await sleep(40); c.classList.add('in'); sum += v;
+        spinCard(c, v);
+        await sleep(600);
+        sum += v;
         row.querySelector('.total').textContent = String(sum);
-        await sleep(140);
       }
       if (r.dealerWins) row.classList.add('lose'); else row.classList.add('win');
     }
