@@ -122,6 +122,74 @@ dialog .row input{ margin-left:6px; width:120px }
 #bankMenu .menu{ display:flex; flex-direction:column; gap:8px }
 #bankMenu .menu button{ width:100% }
 
+/* Monopoly-style menu */
+#menu{
+  width:290px;
+  height:32px;
+  margin:0 10px;
+}
+
+#menutable{
+  padding:0;
+  text-align:left;
+  font-family:arial,sans-serif;
+  color:white;
+  font-weight:bold;
+  font-size:16px;
+  border:1px solid blue;
+  border-radius:5px 5px 0 0;
+  height:30px;
+  width:99%;
+  margin:0;
+  background-color:#305BC9;
+  background-image:url('img/menu_background.png');
+  overflow:hidden;
+}
+
+#menutable td{
+  vertical-align:top;
+}
+
+#menu a{
+  color:#FFFFFF;
+  text-decoration:none;
+  display:block;
+  height:100%;
+  width:100%;
+  padding-top:8px;
+}
+
+#buy-menu-item{
+  color:#FFFFFF;
+  margin-left:2px;
+  border-left:none;
+}
+
+#trade-menu-item{
+  color:#AAAAAA;
+  border-right:none;
+  margin-right:2px;
+}
+
+.menu-item{
+  padding:0;
+  border-collapse:collapse;
+  text-align:center;
+  display:table-cell;
+  background-color:transparent;
+  border:none;
+  border-right:2px solid white;
+  height:30px;
+  min-width:90px;
+  width:90px;
+  max-width:90px;
+  overflow:hidden;
+}
+
+.menu-item:hover{
+  background-image:url('img/menu_background_hover.png');
+}
+
 /* ======= estilos originales v15 (tablero, tiles, dados, etc.) ======= */
 /* letra más pequeña */
 .tile .name{ font-weight:800; font-size:clamp(.6rem,.7vw,.9rem); }
@@ -253,4 +321,37 @@ body.playing .setup { justify-content:flex-end; gap:8px; }
 .chat-log div{ margin:2px 0; }
 .chat-input{ margin-top:4px; }
 .chat-input input{ flex:1; }
+
+/* Menú principal centrado */
+#main-menu{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+  background:#111827;
+  padding:2rem;
+  border-radius:10px;
+  box-shadow:0 4px 8px rgba(0,0,0,0.3);
+  z-index:2000;
+}
+#main-menu.hidden{ display:none; }
+#main-menu button{ padding:0.8rem 1.5rem; cursor:pointer; }
+
+/* Tooltip de cartas */
+.tooltip{
+  position:absolute;
+  background:#fff;
+  color:#000;
+  padding:0.5rem;
+  border:1px solid #ccc;
+  border-radius:5px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
+  display:none;
+  white-space:pre-line;
+  pointer-events:none;
+  z-index:1500;
+}
 

@@ -40,12 +40,13 @@
  *   judgeFee:50, judgeNoAnnulFloor:0.33,
  *   govPeriod:7, govDuration:7,
  *   govLeft:{tax:0.25, interest:0.10, welfare:0.30, rentIVA:0.30},
- *   govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
- *   govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
- *   govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
- *   dice0to9:false,
- *   ui:{banner:true}
- */
+*   govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
+*   govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
+*   govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
+*   govAnarchy:{tax:0, welfare:0, interest:0, rentIVA:0},
+*   dice0to9:false,
+*   ui:{banner:true}
+*/
 (function(){
   'use strict';
 
@@ -74,6 +75,7 @@
     govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
     govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
     govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
+    govAnarchy:{tax:0, welfare:0, interest:0, rentIVA:0},
     ui: { banner: true }
   };
 
@@ -89,7 +91,7 @@
     florentinoUsesLeft: new Map(), // playerId -> remaining
     bankCorrupt: false,
     turnCounter: 0,
-    government: null, // 'left'|'right'|'authoritarian'|'libertarian'|null
+    government: null, // 'left'|'right'|'authoritarian'|'libertarian'|'anarchy'|null
     governmentTurnsLeft: 0,
     authoritarianTick: 0,
     loans: [],
@@ -105,7 +107,8 @@
     fentanyl: { tiles: new Set(), chance: 0.15, fee: 15 },
     statuses: new Map(), // playerId -> { fentanyl?: { tileId, fee, active:true } }
     pendingPayments: [],
-    pendingMoves: []
+    pendingMoves: [],
+    contract: null
   };
 
   // Utilidades
@@ -182,7 +185,8 @@
       { value:'left', label:'Izquierda' },
       { value:'right', label:'Derecha' },
       { value:'authoritarian', label:'Autoritario' },
-      { value:'libertarian', label:'Libertario' }
+      { value:'libertarian', label:'Libertario' },
+      { value:'anarchy', label:'Anarquía' }
     ];
     const votes = new Map();
     for(const p of state.players){
@@ -390,6 +394,15 @@
     return arr;
   };
 
+  R.setCorruptContract = function(data){
+    state.contract = data || null;
+    saveState();
+  };
+
+  R.getCorruptContract = function(){
+    return state.contract || null;
+  };
+
   // —— Florentino: forzar trades + perks en préstamos ——
   R.getFlorentinoUsesLeft = function(player){ const id=(player&&player.id)||player; return state.florentinoUsesLeft.get(id)||0; };
 
@@ -512,12 +525,12 @@
   };
 
   R.setGovernment = function(side){
-    if(!['left','right','authoritarian','libertarian'].includes(side)){ return false; }
+    if(!['left','right','authoritarian','libertarian','anarchy'].includes(side)){ return false; }
     state.government = side;
     state.governmentTurnsLeft = cfg.govDuration;
     state.authoritarianTick = 0;
     saveState(); uiUpdate();
-    const names = {left:'de izquierdas', right:'de derechas', authoritarian:'autoritario', libertarian:'libertario'};
+    const names = {left:'de izquierdas', right:'de derechas', authoritarian:'autoritario', libertarian:'libertario', anarchy:'anarquista'};
     uiLog(`🏛️ Gobierno ${names[side]} (${cfg.govDuration} turnos)`);
     return true;
   };
@@ -529,6 +542,7 @@
     if(state.government==='right') return 1 + (cfg.govRight.tax||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.tax||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.tax||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.tax||0);
     return 1;
   };
   R.getRentIVAMultiplier = function(){
@@ -536,6 +550,7 @@
     if(state.government==='right') return 1 + (cfg.govRight.rentIVA||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.rentIVA||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.rentIVA||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.rentIVA||0);
     return 1;
   };
   R.getWelfareMultiplier = function(){
@@ -543,6 +558,7 @@
     if(state.government==='right') return 1 + (cfg.govRight.welfare||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.welfare||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.welfare||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.welfare||0);
     return 1;
   };
   R.getInterestMultiplier = function(){
@@ -550,6 +566,7 @@
     if(state.government==='right') return 1 + (cfg.govRight.interest||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.interest||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.interest||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.interest||0);
     return 1;
   };
 
@@ -580,7 +597,8 @@
         governmentTurnsLeft: state.governmentTurnsLeft,
         authoritarianTick: state.authoritarianTick,
         pendingPayments: state.pendingPayments||[],
-        pendingMoves: state.pendingMoves||[]
+        pendingMoves: state.pendingMoves||[],
+        contract: state.contract
       };
       localStorage.setItem(LS_KEY, JSON.stringify(plain));
     }catch(e){ /* noop */ }
@@ -605,6 +623,7 @@
       state.pendingPayments = plain.pendingPayments||[];
       state.pendingMoves = plain.pendingMoves||[];
       state.noRentFromWomen = new Set(plain.noRentFromWomen||[]);
+      state.contract = plain.contract || null;
     }catch(e){ /* noop */ }
   }
 
@@ -628,7 +647,8 @@
       statuses: Array.from(state.statuses||new Map()),
       pendingPayments: state.pendingPayments||[],
       pendingMoves: state.pendingMoves||[],
-      noRentFromWomen: Array.from(state.noRentFromWomen||[])
+      noRentFromWomen: Array.from(state.noRentFromWomen||[]),
+      contract: state.contract||null
     };
   };
   R.importState = function(obj){
@@ -650,6 +670,7 @@
       state.pendingPayments = obj.pendingPayments||[];
       state.pendingMoves = obj.pendingMoves||[];
       state.noRentFromWomen = new Set(obj.noRentFromWomen||[]);
+      state.contract = obj.contract || null;
       saveState(); uiUpdate();
       return true;
     }catch(e){ return false; }

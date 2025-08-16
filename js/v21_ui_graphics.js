@@ -147,11 +147,20 @@
         }
       },
       _stateForTile(i,t){
-        const owner = t.owner; const me = UIX._currentPlayerId();
+        const owner = t.owner;
         const base = { fill:null, stroke:'#666', icon:null, iconGlow:false };
         if (owner==null){ return { ...base, stroke:'#AAB', icon:'event' }; }
-        const same = owner===me; const col = same? '#37E2B3' : '#E95F5F';
-        let stroke=col, fill= same? '#37E2B3' : '#E95F5F';
+        const colors={
+          'E':'#FFD700', // Estado (amarillo)
+          0:'#FF0000',   // Jugador 1 (rojo)
+          1:'#008000',   // Jugador 2 (verde)
+          2:'#0000FF',   // Jugador 3 (azul)
+          3:'#800080',   // Jugador 4 (morado)
+          4:'#FFA500',   // Jugador 5 (naranja)
+          5:'#00CED1'    // Jugador 6 (turquesa)
+        };
+        const col = colors[owner] || '#E95F5F';
+        let stroke=col, fill=col;
         let icon='rent';
         if (t.mortgaged){ stroke='#B09BF4'; icon='debt'; }
         if (t.collateral){ stroke='#F5A524'; icon='debt'; }

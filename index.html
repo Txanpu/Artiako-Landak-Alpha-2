@@ -10,6 +10,21 @@
 
 </head>
 <body>
+  <div id="menu">
+    <table id="menutable" cellspacing="0">
+      <tr>
+        <td class="menu-item" id="buy-menu-item">
+          <a href="javascript:void(0);" title="View alerts and buy the property you landed on.">Buy</a>
+        </td>
+        <td class="menu-item" id="manage-menu-item">
+          <a href="javascript:void(0);" title="View, mortgage, and improve your property.">Manage</a>
+        </td>
+        <td class="menu-item" id="trade-menu-item">
+          <a href="javascript:void(0);" title="Exchange property with other players.">Trade</a>
+        </td>
+      </tr>
+    </table>
+  </div>
 <div class="boardWrap">
   <div id="board" class="board dark"></div>
 </div>
@@ -74,6 +89,7 @@
         <button value="debt">Mercado de deuda</button>
         <button value="titulize">Titulizar préstamo</button>
         <button value="options">Derivados de propiedades</button>
+        <button value="contract">Redactar contrato</button>
       </div>
       <div class="row" style="margin-top:8px; justify-content:flex-end">
         <button value="cancel">Cancelar</button>
@@ -90,6 +106,14 @@
     </div>
   </dialog>
 
+  <!-- listado de préstamos existentes -->
+  <dialog id="loansDialog">
+    <div id="loansList"></div>
+    <div class="row" style="margin-top:8px; justify-content:flex-end">
+      <button type="button" id="closeLoans">Cerrar</button>
+    </div>
+  </dialog>
+
   <!-- jugadores -->
   <div class="players" id="players"></div>
 
@@ -99,6 +123,7 @@
     <button id="endTurn" type="button">Terminar turno</button>
     <button id="loan" type="button">Prestar dinero</button>
     <button id="corruptLoan" type="button" style="display:none; background-color: #b91c1c;">Banca Corrupta</button>
+    <button id="viewLoans" type="button">Ver préstamos</button>
     <button id="build" type="button">Construir</button>
     <button id="sell" type="button">Vender casa</button>
     <button id="mortgage" type="button">Hipotecar</button>
@@ -191,6 +216,7 @@
   })();
 
 
+
 // legacy opcional del v15 (no hay .controls en este layout, se deja seguro)
 document.querySelector('.controls button.primary')?.addEventListener('click',()=>{ alert('El juego ha comenzado!'); });
 document.querySelector('.controls button:last-child')?.addEventListener('click',()=>{
@@ -198,6 +224,18 @@ document.querySelector('.controls button:last-child')?.addEventListener('click',
 });
 
 function initGameBindings(){
+  const menu = document.getElementById('main-menu');
+  const btnPlay = document.getElementById('main-play');
+  const btnOptions = document.getElementById('main-options');
+  const btnExit = document.getElementById('main-exit');
+  btnPlay?.addEventListener('click', () => {
+    menu?.classList.add('hidden');
+    document.getElementById('openSetup')?.click();
+  });
+  btnOptions?.addEventListener('click', () => {
+    alert('Opciones no disponibles');
+  });
+  btnExit?.addEventListener('click', () => menu?.classList.add('hidden'));
   // [PATCH] Inicialización de módulos
   if (window.GameDebtMarket) {
     GameDebtMarket.install({ state: window.state, fixPropertyAuction: true });
@@ -232,11 +270,36 @@ function initGameBindings(){
   board?.addEventListener('click', (e) => {
     const tile = e.target.closest('.tile');
     if (!tile) return;
-    const tiles = Array.from(board.querySelectorAll('.tile'));
-    const idx = tiles.indexOf(tile);
+    const idx = parseInt(tile.dataset.index, 10);
     const ov = document.getElementById('overlay');
-    if (idx > -1 && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
+    if (!Number.isNaN(idx) && typeof window.showCard === 'function' && ov?.style.display !== 'flex') {
       window.showCard(idx);
+    }
+  });
+  board?.addEventListener('mouseover', (e) => {
+    const tile = e.target.closest('.tile');
+    if (!tile) return;
+    const idx = parseInt(tile.dataset.index, 10);
+    const ov = document.getElementById('overlay');
+    if (Number.isNaN(idx) || typeof window.showCard !== 'function') return;
+    if (ov && ov.style.display === 'flex' && !ov.dataset.preview) return;
+    window.showCard(idx);
+    if (ov) {
+      ov.dataset.preview = 'true';
+      ov.style.pointerEvents = 'none';
+      ov.dataset.prevBg = ov.style.background;
+      ov.style.background = 'transparent';
+    }
+  });
+  board?.addEventListener('mouseout', (e) => {
+    const ov = document.getElementById('overlay');
+    if (!ov || ov.dataset.preview !== 'true') return;
+    if (!e.relatedTarget || !e.relatedTarget.closest('.tile')) {
+      ov.style.display = 'none';
+      ov.style.pointerEvents = '';
+      ov.style.background = ov.dataset.prevBg || '';
+      delete ov.dataset.preview;
+      delete ov.dataset.prevBg;
     }
   });
 }

@@ -21,6 +21,7 @@ const MIN_TILE = 48;   // tamaño mínimo de casilla en px
 /* ==== Creación de casilla (estructura v11) ==== */
 function createTileElement(tile, index){
   const el = document.createElement('div'); el.className='tile';
+  el.dataset.index = index;
   const band=document.createElement('div'); band.className='band'; band.style.background=colorFor(tile);
   const head=document.createElement('div'); head.className='head';
   const name=document.createElement('div'); name.className='name'; name.textContent=tile?.name||''; head.appendChild(name);
@@ -686,6 +687,10 @@ function showCard(tileIndex, {canAuction=false}={}) {
   }
 
   const t = TILES[tileIndex];
+  if (!t) {
+    if (overlay) overlay.style.display = 'none';
+    return;
+  }
   const st = window.state;
   if (st) st.pendingTile = tileIndex;
   // Título por defecto
@@ -1804,6 +1809,26 @@ function showBankMenu(){
   });
 }
 
+async function manageCorruptContract(){
+  if(!window.Roles) return;
+  const existing = Roles.getCorruptContract ? Roles.getCorruptContract() : null;
+  if(existing && existing.text){
+    alert(`Contrato actual:\n${existing.text}\nParticipantes: ${(existing.players||[]).join(', ')}`);
+    const edit = await promptChoice('¿Editar contrato?', [
+      {label:'Editar', value:true},
+      {label:'Salir', value:false}
+    ]);
+    if(!edit) return;
+  }
+  const text = await promptDialog('Texto del contrato:', existing?.text || '');
+  if(text===null) return;
+  const ids = await promptDialog('IDs participantes (separados por comas):', (existing?.players||[]).join(','));
+  if(ids===null) return;
+  const players = ids.split(',').map(s=>s.trim()).filter(Boolean);
+  Roles.setCorruptContract({ text, players });
+  alert('Contrato guardado.');
+}
+
 async function exerciseOption(p){
   if(!p) return;
   const propName = await promptDialog('Nombre propiedad a ejercer:', '');
@@ -2030,6 +2055,8 @@ async function onLand(p, idx){
             }
           }
         }
+      } else if (opt === 'contract') {
+        await manageCorruptContract();
       }
     } catch(e){}
   }
@@ -4105,11 +4132,20 @@ function animateTransportHop(player, fromIdx, toIdx, done){
         }
       },
       _stateForTile(i,t){
-        const owner = t.owner; const me = UIX._currentPlayerId();
+        const owner = t.owner;
         const base = { fill:null, stroke:'#666', icon:null, iconGlow:false };
         if (owner==null){ return { ...base, stroke:'#AAB', icon:'event' }; }
-        const same = owner===me; const col = same? '#37E2B3' : '#E95F5F';
-        let stroke=col, fill= same? '#37E2B3' : '#E95F5F';
+        const colors={
+          'E':'#FFD700', // Estado (amarillo)
+          0:'#FF0000',   // Jugador 1 (rojo)
+          1:'#008000',   // Jugador 2 (verde)
+          2:'#0000FF',   // Jugador 3 (azul)
+          3:'#800080',   // Jugador 4 (morado)
+          4:'#FFA500',   // Jugador 5 (naranja)
+          5:'#00CED1'    // Jugador 6 (turquesa)
+        };
+        const col = colors[owner] || '#E95F5F';
+        let stroke=col, fill=col;
         let icon='rent';
         if (t.mortgaged){ stroke='#B09BF4'; icon='debt'; }
         if (t.collateral){ stroke='#F5A524'; icon='debt'; }
@@ -4965,6 +5001,26 @@ function requestLoan(){
 }
 window.askLoan = requestLoan;
 
+function viewLoans(){
+  const dlg = document.getElementById('loansDialog');
+  const list = document.getElementById('loansList');
+  if (!dlg || !list) return;
+  list.innerHTML = '';
+  (state.loans||[]).forEach(loan=>{
+    try{
+      if (window.UIX?.debt?.ticket){
+        list.appendChild(UIX.debt.ticket(loan));
+      } else {
+        const div=document.createElement('div');
+        div.textContent = `Préstamo ${loan.id||''}: ${loan.principal}`;
+        list.appendChild(div);
+      }
+    }catch(e){}
+  });
+  dlg.showModal();
+}
+window.viewLoans = viewLoans;
+
 // ================= COBRO AL FINAL DE CADA TURNO (tick global) =================
 function applyLoansAtTurnEnd(){
   const remaining = [];
@@ -5462,6 +5518,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('#mortgage')?.addEventListener('click', mortgage);
   $('#unmortgage')?.addEventListener('click', unmortgage);
   $('#corruptLoan')?.addEventListener('click', tryCorruptLoan);
+  $('#viewLoans')?.addEventListener('click', viewLoans);
+  $('#closeLoans')?.addEventListener('click', ()=> document.getElementById('loansDialog')?.close());
   // $('#loan')?.addEventListener('click', requestLoan); // ← antes era askLoan
   (() => {
     const btn = document.getElementById('loan');
@@ -6367,12 +6425,13 @@ if (typeof window.transfer === 'function'){
  *   judgeFee:50, judgeNoAnnulFloor:0.33,
  *   govPeriod:7, govDuration:7,
  *   govLeft:{tax:0.25, interest:0.10, welfare:0.30, rentIVA:0.30},
- *   govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
- *   govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
- *   govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
- *   dice0to9:false,
- *   ui:{banner:true}
- */
+*   govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
+*   govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
+*   govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
+*   govAnarchy:{tax:0, welfare:0, interest:0, rentIVA:0},
+*   dice0to9:false,
+*   ui:{banner:true}
+*/
 (function(){
   'use strict';
 
@@ -6401,6 +6460,7 @@ if (typeof window.transfer === 'function'){
     govRight:{tax:-0.20, welfare:-0.30, interest:0, rentIVA:0.30},
     govAuthoritarian:{tax:0.10, welfare:-0.20, interest:0.05, rentIVA:0.30},
     govLibertarian:{tax:-1, welfare:0, interest:-0.05, rentIVA:0},
+    govAnarchy:{tax:0, welfare:0, interest:0, rentIVA:0},
     ui: { banner: true }
   };
 
@@ -6416,7 +6476,7 @@ if (typeof window.transfer === 'function'){
     florentinoUsesLeft: new Map(), // playerId -> remaining
     bankCorrupt: false,
     turnCounter: 0,
-    government: null, // 'left'|'right'|'authoritarian'|'libertarian'|null
+    government: null, // 'left'|'right'|'authoritarian'|'libertarian'|'anarchy'|null
     governmentTurnsLeft: 0,
     authoritarianTick: 0,
     loans: [],
@@ -6432,7 +6492,8 @@ if (typeof window.transfer === 'function'){
     fentanyl: { tiles: new Set(), chance: 0.15, fee: 15 },
     statuses: new Map(), // playerId -> { fentanyl?: { tileId, fee, active:true } }
     pendingPayments: [],
-    pendingMoves: []
+    pendingMoves: [],
+    contract: null
   };
 
   // Utilidades
@@ -6509,7 +6570,8 @@ if (typeof window.transfer === 'function'){
       { value:'left', label:'Izquierda' },
       { value:'right', label:'Derecha' },
       { value:'authoritarian', label:'Autoritario' },
-      { value:'libertarian', label:'Libertario' }
+      { value:'libertarian', label:'Libertario' },
+      { value:'anarchy', label:'Anarquía' }
     ];
     const votes = new Map();
     for(const p of state.players){
@@ -6717,6 +6779,15 @@ if (typeof window.transfer === 'function'){
     return arr;
   };
 
+  R.setCorruptContract = function(data){
+    state.contract = data || null;
+    saveState();
+  };
+
+  R.getCorruptContract = function(){
+    return state.contract || null;
+  };
+
   // —— Florentino: forzar trades + perks en préstamos ——
   R.getFlorentinoUsesLeft = function(player){ const id=(player&&player.id)||player; return state.florentinoUsesLeft.get(id)||0; };
 
@@ -6839,12 +6910,12 @@ if (typeof window.transfer === 'function'){
   };
 
   R.setGovernment = function(side){
-    if(!['left','right','authoritarian','libertarian'].includes(side)){ return false; }
+    if(!['left','right','authoritarian','libertarian','anarchy'].includes(side)){ return false; }
     state.government = side;
     state.governmentTurnsLeft = cfg.govDuration;
     state.authoritarianTick = 0;
     saveState(); uiUpdate();
-    const names = {left:'de izquierdas', right:'de derechas', authoritarian:'autoritario', libertarian:'libertario'};
+    const names = {left:'de izquierdas', right:'de derechas', authoritarian:'autoritario', libertarian:'libertario', anarchy:'anarquista'};
     uiLog(`🏛️ Gobierno ${names[side]} (${cfg.govDuration} turnos)`);
     return true;
   };
@@ -6856,6 +6927,7 @@ if (typeof window.transfer === 'function'){
     if(state.government==='right') return 1 + (cfg.govRight.tax||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.tax||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.tax||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.tax||0);
     return 1;
   };
   R.getRentIVAMultiplier = function(){
@@ -6863,6 +6935,7 @@ if (typeof window.transfer === 'function'){
     if(state.government==='right') return 1 + (cfg.govRight.rentIVA||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.rentIVA||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.rentIVA||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.rentIVA||0);
     return 1;
   };
   R.getWelfareMultiplier = function(){
@@ -6870,6 +6943,7 @@ if (typeof window.transfer === 'function'){
     if(state.government==='right') return 1 + (cfg.govRight.welfare||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.welfare||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.welfare||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.welfare||0);
     return 1;
   };
   R.getInterestMultiplier = function(){
@@ -6877,6 +6951,7 @@ if (typeof window.transfer === 'function'){
     if(state.government==='right') return 1 + (cfg.govRight.interest||0);
     if(state.government==='authoritarian') return 1 + (cfg.govAuthoritarian.interest||0);
     if(state.government==='libertarian') return 1 + (cfg.govLibertarian.interest||0);
+    if(state.government==='anarchy') return 1 + (cfg.govAnarchy.interest||0);
     return 1;
   };
 
@@ -6907,7 +6982,8 @@ if (typeof window.transfer === 'function'){
         governmentTurnsLeft: state.governmentTurnsLeft,
         authoritarianTick: state.authoritarianTick,
         pendingPayments: state.pendingPayments||[],
-        pendingMoves: state.pendingMoves||[]
+        pendingMoves: state.pendingMoves||[],
+        contract: state.contract
       };
       localStorage.setItem(LS_KEY, JSON.stringify(plain));
     }catch(e){ /* noop */ }
@@ -6932,6 +7008,7 @@ if (typeof window.transfer === 'function'){
       state.pendingPayments = plain.pendingPayments||[];
       state.pendingMoves = plain.pendingMoves||[];
       state.noRentFromWomen = new Set(plain.noRentFromWomen||[]);
+      state.contract = plain.contract || null;
     }catch(e){ /* noop */ }
   }
 
@@ -6955,7 +7032,8 @@ if (typeof window.transfer === 'function'){
       statuses: Array.from(state.statuses||new Map()),
       pendingPayments: state.pendingPayments||[],
       pendingMoves: state.pendingMoves||[],
-      noRentFromWomen: Array.from(state.noRentFromWomen||[])
+      noRentFromWomen: Array.from(state.noRentFromWomen||[]),
+      contract: state.contract||null
     };
   };
   R.importState = function(obj){
@@ -6977,6 +7055,7 @@ if (typeof window.transfer === 'function'){
       state.pendingPayments = obj.pendingPayments||[];
       state.pendingMoves = obj.pendingMoves||[];
       state.noRentFromWomen = new Set(obj.noRentFromWomen||[]);
+      state.contract = obj.contract || null;
       saveState(); uiUpdate();
       return true;
     }catch(e){ return false; }
