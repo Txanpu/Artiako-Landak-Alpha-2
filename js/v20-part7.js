@@ -634,8 +634,7 @@ function checkBankrupt(p){
   renderAll();
 }
 function everyoneLoses(){
-  alert('El ESTADO ha eliminado a un jugador. Todos pierden.');
-  location.reload();
+  endGame('El ESTADO ha eliminado a un jugador. Todos pierden.');
 }
 
 /* =================== IA del ESTADO (ligera) =================== */
