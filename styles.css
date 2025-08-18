@@ -25,7 +25,7 @@ body{
 }
 
 html.mobile{
-  font-size:6.25%;
+  font-size:18.75%;
 }
 html.mobile body{
   grid-template-columns:1fr;
