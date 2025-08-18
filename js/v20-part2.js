@@ -12,6 +12,9 @@ function colorFor(tile){ if(!tile) return '#475569'; const k=(tile.color||tile.s
 
 const V13 = { tiles:[], state:null, els:[], boardEl:null };
 
+// Emojis para representar las fichas de los jugadores
+const PLAYER_EMOJIS = ['😃', '🤖', '🦊', '🐸', '🐼', '🐵'];
+
 /* ==== CONFIG editable ==== */
 const HCOUNT = 10;     // nº de casillas por lado horizontal (incluye esquinas)
 const PAD_PX = 12;     // margen interior
@@ -101,7 +104,7 @@ function refreshTile(i){
       here.forEach((p, idx) => {
         const c = document.createElement('div');
         c.className = `chip p${p.id}`;
-        c.textContent = (p.id + 1);
+        c.textContent = PLAYER_EMOJIS[p.id % PLAYER_EMOJIS.length] || '';
         if (here.length > 2) {
           const {row, col} = pos[idx] || pos[0];
           c.style.gridRow = row;
