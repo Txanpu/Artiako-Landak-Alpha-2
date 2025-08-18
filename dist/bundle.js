@@ -2320,10 +2320,16 @@ async function onLand(p, idx){
 function resolverCarta(carta, jugador, idx) {
   const getPlayerById = (id) => (id === 'E' || id === Estado) ? Estado : state.players[id];
 
-  // v22: carta/evento unificado
+  // v22: carta/evento unificado. Si Roles no maneja la carta, se ejecuta el efecto por defecto.
+  const name = carta && (carta.nombre || carta.name);
   const out = (window.Roles && Roles.triggerEvent)
-    ? Roles.triggerEvent(carta && carta.nombre, { playerId: jugador.id, tileId: idx })
+    ? Roles.triggerEvent(name, { playerId: jugador.id, tileId: idx })
     : null;
+
+  if ((!out || out.handled !== true) && typeof carta?.run === 'function') {
+    try { carta.run(jugador); } catch (e) { console.error(e); }
+  }
+
   if (out && out.banner) { alert(out.banner); }
 
   // Aplica colas de pagos y movimientos
@@ -2349,6 +2355,7 @@ function resolverCarta(carta, jugador, idx) {
     if (mv.effect === 'skip')  addSkipTurn(getPlayerById(mv.playerId), mv.turns);
   }
 }
+
 
 
 /* ===== Subastas ===== */
@@ -2839,6 +2846,11 @@ function animateTransportHop(player, fromIdx, toIdx, done){
       done?.();
     }, { once:true });
   } catch{ done?.(); }
+}
+
+// Export for testing
+if (typeof module !== 'undefined') {
+  module.exports = { resolverCarta };
 }
 
 /*
